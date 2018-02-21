@@ -1,6 +1,6 @@
 
 mod requirements;
-use self::requirements::*;
+//use self::requirements::*;
 
 mod setup;
 
@@ -25,7 +25,9 @@ pub enum VulkanLogLevel {
 }
 
 pub struct Renderer<S> {
+    #[allow(dead_code)] // We don't use this directly, FFI uses it
     debug_callback: Option<DebugReportCallbackExt>,
+    #[allow(dead_code)] // This must stay alive until we shut down
     instance: Instance,
     state: Arc<S>,
     window: Arc<Window>,
