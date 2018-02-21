@@ -1,14 +1,18 @@
 
+mod requirements;
+use self::requirements::*;
+
+mod setup;
+
+
 use errors::*;
 use std::sync::Arc;
 use config::Config;
 use winit::Window;
 use dacite::core::Instance;
+use dacite::ext_debug_report::{DebugReportFlagsExt, DebugReportObjectTypeExt,
+                               DebugReportCallbackExt, DebugReportCallbacksExt};
 
-mod requirements;
-use self::requirements::*;
-
-mod setup;
 
 #[derive(Deserialize, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
@@ -21,6 +25,7 @@ pub enum VulkanLogLevel {
 }
 
 pub struct Renderer<S> {
+    debug_callback: Option<DebugReportCallbackExt>,
     instance: Instance,
     state: Arc<S>,
     window: Arc<Window>,
@@ -72,11 +77,85 @@ impl<S> Renderer<S> {
             Instance::create(&create_info, None)?
         };
 
+        let debug_callback = if config.vulkan_debug_output {
+            use dacite::ext_debug_report::{
+                DebugReportCallbackCreateInfoExt, DebugReportFlagsExt};
+
+            let flags = {
+                let mut flags = DebugReportFlagsExt::ERROR;
+                if config.vulkan_log_level >= VulkanLogLevel::Warning {
+                    flags |= DebugReportFlagsExt::WARNING;
+                }
+                if config.vulkan_log_level >= VulkanLogLevel::PerformanceWarning {
+                    flags |= DebugReportFlagsExt::PERFORMANCE_WARNING;
+                }
+                if config.vulkan_log_level >= VulkanLogLevel::Information {
+                    flags |= DebugReportFlagsExt::INFORMATION;
+                }
+                if config.vulkan_log_level >= VulkanLogLevel::Debug {
+                    flags |= DebugReportFlagsExt::DEBUG;
+                }
+                flags
+            };
+
+            let create_info = DebugReportCallbackCreateInfoExt {
+                flags: flags,
+                callback: Arc::new(DebugCallback),
+                chain: None,
+            };
+
+            let debug_callback = instance.create_debug_report_callback_ext(&create_info, None)?;
+            Some(debug_callback)
+        } else {
+            None
+        };
+
         Ok(Renderer {
+            debug_callback: debug_callback,
             instance: instance,
             state: state,
             window: window,
             config: config
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct DebugCallback;
+
+impl DebugReportCallbacksExt for DebugCallback {
+    fn callback(
+        &self,
+        flags: DebugReportFlagsExt,
+        _object_type: DebugReportObjectTypeExt,
+        _object: u64,
+        _location: usize,
+        _message_code: i32,
+        _layer_prefix: Option<&str>,
+        message: Option<&str>) -> bool
+    {
+        if let Some(m) = message {
+            if flags.intersects(DebugReportFlagsExt::ERROR) {
+                error!("\r\n  vk: {}", m);
+            }
+            else if flags.intersects(DebugReportFlagsExt::WARNING) {
+                warn!("\r\n  vk: {}", m);
+            }
+            else if flags.intersects(DebugReportFlagsExt::PERFORMANCE_WARNING) {
+                warn!("\r\n  vk: {}", m);
+            }
+            else if flags.intersects(DebugReportFlagsExt::INFORMATION) {
+                info!("\r\n  vk: {}", m);
+            }
+            else if flags.intersects(DebugReportFlagsExt::DEBUG) {
+                debug!("\r\n  vk: {}", m);
+            }
+        }
+
+        // We should return true here ONLY IF this was a validation ERROR (not warning
+        // or info).
+        //
+        // We want to fail on warnings too
+        flags.intersects(DebugReportFlagsExt::ERROR | DebugReportFlagsExt::WARNING)
     }
 }
