@@ -40,6 +40,9 @@ extern crate chrono;
 pub const MAX_WIDTH: u32 = 3840;
 pub const MAX_HEIGHT: u32 = 2160;
 
+pub mod errors;
+pub use errors::*;
+
 pub mod config;
 pub use config::Config;
 
