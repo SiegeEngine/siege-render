@@ -3,6 +3,10 @@ use errors::*;
 use std::sync::Arc;
 use config::Config;
 use winit::Window;
+use dacite::core::Instance;
+
+mod requirements;
+use self::requirements::*;
 
 #[derive(Deserialize, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
