@@ -14,16 +14,18 @@ pub enum VulkanLogLevel {
     Debug
 }
 
-pub struct Renderer {
+pub struct Renderer<S> {
+    state: Arc<S>,
     window: Arc<Window>,
     config: Arc<Config>,
 }
 
-impl Renderer {
-    pub fn new(config: Arc<Config>, window: Arc<Window>)
-               -> Result<Renderer>
+impl<S> Renderer<S> {
+    pub fn new(config: Arc<Config>, window: Arc<Window>, state: Arc<S>)
+               -> Result<Renderer<S>>
     {
         Ok(Renderer {
+            state: state,
             window: window,
             config: config
         })
