@@ -9,10 +9,11 @@ use errors::*;
 use std::sync::Arc;
 use config::Config;
 use winit::Window;
+use dacite_winit::WindowExt;
 use dacite::core::Instance;
 use dacite::ext_debug_report::{DebugReportFlagsExt, DebugReportObjectTypeExt,
                                DebugReportCallbackExt, DebugReportCallbacksExt};
-
+use dacite::khr_surface::SurfaceKhr;
 
 #[derive(Deserialize, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
@@ -25,6 +26,7 @@ pub enum VulkanLogLevel {
 }
 
 pub struct Renderer<S> {
+    surface: SurfaceKhr,
     #[allow(dead_code)] // We don't use this directly, FFI uses it
     debug_callback: Option<DebugReportCallbackExt>,
     #[allow(dead_code)] // This must stay alive until we shut down
@@ -112,7 +114,16 @@ impl<S> Renderer<S> {
             None
         };
 
+        let surface = {
+            use dacite_winit::SurfaceCreateFlags;
+            window.create_surface(
+                &instance,
+                SurfaceCreateFlags::empty(),
+                None)?
+        };
+
         Ok(Renderer {
+            surface: surface,
             debug_callback: debug_callback,
             instance: instance,
             state: state,
