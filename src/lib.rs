@@ -35,11 +35,13 @@ extern crate siege_math;
 // time
 extern crate chrono;
 
+// These maximums are due to the size of memory chunks that we define in
+// graphics/memory.rs.  4K resolution is the maximum that we support.
+pub const MAX_WIDTH: u32 = 3840;
+pub const MAX_HEIGHT: u32 = 2160;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+pub mod config;
+pub use config::Config;
+
+pub mod renderer;
+pub use renderer::Renderer;
