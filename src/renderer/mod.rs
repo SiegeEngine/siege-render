@@ -3,12 +3,14 @@ mod setup;
 
 use std::sync::Arc;
 
-use dacite::core::Instance;
+use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
+                   PhysicalDeviceFeatures, PhysicalDeviceMemoryProperties,
+                   Device};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
 
-use self::setup::Physical;
+use self::setup::{Physical, QueueIndices};
 use errors::*;
 use config::Config;
 
@@ -23,7 +25,12 @@ pub enum VulkanLogLevel {
 }
 
 pub struct Renderer<S> {
-    physical: Physical,
+    device: Device,
+    queue_indices: QueueIndices,
+    ph_mem_props: PhysicalDeviceMemoryProperties,
+    ph_feats: PhysicalDeviceFeatures,
+    ph_props: PhysicalDeviceProperties,
+    ph: PhysicalDevice,
     surface: SurfaceKhr,
     #[allow(dead_code)] // We don't use this directly, FFI uses it
     debug_callback: Option<DebugReportCallbackExt>,
@@ -44,11 +51,25 @@ impl<S> Renderer<S> {
 
         let surface = setup::setup_surface(&window, &instance)?;
 
-        let physical = setup::find_suitable_device(
-            &config, &instance, &surface)?;
+        let Physical {
+            physical_device,
+            physical_device_properties,
+            physical_device_features,
+            physical_device_memory_properties,
+            queue_indices,
+            device_extensions
+        } = setup::find_suitable_device( &config, &instance, &surface)?;
+
+        let device = setup::create_device(
+            &physical_device, device_extensions, &queue_indices)?;
 
         Ok(Renderer {
-            physical: physical,
+            device: device,
+            queue_indices: queue_indices,
+            ph_mem_props: physical_device_memory_properties,
+            ph_feats: physical_device_features,
+            ph_props: physical_device_properties,
+            ph: physical_device,
             surface: surface,
             debug_callback: debug_callback,
             instance: instance,

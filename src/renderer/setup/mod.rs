@@ -9,13 +9,15 @@ pub use self::physical::{Physical, find_suitable_device};
 
 use std::sync::Arc;
 
-use dacite::core::{InstanceExtensions, Instance};
+use dacite::core::{InstanceExtensions, Instance, PhysicalDevice, DeviceExtensions,
+                   Device};
 use dacite::ext_debug_report::{DebugReportFlagsExt, DebugReportObjectTypeExt,
                                DebugReportCallbackExt, DebugReportCallbacksExt};
 use dacite::khr_surface::SurfaceKhr;
 use dacite_winit::WindowExt;
 use winit::Window;
 
+use self::requirements::FEATURES_NEEDED;
 use config::Config;
 use errors::*;
 use renderer::VulkanLogLevel;
@@ -168,4 +170,56 @@ pub fn setup_surface(window: &Window, instance: &Instance) -> Result<SurfaceKhr>
         &instance,
         SurfaceCreateFlags::empty(),
         None)?)
+}
+
+pub fn create_device(physical_device: &PhysicalDevice,
+                     device_extensions: DeviceExtensions,
+                     queue_indices: &QueueIndices)
+                     -> Result<Device>
+{
+    use dacite::core::{DeviceQueueCreateInfo, DeviceQueueCreateFlags,
+                       DeviceCreateInfo, DeviceCreateFlags};
+
+    let mut queues: Vec<(u32, u32)> = vec![
+        (queue_indices.graphics_family, queue_indices.graphics_index)];
+
+    if let Some(i) = queues.iter()
+        .position(|&(f,_)| f==queue_indices.present_family)
+    {
+        queues[i].1 = queues[i].1.max(queue_indices.present_index);
+    } else {
+        queues.push((queue_indices.present_family, queue_indices.present_index));
+    }
+
+    if let Some(i) = queues.iter()
+        .position(|&(f,_)| f==queue_indices.transfer_family)
+    {
+        queues[i].1 = queues[i].1.max(queue_indices.transfer_index);
+    } else {
+        queues.push((queue_indices.transfer_family, queue_indices.transfer_index));
+    }
+
+    let device_queue_create_infos = queues.iter().map(|&(family,maxqueue)| {
+        let mut priorities: Vec<f32> = Vec::new();
+        for _ in 0..maxqueue+1 {
+            priorities.push(1.0);
+        }
+        DeviceQueueCreateInfo {
+            flags: DeviceQueueCreateFlags::empty(),
+            queue_family_index: family,
+            queue_priorities: priorities,
+            chain: None,
+        }
+    }).collect();
+
+    let device_create_info = DeviceCreateInfo {
+        flags: DeviceCreateFlags::empty(),
+        queue_create_infos: device_queue_create_infos,
+        enabled_layers: vec![],
+        enabled_extensions: device_extensions,
+        enabled_features: Some(FEATURES_NEEDED),
+        chain: None,
+    };
+
+    Ok(physical_device.create_device(&device_create_info, None)?)
 }
