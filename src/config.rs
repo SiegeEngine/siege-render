@@ -17,6 +17,12 @@ use renderer::VulkanLogLevel;
     true
 }
 #[inline] fn default_vsync() -> bool { true }
+#[inline] fn default_gpu_memory_required() -> u64 { 9216000 }
+#[inline] fn default_max_descriptor_sets() -> u32 { 16 }
+#[inline] fn default_max_uniform_buffers() -> u32 { 2 }
+#[inline] fn default_max_samplers() -> u32 { 2 }
+#[inline] fn default_max_sampled_images() -> u32 { 2 }
+#[inline] fn default_max_combined_image_samplers() -> u32 { 10 }
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
@@ -34,6 +40,18 @@ pub struct Config {
     pub reversed_depth_buffer: bool,
     #[serde(default = "default_vsync")]
     pub vsync: bool,
+    #[serde(default = "default_gpu_memory_required")]
+    pub gpu_memory_required: u64,
+    #[serde(default = "default_max_descriptor_sets")]
+    pub max_descriptor_sets: u32,
+    #[serde(default = "default_max_uniform_buffers")]
+    pub max_uniform_buffers: u32,
+    #[serde(default = "default_max_samplers")]
+    pub max_samplers: u32,
+    #[serde(default = "default_max_sampled_images")]
+    pub max_sampled_images: u32,
+    #[serde(default = "default_max_combined_image_samplers")]
+    pub max_combined_image_samplers: u32,
 }
 
 impl Default for Config {
@@ -46,6 +64,12 @@ impl Default for Config {
             fps_cap: default_fps_cap(),
             reversed_depth_buffer: default_reversed_depth_buffer(),
             vsync: default_vsync(),
+            gpu_memory_required: default_gpu_memory_required(),
+            max_descriptor_sets: default_max_descriptor_sets(),
+            max_uniform_buffers: default_max_uniform_buffers(),
+            max_samplers: default_max_samplers(),
+            max_sampled_images: default_max_sampled_images(),
+            max_combined_image_samplers: default_max_combined_image_samplers(),
         }
     }
 }
@@ -62,6 +86,13 @@ impl fmt::Debug for Config {
         writeln!(f, "    reversed_depth_buffer: {:?}", self.reversed_depth_buffer)?;
         writeln!(f, "    FPS cap: {}", self.fps_cap)?;
         writeln!(f, "    vsync: {}", self.vsync)?;
+        writeln!(f, "    have a least: {} memory", self.gpu_memory_required)?;
+        writeln!(f, "    Allocated desc sets: {}", self.max_descriptor_sets)?;
+        writeln!(f, "    Allocated desc for uniform buffers: {}", self.max_uniform_buffers)?;
+        writeln!(f, "    Allocated desc for samplers: {}", self.max_samplers)?;
+        writeln!(f, "    Allocated desc for sampled images: {}", self.max_sampled_images)?;
+        writeln!(f, "    Allocated desc for combined image samplers: {}", self.max_combined_image_samplers)?;
+
         Ok(())
     }
 }
