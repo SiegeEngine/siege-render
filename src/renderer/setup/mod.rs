@@ -181,7 +181,10 @@ pub fn create_device(physical_device: &PhysicalDevice,
                        DeviceCreateInfo, DeviceCreateFlags};
 
     let mut queues: Vec<(u32, u32)> = vec![
-        (queue_indices.graphics_family, queue_indices.graphics_index)];
+        (queue_indices.graphics_family,
+         queue_indices.graphics_index_1),
+        (queue_indices.graphics_family,
+         queue_indices.graphics_index_2)];
 
     if let Some(i) = queues.iter()
         .position(|&(f,_)| f==queue_indices.present_family)
