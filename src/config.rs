@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use std::fmt;
 use renderer::VulkanLogLevel;
 
+#[inline] fn default_major_version() -> u32 { 0 }
+#[inline] fn default_minor_version() -> u32 { 1 }
+#[inline] fn default_patch_version() -> u32 { 0 }
 #[inline] fn default_asset_path() -> PathBuf { PathBuf::from("assets") }
 #[inline] fn default_vulkan_debug_output() -> bool { cfg!(debug_assertions) }
 #[inline] fn default_vulkan_log_level() -> VulkanLogLevel {
@@ -26,6 +29,12 @@ use renderer::VulkanLogLevel;
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
+    #[serde(default = "default_major_version")]
+    pub major_version: u32,
+    #[serde(default = "default_minor_version")]
+    pub minor_version: u32,
+    #[serde(default = "default_patch_version")]
+    pub patch_version: u32,
     #[serde(default = "default_asset_path")]
     pub asset_path: PathBuf,
     #[serde(default = "default_vulkan_debug_output")]
@@ -57,6 +66,9 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
+            major_version: default_major_version(),
+            minor_version: default_minor_version(),
+            patch_version: default_patch_version(),
             asset_path: default_asset_path(),
             vulkan_debug_output: default_vulkan_debug_output(),
             vulkan_log_level: default_vulkan_log_level(),
@@ -76,14 +88,20 @@ impl Default for Config {
 
 impl fmt::Debug for Config {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "    asset_path: {:?}", self.asset_path)?;
-        writeln!(f, "    vulkan_debug_output: {:?}", self.vulkan_debug_output)?;
-        writeln!(f, "    vulkan_log_level: {:?}", self.vulkan_log_level)?;
-        writeln!(f, "    vulkan_log_layers:")?;
+        writeln!(f, "    App version: {}.{}.{}",
+                 self.major_version, self.minor_version, self.patch_version)?;
+        writeln!(f, "    Renderer version: {}.{}.{}",
+                 env!("CARGO_PKG_VERSION_MAJOR"),
+                 env!("CARGO_PKG_VERSION_MINOR"),
+                 env!("CARGO_PKG_VERSION_PATCH"))?;
+        writeln!(f, "    Asset path: {:?}", self.asset_path)?;
+        writeln!(f, "    Vulkan debug output: {:?}", self.vulkan_debug_output)?;
+        writeln!(f, "    Vulkan log level: {:?}", self.vulkan_log_level)?;
+        writeln!(f, "    Vulkan log layers:")?;
         for layer in &self.vulkan_layers {
             writeln!(f, "      {}", layer)?;
         }
-        writeln!(f, "    reversed_depth_buffer: {:?}", self.reversed_depth_buffer)?;
+        writeln!(f, "    Reversed depth buffer: {:?}", self.reversed_depth_buffer)?;
         writeln!(f, "    FPS cap: {}", self.fps_cap)?;
         writeln!(f, "    vsync: {}", self.vsync)?;
         writeln!(f, "    have a least: {} memory", self.gpu_memory_required)?;
