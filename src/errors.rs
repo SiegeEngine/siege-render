@@ -24,5 +24,9 @@ error_chain! {
             description("General Error"),
             display("General Error: '{}'", s),
         }
+        MissingExtensions(s: String) {
+            description("Vulkan Extensions Missing"),
+            display("Vulkan Extensions Missing: '{}'", s),
+        }
     }
 }
