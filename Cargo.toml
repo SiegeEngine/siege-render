@@ -2,5 +2,8 @@
 name = "siege-render"
 version = "0.1.0"
 authors = ["Mike Dilger <mike@optcomp.nz>"]
+description = "Siege Game Engine Rendering Component"
+readme = "README.md"
+license = "PROPRIETARY"
 
 [dependencies]
