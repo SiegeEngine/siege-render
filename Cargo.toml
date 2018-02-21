@@ -1,0 +1,6 @@
+[package]
+name = "siege-render"
+version = "0.1.0"
+authors = ["Mike Dilger <mike@optcomp.nz>"]
+
+[dependencies]
