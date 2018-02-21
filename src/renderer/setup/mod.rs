@@ -1,4 +1,12 @@
 
+pub mod requirements;
+
+mod queue_indices;
+pub use self::queue_indices::QueueIndices;
+
+mod physical;
+pub use self::physical::{Physical, find_suitable_device};
+
 use std::sync::Arc;
 
 use dacite::core::{InstanceExtensions, Instance};

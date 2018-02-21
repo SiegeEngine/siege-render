@@ -28,5 +28,13 @@ error_chain! {
             description("Vulkan Extensions Missing"),
             display("Vulkan Extensions Missing: '{}'", s),
         }
+        NoSuitableDevice {
+            description("No Suitable Graphics Device Found"),
+        }
+        DeviceNotSuitable(s: String) {
+            description("Device not suitable"),
+            display("Device not suitable: '{}'", s),
+        }
+
     }
 }

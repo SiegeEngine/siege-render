@@ -3,7 +3,7 @@
  * as they are highly data and usage dependent
  */
 
-//use dacite::core::{PhysicalDeviceFeatures, Format, FormatProperties};
+use dacite::core::{PhysicalDeviceFeatures, Format, FormatProperties};
 
 // This is used to determine the size of the staging buffer
 //pub const MAX_GPU_UPLOAD: u64 = ::graphics::memory::CHUNK_SIZE;
@@ -11,15 +11,14 @@
 // This is the most common depth format supported on graphics hardware.
 // (see http://vulkan.gpuinfo.org) and it is a good resolution, and it is
 // floating-point (so reverse z-buffering works).
-//pub const DEPTH_FORMAT: Format = Format::D32_SFloat;
+pub const DEPTH_FORMAT: Format = Format::D32_SFloat;
 
-//pub const SWAPCHAIN_FORMAT: Format = Format::B8G8R8A8_sRGB;
+pub const SWAPCHAIN_FORMAT: Format = Format::B8G8R8A8_sRGB;
 
-//pub const SHADING_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
+pub const SHADING_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
 
 //pub const BRIGHT_AND_BLUR_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
 
-/*
 pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
     large_points: true,
     sampler_anisotropy: true, // FIXME - we want this, we dont need it.
@@ -80,9 +79,7 @@ pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
     variable_multisample_rate: false,
     inherited_queries: false,
 };
- */
 
-/*
 // FIXME: make a const fn once that is stable
 pub fn get_formats_needed() ->  [(Format, FormatProperties); 6] {
     use dacite::core::FormatFeatureFlags;
@@ -127,8 +124,7 @@ pub fn get_formats_needed() ->  [(Format, FormatProperties); 6] {
         // Radeon R7 360 supports: BC1, BC2, BC3, BC4, BC5, BC6H, BC7
     ]
 }
- */
 
-//pub const PUSH_CONSTANTS_SIZE_REQUIRED: u32 = 0;
-//pub const COLOR_ATTACHMENT_COUNT_REQUIRED: u32 = 1;
-//pub const FRAMEBUFFER_LAYERS_REQUIRED: u32 = 1;
+pub const PUSH_CONSTANTS_SIZE_REQUIRED: u32 = 0;
+pub const COLOR_ATTACHMENT_COUNT_REQUIRED: u32 = 1;
+pub const FRAMEBUFFER_LAYERS_REQUIRED: u32 = 1;
