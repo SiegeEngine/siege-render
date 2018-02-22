@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    PhysicalDeviceFeatures, PhysicalDeviceMemoryProperties,
-                   Device};
+                   Device, Queue};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -36,6 +36,7 @@ pub struct Renderer {
     // graphics_queue_late: Queue,
 
 
+    present_queue: Queue,
     device: Device,
     queue_indices: QueueIndices,
     ph_mem_props: PhysicalDeviceMemoryProperties,
@@ -73,7 +74,11 @@ impl Renderer {
         let device = setup::create_device(
             &physical_device, device_extensions, &queue_indices)?;
 
+        let present_queue = device.get_queue(queue_indices.present_family,
+                                             queue_indices.present_index);
+
         Ok(Renderer {
+            present_queue: present_queue,
             device: device,
             queue_indices: queue_indices,
             ph_mem_props: physical_device_memory_properties,
