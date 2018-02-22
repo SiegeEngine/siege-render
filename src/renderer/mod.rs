@@ -30,12 +30,10 @@ pub struct Renderer {
     // data_late: GpuDataLate,
     // command_buffer_early: CommandBuffer,
     // command_buffer_late: CommandBuffer,
-    // fence_yin_finished: Fence,
-    // fence_yin_halfway: Fence,
-    // fence_yang_finished: Fence,
-    // fence_yang_halfway: Fence,
-    // graphics_queue_yin: Queue,
-    // graphics_queue_yang: Queue,
+    // fence_halfway: Fence,
+    // fence_finished: Fence,
+    // graphics_queue_early: Queue,
+    // graphics_queue_late: Queue,
 
 
     device: Device,
@@ -100,8 +98,11 @@ impl Renderer {
 
         Note that we do not need multiple rust threads for this to occur.
 
-        We ensure that Phase-Early and Phase-Late commands do not utilize the same
-        GPU writable data, except in read-only ways.
+        We transfer the ownership of the Shading buffer from the Early queue
+        to the Late queue halfway in, and transfer it back at the end.
+
+        We ensure that Phase-Early and Phase-Late commands do not utilize the
+        same GPU writable data, except in read-only ways.
 
         Writable data utilized only during Phase-Early on the leading frame
         * Depth Buffer
@@ -119,35 +120,28 @@ impl Renderer {
 
         We have to split the uploaded data into two sets, because the leading
         frame needs leading data, but the lagging frame ought to use lagging data
-        to remain consistant.  This means, for instance, two camera uniform sets.
+        to remain consistant with the prior work.  This means, for instance,
+        two camera uniform sets.
         */
 
         // (data_early, leading_data_late) = UpdateData();
         // Upload (data_early)
 
-        // submit CmdBufEarly half to QueueYin, fence=drawYin_halfway
-        // wait on drawYin_halfway
+        // submit CmdBufEarly half to QueueEarly, fence=fence_halfway
+        // wait on fence_halfway
 
         loop {
-            // data_late = leading_data_late;
-            // (data_early, leading_data_late) = UpdateData();
-            // Upload (data_early, data_late)
-
-            // submit CmdBufLate to QueueYin, fence=drawYin_finished
-            // submit CmdBufEarly to QueueYang, fence=drawYang_halfway
-            // wait on drawYin_finished
-            // Present swapchain Yin
-            // wait on drawYang_halfway
+            // bump swapchain index
 
             // data_late = leading_data_late;
             // (data_early, leading_data_late) = UpdateData();
             // Upload (data_early, data_late)
 
-            // submit CmdBufLate to QueueYang, fence=drawYang_finished
-            // submit CmdBufEarly to QueueYin, fence=drawYin_halfway
-            // wait on drawYang_finished
-            // Present swapchain Yang
-            //wait on drawYin_halfway
+            // submit CmdBufEarly to QueueEarly, fence=draw_halfway
+            // submit CmdBufLate to QueueLate, fence=draw_finished
+            // wait on drawLate_finished
+            // Present swapchain Late
+            // wait on drawEarly_halfway
         }
     }
 }
