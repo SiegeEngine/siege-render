@@ -20,6 +20,8 @@ use renderer::VulkanLogLevel;
     true
 }
 #[inline] fn default_vsync() -> bool { true }
+#[inline] fn default_width() -> u32 { 800 }
+#[inline] fn default_height() -> u32 { 600 }
 #[inline] fn default_gpu_memory_required() -> u64 { 9216000 }
 #[inline] fn default_max_descriptor_sets() -> u32 { 16 }
 #[inline] fn default_max_uniform_buffers() -> u32 { 2 }
@@ -49,6 +51,10 @@ pub struct Config {
     pub reversed_depth_buffer: bool,
     #[serde(default = "default_vsync")]
     pub vsync: bool,
+    #[serde(default = "default_width")]
+    pub width: u32,
+    #[serde(default = "default_height")]
+    pub height: u32,
     #[serde(default = "default_gpu_memory_required")]
     pub gpu_memory_required: u64,
     #[serde(default = "default_max_descriptor_sets")]
@@ -76,6 +82,8 @@ impl Default for Config {
             fps_cap: default_fps_cap(),
             reversed_depth_buffer: default_reversed_depth_buffer(),
             vsync: default_vsync(),
+            width: default_width(),
+            height: default_height(),
             gpu_memory_required: default_gpu_memory_required(),
             max_descriptor_sets: default_max_descriptor_sets(),
             max_uniform_buffers: default_max_uniform_buffers(),
@@ -104,6 +112,8 @@ impl fmt::Debug for Config {
         writeln!(f, "    Reversed depth buffer: {:?}", self.reversed_depth_buffer)?;
         writeln!(f, "    FPS cap: {}", self.fps_cap)?;
         writeln!(f, "    vsync: {}", self.vsync)?;
+        writeln!(f, "    width: {}", self.width)?;
+        writeln!(f, "    height: {}", self.height)?;
         writeln!(f, "    have a least: {} memory", self.gpu_memory_required)?;
         writeln!(f, "    Allocated desc sets: {}", self.max_descriptor_sets)?;
         writeln!(f, "    Allocated desc for uniform buffers: {}", self.max_uniform_buffers)?;

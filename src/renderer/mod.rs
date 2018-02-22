@@ -2,19 +2,24 @@
 mod setup;
 
 mod memory;
-use self::memory::Memory;
 
 mod image_wrap;
+
+mod surface_data;
+
+mod swapchain_data;
 
 use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
-                   PhysicalDeviceFeatures, Device, Queue};
+                   PhysicalDeviceFeatures, Device, Queue, Extent2D};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
 
 use self::setup::{Physical, QueueIndices};
+use self::memory::Memory;
+use self::swapchain_data::SwapchainData;
 use errors::*;
 use config::Config;
 
@@ -39,6 +44,7 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue,
 
+    swapchain_data: SwapchainData,
     memory: Memory,
     present_queue: Queue,
     device: Device,
@@ -83,7 +89,13 @@ impl Renderer {
         let memory = Memory::new(physical_device_memory_properties,
                                  &physical_device_properties);
 
+        let swapchain_data = SwapchainData::create(
+            &physical_device, &device, &surface,
+            Extent2D { width: config.width, height: config.height },
+            &queue_indices, config.vsync)?;
+
         Ok(Renderer {
+            swapchain_data: swapchain_data,
             memory: memory,
             present_queue: present_queue,
             device: device,

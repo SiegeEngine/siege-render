@@ -38,5 +38,8 @@ error_chain! {
         OutOfGraphicsMemory {
             description("Out of graphics memory (or memory type requested does not exist)"),
         }
+        NoSuitableSurfaceFormat {
+            description("No Suitable Surface Format Found"),
+        }
     }
 }
