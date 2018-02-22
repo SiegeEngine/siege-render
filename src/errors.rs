@@ -35,6 +35,8 @@ error_chain! {
             description("Device not suitable"),
             display("Device not suitable: '{}'", s),
         }
-
+        OutOfGraphicsMemory {
+            description("Out of graphics memory (or memory type requested does not exist)"),
+        }
     }
 }

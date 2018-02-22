@@ -1,11 +1,13 @@
 
 mod setup;
 
+mod memory;
+use self::memory::Memory;
+
 use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
-                   PhysicalDeviceFeatures, PhysicalDeviceMemoryProperties,
-                   Device, Queue};
+                   PhysicalDeviceFeatures, Device, Queue};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -35,11 +37,10 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue,
 
-
+    memory: Memory,
     present_queue: Queue,
     device: Device,
     queue_indices: QueueIndices,
-    ph_mem_props: PhysicalDeviceMemoryProperties,
     ph_feats: PhysicalDeviceFeatures,
     ph_props: PhysicalDeviceProperties,
     ph: PhysicalDevice,
@@ -77,11 +78,14 @@ impl Renderer {
         let present_queue = device.get_queue(queue_indices.present_family,
                                              queue_indices.present_index);
 
+        let memory = Memory::new(physical_device_memory_properties,
+                                 &physical_device_properties);
+
         Ok(Renderer {
+            memory: memory,
             present_queue: present_queue,
             device: device,
             queue_indices: queue_indices,
-            ph_mem_props: physical_device_memory_properties,
             ph_feats: physical_device_features,
             ph_props: physical_device_properties,
             ph: physical_device,
