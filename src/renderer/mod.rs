@@ -4,6 +4,8 @@ mod setup;
 mod memory;
 use self::memory::Memory;
 
+mod image_wrap;
+
 use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
