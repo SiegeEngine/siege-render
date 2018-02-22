@@ -1,11 +1,13 @@
 
 mod setup;
 mod memory;
+mod buffer;
 mod image_wrap;
 mod surface_data;
 mod swapchain_data;
 mod commander;
 
+pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
 
 use std::sync::Arc;
