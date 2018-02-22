@@ -1,15 +1,12 @@
 
 mod setup;
-
 mod memory;
-
 mod image_wrap;
-
 mod surface_data;
-
 mod swapchain_data;
-
 mod commander;
+
+pub use self::image_wrap::ImageWrap;
 
 use std::sync::Arc;
 
@@ -101,6 +98,7 @@ impl Renderer {
         let commander = Commander::new(
             &device, &queue_indices,
             swapchain_data.images.len() as u32)?;
+
 
         Ok(Renderer {
             commander: commander,

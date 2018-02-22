@@ -47,4 +47,5 @@ pub mod config;
 pub use config::Config;
 
 pub mod renderer;
-pub use renderer::Renderer;
+pub use renderer::{Renderer, ImageWrap};
+
