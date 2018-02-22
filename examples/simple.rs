@@ -10,8 +10,6 @@ use winit::EventsLoop;
 
 use siege_render::{Config, Renderer};
 
-pub struct State;
-
 pub fn main() {
 
     simple_logger::init().unwrap();
@@ -43,8 +41,6 @@ pub fn main() {
         Arc::new(window)
     };
 
-    let arc_state = Arc::new(State);
-
-    let renderer = Renderer::new(arc_config.clone(), arc_window.clone(), arc_state.clone())
+    let renderer = Renderer::new(arc_config.clone(), arc_window.clone())
         .unwrap();
 }
