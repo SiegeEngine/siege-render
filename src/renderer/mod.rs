@@ -9,6 +9,8 @@ mod surface_data;
 
 mod swapchain_data;
 
+mod commander;
+
 use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
@@ -20,6 +22,7 @@ use winit::Window;
 use self::setup::{Physical, QueueIndices};
 use self::memory::Memory;
 use self::swapchain_data::SwapchainData;
+use self::commander::Commander;
 use errors::*;
 use config::Config;
 
@@ -44,9 +47,10 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue,
 
+    commander: Commander,
+    present_queue: Queue,
     swapchain_data: SwapchainData,
     memory: Memory,
-    present_queue: Queue,
     device: Device,
     queue_indices: QueueIndices,
     ph_feats: PhysicalDeviceFeatures,
@@ -83,9 +87,6 @@ impl Renderer {
         let device = setup::create_device(
             &physical_device, device_extensions, &queue_indices)?;
 
-        let present_queue = device.get_queue(queue_indices.present_family,
-                                             queue_indices.present_index);
-
         let memory = Memory::new(physical_device_memory_properties,
                                  &physical_device_properties);
 
@@ -94,10 +95,18 @@ impl Renderer {
             Extent2D { width: config.width, height: config.height },
             &queue_indices, config.vsync)?;
 
+        let present_queue = device.get_queue(queue_indices.present_family,
+                                             queue_indices.present_index);
+
+        let commander = Commander::new(
+            &device, &queue_indices,
+            swapchain_data.images.len() as u32)?;
+
         Ok(Renderer {
+            commander: commander,
+            present_queue: present_queue,
             swapchain_data: swapchain_data,
             memory: memory,
-            present_queue: present_queue,
             device: device,
             queue_indices: queue_indices,
             ph_feats: physical_device_features,
