@@ -8,7 +8,7 @@ mod physical;
 pub use self::physical::{Physical, find_suitable_device};
 
 use std::sync::Arc;
-
+use std::collections::HashMap;
 use dacite::core::{InstanceExtensions, Instance, PhysicalDevice, DeviceExtensions,
                    Device};
 use dacite::ext_debug_report::{DebugReportFlagsExt, DebugReportObjectTypeExt,
@@ -180,36 +180,26 @@ pub fn create_device(physical_device: &PhysicalDevice,
     use dacite::core::{DeviceQueueCreateInfo, DeviceQueueCreateFlags,
                        DeviceCreateInfo, DeviceCreateFlags};
 
-    let mut queues: Vec<(u32, u32)> = vec![
-        (queue_indices.graphics_family,
-         queue_indices.graphics_index_1),
-        (queue_indices.graphics_family,
-         queue_indices.graphics_index_2)];
+    let mut queues: HashMap<u32, u32> = HashMap::new();
 
-    if let Some(i) = queues.iter()
-        .position(|&(f,_)| f==queue_indices.present_family)
+    for &(fam,ind) in &[(queue_indices.graphics_family, queue_indices.graphics_index_1),
+                        (queue_indices.graphics_family, queue_indices.graphics_index_2),
+                        (queue_indices.present_family, queue_indices.present_index),
+                        (queue_indices.transfer_family, queue_indices.transfer_index)]
     {
-        queues[i].1 = queues[i].1.max(queue_indices.present_index);
-    } else {
-        queues.push((queue_indices.present_family, queue_indices.present_index));
+        let mut entry = queues.entry(fam).or_insert(ind);
+        if *entry < ind {  *entry = ind; }
     }
 
-    if let Some(i) = queues.iter()
-        .position(|&(f,_)| f==queue_indices.transfer_family)
-    {
-        queues[i].1 = queues[i].1.max(queue_indices.transfer_index);
-    } else {
-        queues.push((queue_indices.transfer_family, queue_indices.transfer_index));
-    }
 
-    let device_queue_create_infos = queues.iter().map(|&(family,maxqueue)| {
+    let device_queue_create_infos = queues.iter().map(|(family,maxqueue)| {
         let mut priorities: Vec<f32> = Vec::new();
         for _ in 0..maxqueue+1 {
             priorities.push(1.0);
         }
         DeviceQueueCreateInfo {
             flags: DeviceQueueCreateFlags::empty(),
-            queue_family_index: family,
+            queue_family_index: *family,
             queue_priorities: priorities,
             chain: None,
         }
