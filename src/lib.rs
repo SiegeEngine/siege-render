@@ -49,3 +49,6 @@ pub use config::Config;
 pub mod renderer;
 pub use renderer::{Renderer, ImageWrap};
 
+pub mod vertex;
+pub use vertex::{VulkanVertex, ColoredVertex, StandardVertex, GuiRectangleVertex,
+                 GrayboxVertex, CheapV1Vertex, CheapV2Vertex, StarVertex, CubemapVertex};
