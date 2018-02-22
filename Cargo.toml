@@ -24,3 +24,6 @@ chrono = { version="0.4", features = [ "serde" ] }
 [target.'cfg(windows)'.dependencies]
 user32-sys = "0.2"
 winapi = "0.2"
+
+[dev-dependencies]
+simple_logger = "*"
