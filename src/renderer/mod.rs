@@ -19,7 +19,10 @@ use std::sync::Arc;
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    PhysicalDeviceFeatures, Device, Queue, Extent2D,
                    ShaderModule, Rect2D, Viewport, Offset2D,
-                   DescriptorPool, Semaphore, Fence};
+                   DescriptorPool, Semaphore, Fence, PipelineLayoutCreateInfo,
+                   PipelineLayout, GraphicsPipelineCreateInfo,
+                   BufferUsageFlags, DescriptorSetLayoutCreateInfo,
+                   DescriptorSetLayout, DescriptorSet, Pipeline};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -88,8 +91,6 @@ impl Renderer {
     pub fn new(config: Arc<Config>, window: Arc<Window>)
                -> Result<Renderer>
     {
-        use dacite::core::BufferUsageFlags;
-
         let instance = setup::setup_instance(&config, &window)?;
 
         let debug_callback = setup::setup_debug_callback(&config, &instance)?;
@@ -233,5 +234,47 @@ impl Renderer {
     {
         self.resource_manager.load_texture(
             &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
+    }
+
+    pub fn create_pipeline_layout(&mut self, create_info: PipelineLayoutCreateInfo)
+                                  -> Result<PipelineLayout>
+    {
+        Ok(self.device.create_pipeline_layout(&create_info, None)?)
+    }
+
+    pub fn create_pipeline(&mut self,
+                           create_info: GraphicsPipelineCreateInfo)
+                           -> Result<Pipeline>
+    {
+        let create_infos = vec![create_info];
+        let pipelines = self.device.create_graphics_pipelines(None, &create_infos, None)
+            .map_err(|(e, _)| e)?;
+        Ok(pipelines[0].clone())
+    }
+
+    pub fn create_host_visible_buffer(&mut self, size: u64, flags: BufferUsageFlags,
+                                      lifetime: Lifetime, purpose: &str)
+                                      -> Result<HostVisibleBuffer<u8>>
+    {
+        HostVisibleBuffer::new(
+            &self.device, &mut self.memory,
+            size, flags, lifetime, purpose)
+    }
+
+    pub fn create_descriptor_set(&mut self, create_info: DescriptorSetLayoutCreateInfo)
+                                        -> Result<(DescriptorSetLayout, DescriptorSet)>
+    {
+        let layout = self.device.create_descriptor_set_layout(&create_info, None)?;
+
+        use dacite::core::DescriptorSetAllocateInfo;
+        let alloc_info = DescriptorSetAllocateInfo {
+            descriptor_pool: self.descriptor_pool.clone(),
+            set_layouts: vec![layout.clone()],
+            chain: None,
+        };
+        let mut descriptor_sets = DescriptorPool::allocate_descriptor_sets(&alloc_info)?;
+        let set = descriptor_sets.pop().unwrap();
+
+        Ok((layout, set))
     }
 }
