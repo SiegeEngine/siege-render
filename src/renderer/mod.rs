@@ -6,6 +6,7 @@ mod image_wrap;
 mod surface_data;
 mod swapchain_data;
 mod commander;
+mod mesh;
 
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
