@@ -21,7 +21,7 @@ use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
 
 use self::setup::{Physical, QueueIndices};
-use self::memory::Memory;
+use self::memory::{Memory, Lifetime};
 use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
 use self::resource_manager::ResourceManager;
@@ -49,6 +49,7 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue,
 
+    staging_buffer: HostVisibleBuffer<u8>,
     resource_manager: ResourceManager,
     commander: Commander,
     present_queue: Queue,
@@ -72,6 +73,8 @@ impl Renderer {
     pub fn new(config: Arc<Config>, window: Arc<Window>)
                -> Result<Renderer>
     {
+        use dacite::core::BufferUsageFlags;
+
         let instance = setup::setup_instance(&config, &window)?;
 
         let debug_callback = setup::setup_debug_callback(&config, &instance)?;
@@ -90,8 +93,8 @@ impl Renderer {
         let device = setup::create_device(
             &physical_device, device_extensions, &queue_indices)?;
 
-        let memory = Memory::new(physical_device_memory_properties,
-                                 &physical_device_properties);
+        let mut memory = Memory::new(physical_device_memory_properties,
+                                     &physical_device_properties);
 
         let swapchain_data = SwapchainData::create(
             &physical_device, &device, &surface,
@@ -108,7 +111,15 @@ impl Renderer {
         let resource_manager = ResourceManager::new(
             config.asset_path.clone());
 
+        let staging_buffer = HostVisibleBuffer::new(
+            &device, &mut memory,
+            ::renderer::setup::requirements::MAX_GPU_UPLOAD,
+            BufferUsageFlags::TRANSFER_SRC,
+            Lifetime::Permanent, "Staging Buffer"
+        )?;
+
         Ok(Renderer {
+            staging_buffer: staging_buffer,
             resource_manager: resource_manager,
             commander: commander,
             present_queue: present_queue,
