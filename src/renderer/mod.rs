@@ -249,6 +249,10 @@ impl Renderer {
             &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
     }
 
+    pub fn get_extent(&self) -> Extent2D {
+        self.swapchain_data.extent
+    }
+
     pub fn create_pipeline(&mut self,
                            desc_set_layouts: Vec<DescriptorSetLayout>,
                            vertex_shader: Option<&str>,
