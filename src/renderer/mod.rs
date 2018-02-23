@@ -16,8 +16,7 @@ pub use self::image_wrap::ImageWrap;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
-                   PhysicalDeviceFeatures, Device, Queue, Extent2D,
+use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    ShaderModule, Rect2D, Viewport, Offset2D,
                    DescriptorPool, Semaphore, Fence, PipelineLayoutCreateInfo,
                    PipelineLayout, GraphicsPipelineCreateInfo,
@@ -28,7 +27,7 @@ use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
 
-use self::setup::{Physical, QueueIndices};
+use self::setup::Physical;
 use self::memory::{Memory, Lifetime};
 use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
@@ -77,9 +76,9 @@ pub struct Renderer {
     swapchain_data: SwapchainData,
     memory: Memory,
     device: Device,
-    queue_indices: QueueIndices,
-    ph_feats: PhysicalDeviceFeatures,
-    ph_props: PhysicalDeviceProperties,
+    //queue_indices: QueueIndices,
+    //ph_feats: PhysicalDeviceFeatures,
+    //ph_props: PhysicalDeviceProperties,
     ph: PhysicalDevice,
     surface: SurfaceKhr,
     #[allow(dead_code)] // We don't use this directly, FFI uses it
@@ -100,6 +99,7 @@ impl Renderer {
 
         let surface = setup::setup_surface(&window, &instance)?;
 
+        #[allow(unused_variables)]
         let Physical {
             physical_device,
             physical_device_properties,
@@ -200,9 +200,9 @@ impl Renderer {
             swapchain_data: swapchain_data,
             memory: memory,
             device: device,
-            queue_indices: queue_indices,
-            ph_feats: physical_device_features,
-            ph_props: physical_device_properties,
+            //queue_indices: queue_indices,
+            //ph_feats: physical_device_features,
+            //ph_props: physical_device_properties,
             ph: physical_device,
             surface: surface,
             debug_callback: debug_callback,
