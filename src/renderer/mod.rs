@@ -7,6 +7,7 @@ mod surface_data;
 mod swapchain_data;
 mod commander;
 mod mesh;
+mod resource_manager;
 
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
@@ -23,6 +24,7 @@ use self::setup::{Physical, QueueIndices};
 use self::memory::Memory;
 use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
+use self::resource_manager::ResourceManager;
 use errors::*;
 use config::Config;
 
@@ -47,6 +49,7 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue,
 
+    resource_manager: ResourceManager,
     commander: Commander,
     present_queue: Queue,
     swapchain_data: SwapchainData,
@@ -102,8 +105,11 @@ impl Renderer {
             &device, &queue_indices,
             swapchain_data.images.len() as u32)?;
 
+        let resource_manager = ResourceManager::new(
+            config.asset_path.clone());
 
         Ok(Renderer {
+            resource_manager: resource_manager,
             commander: commander,
             present_queue: present_queue,
             swapchain_data: swapchain_data,

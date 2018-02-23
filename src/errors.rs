@@ -41,5 +41,11 @@ error_chain! {
         NoSuitableSurfaceFormat {
             description("No Suitable Surface Format Found"),
         }
+        WrongVertexType {
+            description("Mesh has wrong vertex type"),
+        }
+        UnsupportedFormat {
+            description("Unsupported or indeterminate file format"),
+        }
     }
 }
