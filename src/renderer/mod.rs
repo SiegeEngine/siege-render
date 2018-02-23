@@ -282,6 +282,7 @@ impl Renderer {
         self.plugins.push(plugin);
     }
 
+    // This will hog the current thread and wont return until the renderer shuts down.
     pub fn run(&mut self) -> Result<()>
     {
         use dacite::core::Error::OutOfDateKhr;

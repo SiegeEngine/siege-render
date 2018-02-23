@@ -1,0 +1,19 @@
+1. Add a shared structure with 2 atomic bools for ShuttingDown and Resized
+2a. BloomFilterH pipeline, BloomVMerge pipeline, and bloom_gfx
+2b. PostPipeline post_gfx
+
+
+Low priority:
+  target_data.rs:
+    Consider VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR,
+    which allows use as a depth-stencil attachment where depth is read-only
+    which is useful for shading phase - allows ImageUsage::Sampled along
+    with ImageUsage::DepthStencilAttachment
+
+  target_data.rs:
+    Can the bloom images be half dimension?
+
+  mesh.rs:
+    texture images
+    maybe uniform buffers
+    maybe per-mesh vec4() values
