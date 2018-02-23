@@ -9,6 +9,7 @@ mod commander;
 mod mesh;
 mod resource_manager;
 mod target_data;
+mod passes;
 
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
@@ -30,6 +31,9 @@ use self::commander::Commander;
 use self::resource_manager::ResourceManager;
 use self::mesh::VulkanMesh;
 use self::target_data::TargetData;
+use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
+                   BloomFilterPass, BloomHPass, BloomVPass,
+                   PostPass, UiPass};
 use super::vertex::*;
 use errors::*;
 use config::Config;
@@ -45,6 +49,14 @@ pub enum VulkanLogLevel {
 }
 
 pub struct Renderer {
+    ui_pass: UiPass,
+    post_pass: PostPass,
+    bloom_v_pass: BloomVPass,
+    bloom_h_pass: BloomHPass,
+    bloom_filter_pass: BloomFilterPass,
+    transparent_pass: TransparentPass,
+    opaque_pass: OpaquePass,
+    early_z_pass: EarlyZPass,
     target_data: TargetData,
     graphics_fence: Fence,
     image_rendered: Semaphore,
@@ -143,7 +155,32 @@ impl Renderer {
         let target_data = TargetData::create(
             &device, &mut memory, &commander, swapchain_data.extent)?;
 
+        let early_z_pass = EarlyZPass::new(
+            &device, &target_data.depth_image, config.reversed_depth_buffer)?;
+        let opaque_pass = OpaquePass::new(
+            &device, &target_data.depth_image, &target_data.shading_image)?;
+        let transparent_pass = TransparentPass::new(
+            &device, &target_data.depth_image, &target_data.shading_image)?;
+        let bloom_filter_pass = BloomFilterPass::new(
+            &device, &target_data.shading_image, &target_data.bright_image)?;
+        let bloom_h_pass = BloomHPass::new(
+            &device, &target_data.bright_image, &target_data.blurpong_image)?;
+        let bloom_v_pass = BloomVPass::new(
+            &device, &target_data.blurpong_image, &target_data.bright_image)?;
+        let post_pass = PostPass::new(
+            &device, &target_data.shading_image, &target_data.bright_image, &swapchain_data)?;
+        let ui_pass = UiPass::new(
+            &device, &swapchain_data)?;
+
         Ok(Renderer {
+            ui_pass: ui_pass,
+            post_pass: post_pass,
+            bloom_v_pass: bloom_v_pass,
+            bloom_h_pass: bloom_h_pass,
+            bloom_filter_pass: bloom_filter_pass,
+            transparent_pass: transparent_pass,
+            opaque_pass: opaque_pass,
+            early_z_pass: early_z_pass,
             target_data: target_data,
             graphics_fence: graphics_fence,
             image_rendered: image_rendered,
