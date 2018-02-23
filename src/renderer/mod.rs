@@ -377,7 +377,67 @@ impl Renderer {
 
     fn render(&mut self) -> Result<Instant>
     {
-        unimplemented!()
+        use std::time::Duration;
+        use dacite::core::{Timeout, SubmitInfo, PipelineStageFlags};
+        use dacite::khr_swapchain::{AcquireNextImageResultKhr, PresentInfoKhr};
+
+        // Get next image
+        let next_image;
+        loop {
+            let next_image_res = self.swapchain_data.swapchain
+                .acquire_next_image_khr(
+                    Timeout::Some(Duration::from_millis(4000)),
+                    Some(&self.image_acquired),
+                    None)?;
+
+            match next_image_res {
+                AcquireNextImageResultKhr::Index(idx) |
+                AcquireNextImageResultKhr::Suboptimal(idx) => {
+                    next_image = idx;
+                    break;
+                },
+                AcquireNextImageResultKhr::NotReady => {
+                    ::std::thread::sleep(Duration::from_millis(100));
+                    continue;
+                },
+                AcquireNextImageResultKhr::Timeout => {
+                    return Err(ErrorKind::SwapchainTimeout.into())
+                }
+            }
+        };
+
+        // Submit command buffers
+        let start = {
+            let submit_infos = vec![
+                SubmitInfo {
+                    wait_semaphores: vec![self.image_acquired.clone()],
+                    wait_dst_stage_mask: vec![PipelineStageFlags::TOP_OF_PIPE],
+                    command_buffers: vec![self.commander.gfx_command_buffers[next_image].clone()],
+                    signal_semaphores: vec![self.image_rendered.clone()],
+                    chain: None,
+                }
+            ];
+            self.graphics_fence.reset()?;
+            self.commander.gfx_queue.submit(Some(&submit_infos), Some(&self.graphics_fence))?;
+            Instant::now()
+        };
+
+        // Present this image once semaphore is available
+        // The CPU is not stalled here, the graphics card will hold this until the semaphore
+        // is signalled, and then do the presentation.
+        {
+            let mut present_info = PresentInfoKhr {
+                wait_semaphores: vec![self.image_rendered.clone()],
+                swapchains: vec![self.swapchain_data.swapchain.clone()],
+                image_indices: vec![next_image as u32],
+                results: None,
+                chain: None,
+            };
+
+            self.present_queue.queue_present_khr(&mut present_info)?;
+        }
+
+        Ok(start)
     }
 
     fn record_command_buffers(&mut self) -> Result<()>

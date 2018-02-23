@@ -47,5 +47,8 @@ error_chain! {
         UnsupportedFormat {
             description("Unsupported or indeterminate file format"),
         }
+        SwapchainTimeout {
+            description("Took longer than 4s to get next swapchain image"),
+        }
     }
 }
