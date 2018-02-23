@@ -378,8 +378,7 @@ impl ResourceManager {
         // (this will transition to ImageLayout::TransferDstOptimal first)
         image_wrap.copy_in_from_buffer(
             device,
-            commander.xfr_command_buffer.clone(),
-            commander.xfr_queue.clone(),
+            &commander,
             &staging_buffer.buffer)?;
 
         // transfer layout to ImageLayout::ShaderReadOnlyOptimal
@@ -397,8 +396,7 @@ impl ResourceManager {
                 base_array_layer: 0,
                 layer_count: OptionalArrayLayers::ArrayLayers(num_layers),
             },
-            commander.gfx_command_buffers[0].clone(),
-            commander.gfx_queue.clone())?;
+            &commander)?;
         // And wait until that completes
         // FIXME - this is a CPU side stall.
 
