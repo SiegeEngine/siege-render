@@ -442,7 +442,191 @@ impl Renderer {
 
     fn record_command_buffers(&mut self) -> Result<()>
     {
-        unimplemented!()
+        // NOTE: recording a command buffer is well known as one of the slower
+        // parts of Vulkan, so this should not be done every frame.
+
+        use dacite::core::{CommandBufferBeginInfo, CommandBufferUsageFlags,
+                           CommandBufferResetFlags, ImageLayout,
+                           AccessFlags, PipelineStageFlags, ImageAspectFlags,
+                           OptionalMipLevels, OptionalArrayLayers,
+                           ImageSubresourceRange};
+
+        for (present_index, command_buffer) in
+            self.commander.gfx_command_buffers.iter().enumerate()
+        {
+            // Not sure this is required - was working with out it.  Also, not sure
+            // if releasing resources is the smartest plan either.
+            command_buffer.reset(CommandBufferResetFlags::empty())?;
+
+            let begin_info = CommandBufferBeginInfo {
+                flags: CommandBufferUsageFlags::empty(),
+                inheritance_info: None,
+                chain: None,
+            };
+            command_buffer.begin(&begin_info)?;
+
+            // Transition swapchain image to ColorAttachmentOptimal
+            // (from whatever it was - usually it is PresentImageKhr, but the
+            //  very first time it will be Undefined).
+            self.swapchain_data.images[present_index].transition_layout(
+                command_buffer.clone(),
+                ImageLayout::ColorAttachmentOptimal,
+                AccessFlags::HOST_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
+                PipelineStageFlags::HOST, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                ImageSubresourceRange {
+                    aspect_mask: ImageAspectFlags::COLOR,
+                    base_mip_level: 0,
+                    level_count: OptionalMipLevels::MipLevels(1),
+                    base_array_layer: 0,
+                    layer_count: OptionalArrayLayers::ArrayLayers(1),
+                }
+            )?;
+
+
+            // Bind viewports and scissors
+            command_buffer.set_viewport(0, &self.viewports);
+            command_buffer.set_scissor(0, &self.scissors);
+
+            self.target_data.transition_for_earlyz(command_buffer.clone())?;
+
+            // Early Z pass
+            {
+                self.early_z_pass.record_entry(command_buffer.clone())?;
+
+                for plugin in &self.plugins {
+                    // NOTE: Try to draw front to back
+                    plugin.record_earlyz(command_buffer.clone())?;
+                }
+
+                self.early_z_pass.record_exit(command_buffer.clone())?;
+            }
+
+            self.target_data.transition_for_opaque(command_buffer.clone())?;
+
+            // Opaque pass
+            {
+                self.opaque_pass.record_entry(command_buffer.clone())?;
+
+                for plugin in &self.plugins {
+                    // Draw all geometry with opaque pipelines
+                    // Draw in any order - it makes no difference,
+                    // except for far-plane items (each overwrites the last)
+
+                    // NOTE: Try to draw front to back
+                    plugin.record_opaque(command_buffer.clone())?;
+                }
+
+                self.opaque_pass.record_exit(command_buffer.clone())?;
+            }
+
+            self.target_data.transition_for_transparent(command_buffer.clone())?;
+
+            // Transparent pass
+            {
+                self.transparent_pass.record_entry(command_buffer.clone())?;
+
+                for plugin in &self.plugins {
+                    plugin.record_transparent(command_buffer.clone())?;
+                }
+
+                self.transparent_pass.record_exit(command_buffer.clone())?;
+            }
+
+            self.target_data.transition_for_bloom_filter(command_buffer.clone())?;
+
+            // Bloom Filter pass
+            {
+                self.bloom_filter_pass.record_entry(command_buffer.clone())?;
+
+                /* TBD
+                self.bloom_pipeline_filter.record(command_buffer.clone(),
+                                                  &self.bloom_gfx,
+                                                  BloomPhase::Filter)?;
+                 */
+
+                self.bloom_filter_pass.record_exit(command_buffer.clone())?;
+            }
+
+            self.target_data.transition_for_bloom_h(command_buffer.clone())?;
+
+            // Bloom H pass
+            {
+                self.bloom_h_pass.record_entry(command_buffer.clone())?;
+
+                /* TBD:
+                self.bloom_pipeline_h.record(command_buffer.clone(),
+                                             &self.bloom_gfx,
+                                             BloomPhase::H)?;
+                 */
+
+                self.bloom_h_pass.record_exit(command_buffer.clone())?;
+            }
+
+            self.target_data.transition_for_bloom_v(command_buffer.clone())?;
+
+            // Bloom V pass
+            {
+                self.bloom_v_pass.record_entry(command_buffer.clone())?;
+
+                /* TBD:
+                self.bloom_pipeline_v.record(command_buffer.clone(),
+                                             &self.bloom_gfx,
+                                             BloomPhase::V)?;
+                 */
+
+                self.bloom_v_pass.record_exit(command_buffer.clone())?;
+            }
+
+            self.target_data.transition_for_post(command_buffer.clone())?;
+
+            // Post pass
+            {
+                self.post_pass.record_entry(command_buffer.clone(),
+                                            present_index)?;
+
+                // Do all post processing
+                // FIXME: merge shading AND bright images
+                /* TBD:
+                self.post_pipeline.record(command_buffer.clone(),
+                                          &self.post_gfx)?;
+                 */
+
+                self.post_pass.record_exit(command_buffer.clone())?;
+            }
+
+            self.target_data.transition_for_ui(command_buffer.clone())?;
+
+            // Ui pass
+            {
+                self.ui_pass.record_entry(command_buffer.clone(),
+                                          present_index)?;
+
+                for plugin in &self.plugins {
+                    plugin.record_ui(command_buffer.clone())?;
+                }
+
+                self.ui_pass.record_exit(command_buffer.clone())?;
+            }
+
+            // Transition swapchain image to PresentImageKhr
+            self.swapchain_data.images[present_index].transition_layout(
+                command_buffer.clone(),
+                ImageLayout::PresentSrcKhr,
+                AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::HOST_READ,
+                PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::HOST,
+                ImageSubresourceRange {
+                    aspect_mask: ImageAspectFlags::COLOR,
+                    base_mip_level: 0,
+                    level_count: OptionalMipLevels::MipLevels(1),
+                    base_array_layer: 0,
+                    layer_count: OptionalArrayLayers::ArrayLayers(1),
+                }
+            )?;
+
+            command_buffer.end()?;
+        }
+
+        Ok(())
     }
 
     fn rebuild(&mut self) -> Result<()>
