@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    PhysicalDeviceFeatures, Device, Queue, Extent2D,
-                   ShaderModule};
+                   ShaderModule, Rect2D, Viewport, Offset2D};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -52,6 +52,8 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue,
 
+    scissors: Vec<Rect2D>,
+    viewports: Vec<Viewport>,
     staging_buffer: HostVisibleBuffer<u8>,
     resource_manager: ResourceManager,
     commander: Commander,
@@ -121,7 +123,22 @@ impl Renderer {
             Lifetime::Permanent, "Staging Buffer"
         )?;
 
+        let viewports = vec![Viewport {
+            x: 0.0,
+            y: 0.0,
+            width: swapchain_data.extent.width as f32,
+            height: swapchain_data.extent.height as f32,
+            min_depth: if config.reversed_depth_buffer { 1.0 } else { 0.0 },
+            max_depth: if config.reversed_depth_buffer { 0.0 } else { 1.0 },
+        }];
+        let scissors = vec![Rect2D {
+            offset: Offset2D { x: 0, y: 0 },
+            extent: swapchain_data.extent.clone(),
+        }];
+
         Ok(Renderer {
+            scissors: scissors,
+            viewports: viewports,
             staging_buffer: staging_buffer,
             resource_manager: resource_manager,
             commander: commander,
