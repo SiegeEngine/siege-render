@@ -55,3 +55,6 @@ pub use vertex::{VulkanVertex, ColoredVertex, StandardVertex, GuiRectangleVertex
                  GrayboxVertex, CheapV1Vertex, CheapV2Vertex, StarVertex, CubemapVertex};
 
 pub mod format;
+
+pub mod plugin;
+pub use plugin::Plugin;

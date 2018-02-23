@@ -38,6 +38,7 @@ use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
                    BloomFilterPass, BloomHPass, BloomVPass,
                    PostPass, UiPass};
 use super::vertex::*;
+use super::plugin::Plugin;
 use errors::*;
 use config::Config;
 
@@ -52,6 +53,7 @@ pub enum VulkanLogLevel {
 }
 
 pub struct Renderer {
+    plugins: Vec<Box<Plugin>>,
     ui_pass: UiPass,
     post_pass: PostPass,
     bloom_v_pass: BloomVPass,
@@ -174,6 +176,7 @@ impl Renderer {
             &device, &swapchain_data)?;
 
         Ok(Renderer {
+            plugins: Vec::new(),
             ui_pass: ui_pass,
             post_pass: post_pass,
             bloom_v_pass: bloom_v_pass,
@@ -276,5 +279,10 @@ impl Renderer {
         let set = descriptor_sets.pop().unwrap();
 
         Ok((layout, set))
+    }
+
+    pub fn plugin(&mut self, plugin: Box<Plugin>)
+    {
+        self.plugins.push(plugin);
     }
 }
