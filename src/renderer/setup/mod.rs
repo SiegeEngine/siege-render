@@ -182,15 +182,13 @@ pub fn create_device(physical_device: &PhysicalDevice,
 
     let mut queues: HashMap<u32, u32> = HashMap::new();
 
-    for &(fam,ind) in &[(queue_indices.graphics_family, queue_indices.graphics_index_1),
-                        (queue_indices.graphics_family, queue_indices.graphics_index_2),
+    for &(fam,ind) in &[(queue_indices.graphics_family, queue_indices.graphics_index),
                         (queue_indices.present_family, queue_indices.present_index),
                         (queue_indices.transfer_family, queue_indices.transfer_index)]
     {
         let mut entry = queues.entry(fam).or_insert(ind);
         if *entry < ind {  *entry = ind; }
     }
-
 
     let device_queue_create_infos = queues.iter().map(|(family,maxqueue)| {
         let mut priorities: Vec<f32> = Vec::new();

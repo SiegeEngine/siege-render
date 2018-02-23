@@ -397,8 +397,8 @@ impl ResourceManager {
                 base_array_layer: 0,
                 layer_count: OptionalArrayLayers::ArrayLayers(num_layers),
             },
-            commander.early_command_buffers[0].clone(),
-            commander.early_queue.clone())?;
+            commander.gfx_command_buffers[0].clone(),
+            commander.gfx_queue.clone())?;
         // And wait until that completes
         // FIXME - this is a CPU side stall.
 

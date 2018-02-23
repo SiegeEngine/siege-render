@@ -8,8 +8,7 @@ pub struct QueueIndices {
     pub transfer_family: u32,
     pub transfer_index: u32,
     pub graphics_family: u32,
-    pub graphics_index_1: u32,
-    pub graphics_index_2: u32,
+    pub graphics_index: u32,
     pub present_family: u32,
     pub present_index: u32,
 }
@@ -35,7 +34,7 @@ impl QueueIndices {
             if physical_device.get_surface_support_khr(i as u32, surface) == Ok(true) {
                 p_set.insert(i);
             }
-            if qfp.queue_flags.contains(QueueFlags::GRAPHICS) && qfp.queue_count >= 2 {
+            if qfp.queue_flags.contains(QueueFlags::GRAPHICS) {
                 g_set.insert(i);
             }
             if qfp.queue_flags.contains(QueueFlags::TRANSFER) {
@@ -74,7 +73,7 @@ impl QueueIndices {
             (transfer_family, transfer_index)
         };
 
-        let (graphics_family, graphics_index_1, graphics_index_2) = {
+        let (graphics_family, graphics_index) = {
             // We prefer to have graphics different from transfer
             let mut g_t_set: HashSet<usize> = g_set.clone();
             g_t_set.remove(&transfer_family);
@@ -83,29 +82,29 @@ impl QueueIndices {
             // Lets try for both of the above
             let gp_t_set: HashSet<usize> = g_t_set.intersection(&gp_set).map(|x|*x).collect();
 
-            let (graphics_family, graphics_index_1, graphics_index_2) = if gp_t_set.len() > 0 {
-                (*gp_t_set.iter().next().unwrap(), 0, 1)
+            let (graphics_family, graphics_index) = if gp_t_set.len() > 0 {
+                (*gp_t_set.iter().next().unwrap(), 0)
             } else if g_t_set.len() > 0 {
-                (*g_t_set.iter().next().unwrap(), 0, 1)
+                (*g_t_set.iter().next().unwrap(), 0)
             } else {
                 // At this point, we already know we are stuck with the transfer family.
                 // No sense trying to prefer a presentation set queue, we only have one left.
                 let qc = queue_family_properties[transfer_family].queue_count;
                 if qc >=3 {
-                    (transfer_family, 1, 2)
+                    (transfer_family, 1)
                 } else if qc >= 2 {
-                    (transfer_family, 0, 1)
+                    (transfer_family, 0)
                 } else {
                     return Err(ErrorKind::DeviceNotSuitable(
                         "Not enough queues for two graphics queues".to_owned()).into())
                 }
             };
-            (graphics_family, graphics_index_1, graphics_index_2)
+            (graphics_family, graphics_index)
         };
 
         let (present_family, present_index) = {
             if p_set.contains(&graphics_family) {
-                (graphics_family, graphics_index_1)
+                (graphics_family, graphics_index)
             } else {
                 let mut p_no_t_set: HashSet<usize> = p_set.clone();
                 p_no_t_set.remove(&transfer_family);
@@ -127,8 +126,7 @@ impl QueueIndices {
             transfer_family: transfer_family as u32,
             transfer_index: transfer_index as u32,
             graphics_family: graphics_family as u32,
-            graphics_index_1: graphics_index_1 as u32,
-            graphics_index_2: graphics_index_2 as u32,
+            graphics_index: graphics_index as u32,
             present_family: present_family as u32,
             present_index: present_index as u32,
         })

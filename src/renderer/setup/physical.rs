@@ -202,9 +202,8 @@ pub fn log_device_details(phys: &Physical)
 
     info!("Using Graphics device: {}", phys.physical_device_properties.device_name);
 
-    info!("Graphics Queues: Graphics({}[{},{}]), Present({}[{}]), Transfer({}[{}])",
-          phys.queue_indices.graphics_family,
-          phys.queue_indices.graphics_index_1, phys.queue_indices.graphics_index_2,
+    info!("Graphics Queues: Graphics({}[{}]), Present({}[{}]), Transfer({}[{}])",
+          phys.queue_indices.graphics_family, phys.queue_indices.graphics_index,
           phys.queue_indices.present_family, phys.queue_indices.present_index,
           phys.queue_indices.transfer_family, phys.queue_indices.transfer_index);
 
