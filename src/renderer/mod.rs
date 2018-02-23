@@ -45,16 +45,6 @@ pub enum VulkanLogLevel {
 }
 
 pub struct Renderer {
-    // data_early: GpuDataEarly,
-    // leading_data_late: GpuDataLate,
-    // data_late: GpuDataLate,
-    // command_buffer_early: CommandBuffer,
-    // command_buffer_late: CommandBuffer,
-    // fence_halfway: Fence,
-    // fence_finished: Fence,
-    // graphics_queue_early: Queue,
-    // graphics_queue_late: Queue
-
     target_data: TargetData,
     graphics_fence: Fence,
     image_rendered: Semaphore,
@@ -182,59 +172,7 @@ impl Renderer {
 
     pub fn run(&mut self) -> Result<()>
     {
-        /*
-        This interleaves the work of frame rendering such that two queues are
-        operating in parallel, one working on the first phase (Early) of the
-        leading frame and the second working on the second phase (Late) of
-        the lagging frame.
-
-        Note that we do not need multiple rust threads for this to occur.
-
-        We transfer the ownership of the Shading buffer from the Early queue
-        to the Late queue halfway in, and transfer it back at the end.
-
-        We ensure that Phase-Early and Phase-Late commands do not utilize the
-        same GPU writable data, except in read-only ways.
-
-        Writable data utilized only during Phase-Early on the leading frame
-        * Depth Buffer
-        * Shading Buffer N (we have 1 per swapchain)
-
-        Writable data utilized only during Phase-Late on the lagging frame
-        * Shading Buffer N-1
-        * Blur Buffer
-        * Swapchain N-1
-
-        We must upload data from the CPU to the GPU, and the GPU must not be
-        reading the data while we are writing.  We uses fences to stop the GPU
-        at the finished/halfway and halfway/finished points, then do the
-        uploads, then submit command buffers again.
-
-        We have to split the uploaded data into two sets, because the leading
-        frame needs leading data, but the lagging frame ought to use lagging data
-        to remain consistant with the prior work.  This means, for instance,
-        two camera uniform sets.
-        */
-
-        // (data_early, leading_data_late) = UpdateData();
-        // Upload (data_early)
-
-        // submit CmdBufEarly half to QueueEarly, fence=fence_halfway
-        // wait on fence_halfway
-
-        loop {
-            // bump swapchain index
-
-            // data_late = leading_data_late;
-            // (data_early, leading_data_late) = UpdateData();
-            // Upload (data_early, data_late)
-
-            // submit CmdBufEarly to QueueEarly, fence=draw_halfway
-            // submit CmdBufLate to QueueLate, fence=draw_finished
-            // wait on drawLate_finished
-            // Present swapchain Late
-            // wait on drawEarly_halfway
-        }
+        unimplemented!()
     }
 
     pub fn load_shader(&mut self, name: &str) -> Result<ShaderModule>
