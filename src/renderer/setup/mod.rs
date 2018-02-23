@@ -10,7 +10,7 @@ pub use self::physical::{Physical, find_suitable_device};
 use std::sync::Arc;
 use std::collections::HashMap;
 use dacite::core::{InstanceExtensions, Instance, PhysicalDevice, DeviceExtensions,
-                   Device, Semaphore, Fence};
+                   Device, Semaphore, Fence, DescriptorPool};
 use dacite::ext_debug_report::{DebugReportFlagsExt, DebugReportObjectTypeExt,
                                DebugReportCallbackExt, DebugReportCallbacksExt};
 use dacite::khr_surface::SurfaceKhr;
@@ -213,6 +213,43 @@ pub fn create_device(physical_device: &PhysicalDevice,
     };
 
     Ok(physical_device.create_device(&device_create_info, None)?)
+}
+
+pub fn get_descriptor_pool(device: &Device, config: &Config) -> Result<DescriptorPool>
+{
+    use dacite::core::{DescriptorPoolCreateInfo, DescriptorPoolSize,
+                               DescriptorType};
+
+    let create_info = DescriptorPoolCreateInfo {
+        flags: Default::default(),
+        max_sets: config.max_descriptor_sets,
+        pool_sizes: vec![
+            DescriptorPoolSize {
+                descriptor_type: DescriptorType::UniformBuffer,
+                descriptor_count: config.max_uniform_buffers,
+            },
+            DescriptorPoolSize {
+                descriptor_type: DescriptorType::UniformBufferDynamic,
+                descriptor_count: config.max_dynamic_uniform_buffers,
+            },
+            DescriptorPoolSize {
+                descriptor_type: DescriptorType::Sampler,
+                descriptor_count: config.max_samplers,
+            },
+            DescriptorPoolSize {
+                descriptor_type: DescriptorType::SampledImage,
+                descriptor_count: config.max_sampled_images,
+            },
+            DescriptorPoolSize {
+                descriptor_type: DescriptorType::CombinedImageSampler,
+                descriptor_count: config.max_combined_image_samplers,
+            },
+        ],
+        chain: None,
+    };
+
+    Ok(device.create_descriptor_pool(&create_info, None)?)
+
 }
 
 pub fn get_semaphores(device: &Device) -> Result<(Semaphore, Semaphore)>

@@ -141,40 +141,7 @@ impl Renderer {
             extent: swapchain_data.extent.clone(),
         }];
 
-        let descriptor_pool = {
-            use dacite::core::{DescriptorPoolCreateInfo, DescriptorPoolSize,
-                               DescriptorType};
-
-            let create_info = DescriptorPoolCreateInfo {
-                flags: Default::default(),
-                max_sets: config.max_descriptor_sets,
-                pool_sizes: vec![
-                    DescriptorPoolSize {
-                        descriptor_type: DescriptorType::UniformBuffer,
-                        descriptor_count: config.max_uniform_buffers,
-                    },
-                    DescriptorPoolSize {
-                        descriptor_type: DescriptorType::UniformBufferDynamic,
-                        descriptor_count: config.max_dynamic_uniform_buffers,
-                    },
-                    DescriptorPoolSize {
-                        descriptor_type: DescriptorType::Sampler,
-                        descriptor_count: config.max_samplers,
-                    },
-                    DescriptorPoolSize {
-                        descriptor_type: DescriptorType::SampledImage,
-                        descriptor_count: config.max_sampled_images,
-                    },
-                    DescriptorPoolSize {
-                        descriptor_type: DescriptorType::CombinedImageSampler,
-                        descriptor_count: config.max_combined_image_samplers,
-                    },
-                ],
-                chain: None,
-            };
-
-            device.create_descriptor_pool(&create_info, None)?
-        };
+        let descriptor_pool = setup::get_descriptor_pool(&device, &config)?;
 
         let (image_acquired, image_rendered) = setup::get_semaphores(&device)?;
 
