@@ -8,6 +8,7 @@ mod swapchain_data;
 mod commander;
 mod mesh;
 mod resource_manager;
+mod target_data;
 
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
@@ -28,6 +29,7 @@ use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
 use self::resource_manager::ResourceManager;
 use self::mesh::VulkanMesh;
+use self::target_data::TargetData;
 use super::vertex::*;
 use errors::*;
 use config::Config;
@@ -53,6 +55,7 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue
 
+    target_data: TargetData,
     graphics_fence: Fence,
     image_rendered: Semaphore,
     image_acquired: Semaphore,
@@ -147,7 +150,11 @@ impl Renderer {
 
         let graphics_fence = setup::get_graphics_fence(&device)?;
 
+        let target_data = TargetData::create(
+            &device, &mut memory, &commander, swapchain_data.extent)?;
+
         Ok(Renderer {
+            target_data: target_data,
             graphics_fence: graphics_fence,
             image_rendered: image_rendered,
             image_acquired: image_acquired,
