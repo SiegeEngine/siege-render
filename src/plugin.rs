@@ -7,4 +7,6 @@ pub trait Plugin {
     fn record_shading(&self, command_buffer: CommandBuffer) -> Result<()>;
     fn record_transparency(&self, command_buffer: CommandBuffer) -> Result<()>;
     fn record_ui(&self, command_buffer: CommandBuffer) -> Result<()>;
+    fn update(&mut self) -> Result<()>;
+    fn upload(&mut self) -> Result<()>;
 }

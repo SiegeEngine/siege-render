@@ -15,14 +15,15 @@ pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
 
 use std::sync::Arc;
-
+use std::time::{Duration, Instant};
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    PhysicalDeviceFeatures, Device, Queue, Extent2D,
                    ShaderModule, Rect2D, Viewport, Offset2D,
                    DescriptorPool, Semaphore, Fence, PipelineLayoutCreateInfo,
                    PipelineLayout, GraphicsPipelineCreateInfo,
                    BufferUsageFlags, DescriptorSetLayoutCreateInfo,
-                   DescriptorSetLayout, DescriptorSet, Pipeline};
+                   DescriptorSetLayout, DescriptorSet, Pipeline,
+                   Timeout};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -211,11 +212,6 @@ impl Renderer {
         })
     }
 
-    pub fn run(&mut self) -> Result<()>
-    {
-        unimplemented!()
-    }
-
     pub fn load_shader(&mut self, name: &str) -> Result<ShaderModule>
     {
         self.resource_manager.load_shader(&self.device, name)
@@ -285,4 +281,118 @@ impl Renderer {
     {
         self.plugins.push(plugin);
     }
+
+    pub fn run(&mut self) -> Result<()>
+    {
+        use dacite::core::Error::OutOfDateKhr;
+
+        self.window.show();
+        self.record_command_buffers()?;
+        self.memory.log_usage();
+        self.graphics_fence.wait_for(Timeout::Infinite)?;
+
+        let mut frame_number: u64 = 0;
+        let loop_throttle = Duration::new(
+            0, 1_000_000_000 / self.config.fps_cap);
+        let mut render_start: Instant;
+        let mut render_end: Instant;
+        let mut render_duration: Duration;
+        let mut render_duration_sum: Duration = Duration::new(0,0);
+        let mut report_time: Instant = Instant::now();
+
+        loop {
+            for plugin in &mut self.plugins {
+                plugin.update()?;
+                plugin.upload()?;
+            }
+
+            // Render a frame
+            render_start = match self.render() {
+                Err(e) => {
+                    if let &ErrorKind::Dacite(OutOfDateKhr) = e.kind() {
+                        // Rebuild the swapchain if Vulkan complains that it is out of date.
+                        // This is typical on linux.
+                        self.rebuild()?;
+                        self.graphics_fence.wait_for(Timeout::Infinite)?;
+                        // Now we have rebuilt but we didn't render, so skip the rest of
+                        // the loop and try to render again right away
+                        continue;
+                    } else {
+                        return Err(e);
+                    }
+                },
+                Ok(instant) => instant
+            };
+
+            frame_number += 1;
+
+            // On windows (at least, perhaps also elsewhere), vulkan won't give us an
+            // OutOfDateKhr error on a window resize.  But the window will remain black
+            // after resizing.  We have to detect resizes and rebuild the swapchain.
+            /* FIXME - add API for sharing this AtomicBool
+            if self.state.resized.load(Ordering::Relaxed) {
+                self.rebuild()?;
+                self.state.resized.store(false, Ordering::Relaxed);
+                self.graphics_fence.wait_for(Timeout::Infinite)?;
+                continue;
+            }
+             */
+
+            // Wait until the GPU is idle.
+            self.graphics_fence.wait_for(Timeout::Infinite)?;
+            render_end = Instant::now();
+
+            render_duration = render_end.duration_since(render_start);
+            render_duration_sum += render_duration;
+
+            // Throttle FPS
+            if render_duration < loop_throttle {
+                ::std::thread::sleep(loop_throttle - render_duration);
+            }
+
+            // FPS calculation every 500 frames
+            if frame_number % 500 == 0 {
+                let seconds_per_frame = duration_to_seconds(&render_duration_sum)/500.0;
+                let fps = 500.0 / duration_to_seconds(&report_time.elapsed());
+                trace!("{:>6.1} fps; {:>8.6} s/frame; {:>5.1}%",
+                       fps, seconds_per_frame,
+                       100.0 * seconds_per_frame / 0.016666667);
+
+                // reset data
+                report_time = Instant::now();
+                render_duration_sum = Duration::new(0, 0);
+            }
+
+            // Shutdown when it is time to do so
+            /* FIXME: add API for sharing this atomic bool
+            if self.state.terminating.load(Ordering::Relaxed) {
+                info!("Graphics is shutting down...");
+                self.device.wait_idle()?;
+                self.window.hide();
+                return Ok(());
+            }
+             */
+        }
+    }
+
+    fn render(&mut self) -> Result<Instant>
+    {
+        unimplemented!()
+    }
+
+    fn record_command_buffers(&mut self) -> Result<()>
+    {
+        unimplemented!()
+    }
+
+    fn rebuild(&mut self) -> Result<()>
+    {
+        unimplemented!()
+    }
+}
+
+fn duration_to_seconds(duration: &Duration) -> f32
+{
+    duration.as_secs() as f32 +
+        duration.subsec_nanos() as f32 * 0.000_000_001
 }
