@@ -47,7 +47,7 @@ pub mod config;
 pub use config::Config;
 
 pub mod renderer;
-pub use renderer::{Renderer, ImageWrap, SiegeBuffer, HostVisibleBuffer,
+pub use renderer::{Renderer, Pass, ImageWrap, SiegeBuffer, HostVisibleBuffer,
                    DeviceLocalBuffer};
 
 pub mod vertex;

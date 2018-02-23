@@ -22,7 +22,7 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    PipelineLayout, GraphicsPipelineCreateInfo,
                    BufferUsageFlags, DescriptorSetLayoutCreateInfo,
                    DescriptorSetLayout, DescriptorSet, Pipeline,
-                   Timeout};
+                   Timeout, RenderPass};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -50,6 +50,14 @@ pub enum VulkanLogLevel {
     PerformanceWarning,
     Information,
     Debug
+}
+
+// Passes that consumers of the library can plug into
+pub enum Pass {
+    EarlyZ,
+    Opaque,
+    Transparent,
+    Ui
 }
 
 pub struct Renderer {
@@ -233,6 +241,15 @@ impl Renderer {
     {
         self.resource_manager.load_texture(
             &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
+    }
+
+    pub fn get_renderpass(&mut self, pass: Pass) -> RenderPass {
+        match pass {
+            Pass::EarlyZ => self.early_z_pass.render_pass.clone(),
+            Pass::Opaque => self.opaque_pass.render_pass.clone(),
+            Pass::Transparent => self.transparent_pass.render_pass.clone(),
+            Pass::Ui => self.ui_pass.render_pass.clone(),
+        }
     }
 
     pub fn create_pipeline_layout(&mut self, create_info: PipelineLayoutCreateInfo)
