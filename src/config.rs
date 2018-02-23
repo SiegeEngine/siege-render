@@ -25,6 +25,7 @@ use renderer::VulkanLogLevel;
 #[inline] fn default_gpu_memory_required() -> u64 { 9216000 }
 #[inline] fn default_max_descriptor_sets() -> u32 { 16 }
 #[inline] fn default_max_uniform_buffers() -> u32 { 2 }
+#[inline] fn default_max_dynamic_uniform_buffers() -> u32 { 2 }
 #[inline] fn default_max_samplers() -> u32 { 2 }
 #[inline] fn default_max_sampled_images() -> u32 { 2 }
 #[inline] fn default_max_combined_image_samplers() -> u32 { 10 }
@@ -61,6 +62,8 @@ pub struct Config {
     pub max_descriptor_sets: u32,
     #[serde(default = "default_max_uniform_buffers")]
     pub max_uniform_buffers: u32,
+    #[serde(default = "default_max_dynamic_uniform_buffers")]
+    pub max_dynamic_uniform_buffers: u32,
     #[serde(default = "default_max_samplers")]
     pub max_samplers: u32,
     #[serde(default = "default_max_sampled_images")]
@@ -87,6 +90,7 @@ impl Default for Config {
             gpu_memory_required: default_gpu_memory_required(),
             max_descriptor_sets: default_max_descriptor_sets(),
             max_uniform_buffers: default_max_uniform_buffers(),
+            max_dynamic_uniform_buffers: default_max_dynamic_uniform_buffers(),
             max_samplers: default_max_samplers(),
             max_sampled_images: default_max_sampled_images(),
             max_combined_image_samplers: default_max_combined_image_samplers(),
@@ -117,6 +121,7 @@ impl fmt::Debug for Config {
         writeln!(f, "    have a least: {} memory", self.gpu_memory_required)?;
         writeln!(f, "    Allocated desc sets: {}", self.max_descriptor_sets)?;
         writeln!(f, "    Allocated desc for uniform buffers: {}", self.max_uniform_buffers)?;
+        writeln!(f, "    Allocated desc for dynamic uniform buffers: {}", self.max_dynamic_uniform_buffers)?;
         writeln!(f, "    Allocated desc for samplers: {}", self.max_samplers)?;
         writeln!(f, "    Allocated desc for sampled images: {}", self.max_sampled_images)?;
         writeln!(f, "    Allocated desc for combined image samplers: {}", self.max_combined_image_samplers)?;

@@ -16,7 +16,8 @@ use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    PhysicalDeviceFeatures, Device, Queue, Extent2D,
-                   ShaderModule, Rect2D, Viewport, Offset2D};
+                   ShaderModule, Rect2D, Viewport, Offset2D,
+                   DescriptorPool};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -52,6 +53,7 @@ pub struct Renderer {
     // graphics_queue_early: Queue,
     // graphics_queue_late: Queue,
 
+    descriptor_pool: DescriptorPool,
     scissors: Vec<Rect2D>,
     viewports: Vec<Viewport>,
     staging_buffer: HostVisibleBuffer<u8>,
@@ -136,7 +138,43 @@ impl Renderer {
             extent: swapchain_data.extent.clone(),
         }];
 
+        let descriptor_pool = {
+            use dacite::core::{DescriptorPoolCreateInfo, DescriptorPoolSize,
+                               DescriptorType};
+
+            let create_info = DescriptorPoolCreateInfo {
+                flags: Default::default(),
+                max_sets: config.max_descriptor_sets,
+                pool_sizes: vec![
+                    DescriptorPoolSize {
+                        descriptor_type: DescriptorType::UniformBuffer,
+                        descriptor_count: config.max_uniform_buffers,
+                    },
+                    DescriptorPoolSize {
+                        descriptor_type: DescriptorType::UniformBufferDynamic,
+                        descriptor_count: config.max_dynamic_uniform_buffers,
+                    },
+                    DescriptorPoolSize {
+                        descriptor_type: DescriptorType::Sampler,
+                        descriptor_count: config.max_samplers,
+                    },
+                    DescriptorPoolSize {
+                        descriptor_type: DescriptorType::SampledImage,
+                        descriptor_count: config.max_sampled_images,
+                    },
+                    DescriptorPoolSize {
+                        descriptor_type: DescriptorType::CombinedImageSampler,
+                        descriptor_count: config.max_combined_image_samplers,
+                    },
+                ],
+                chain: None,
+            };
+
+            device.create_descriptor_pool(&create_info, None)?
+        };
+
         Ok(Renderer {
+            descriptor_pool: descriptor_pool,
             scissors: scissors,
             viewports: viewports,
             staging_buffer: staging_buffer,
