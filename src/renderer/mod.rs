@@ -387,7 +387,50 @@ impl Renderer {
 
     fn rebuild(&mut self) -> Result<()>
     {
-        unimplemented!()
+        // Wait until the device is idle
+        self.device.wait_idle()?;
+
+        // Rebuild swapchain
+        self.swapchain_data.rebuild(&self.ph, &self.device, &self.surface)?;
+
+        // Rebuild the targets
+        self.target_data.rebuild(&self.device, &mut self.memory, &self.commander,
+                                 self.swapchain_data.extent)?;
+
+        // Rebuild the passes
+        self.early_z_pass.rebuild(&self.device,
+                                  &self.target_data.depth_image)?;
+        self.opaque_pass.rebuild(&self.device,
+                                 &self.target_data.depth_image,
+                                 &self.target_data.shading_image)?;
+        self.transparent_pass.rebuild(&self.device,
+                                      &self.target_data.depth_image,
+                                      &self.target_data.shading_image)?;
+        self.bloom_filter_pass.rebuild(&self.device,
+                                       &self.target_data.shading_image,
+                                       &self.target_data.bright_image)?;
+        self.bloom_h_pass.rebuild(&self.device,
+                                  &self.target_data.bright_image,
+                                  &self.target_data.blurpong_image)?;
+        self.bloom_v_pass.rebuild(&self.device,
+                                  &self.target_data.blurpong_image,
+                                  &self.target_data.bright_image)?;
+        self.post_pass.rebuild(&self.device,
+                               &self.target_data.shading_image,
+                               &self.target_data.bright_image,
+                               &self.swapchain_data)?;
+        self.ui_pass.rebuild(&self.device,
+                             &self.swapchain_data)?;
+
+        // Update viewports and scissors
+        self.viewports[0].width = self.swapchain_data.extent.width as f32;
+        self.viewports[0].height = self.swapchain_data.extent.height as f32;
+        self.scissors[0].extent = self.swapchain_data.extent.clone();
+
+        // Re-record command buffers (the framebuffer image views are new, so we must)
+        self.record_command_buffers()?;
+
+        Ok(())
     }
 }
 
