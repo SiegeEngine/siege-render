@@ -10,7 +10,7 @@ pub use self::physical::{Physical, find_suitable_device};
 use std::sync::Arc;
 use std::collections::HashMap;
 use dacite::core::{InstanceExtensions, Instance, PhysicalDevice, DeviceExtensions,
-                   Device};
+                   Device, Semaphore, Fence};
 use dacite::ext_debug_report::{DebugReportFlagsExt, DebugReportObjectTypeExt,
                                DebugReportCallbackExt, DebugReportCallbacksExt};
 use dacite::khr_surface::SurfaceKhr;
@@ -213,4 +213,30 @@ pub fn create_device(physical_device: &PhysicalDevice,
     };
 
     Ok(physical_device.create_device(&device_create_info, None)?)
+}
+
+pub fn get_semaphores(device: &Device) -> Result<(Semaphore, Semaphore)>
+{
+    use dacite::core::{SemaphoreCreateInfo, SemaphoreCreateFlags};
+
+    let create_info = SemaphoreCreateInfo {
+        flags: SemaphoreCreateFlags::empty(),
+        chain: None,
+    };
+
+    let image_acquired = device.create_semaphore(&create_info, None)?;
+    let image_rendered = device.create_semaphore(&create_info, None)?;
+
+    Ok((image_acquired, image_rendered))
+}
+
+
+pub fn get_graphics_fence(device: &Device) -> Result<Fence>
+{
+    use dacite::core::{FenceCreateInfo, FenceCreateFlags};
+    let create_info = FenceCreateInfo {
+        flags: FenceCreateFlags::SIGNALED, // initially we have nothing to wait on
+        chain: None
+    };
+    Ok(device.create_fence(&create_info, None)?)
 }

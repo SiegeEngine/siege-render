@@ -17,7 +17,7 @@ use std::sync::Arc;
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    PhysicalDeviceFeatures, Device, Queue, Extent2D,
                    ShaderModule, Rect2D, Viewport, Offset2D,
-                   DescriptorPool};
+                   DescriptorPool, Semaphore, Fence};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -51,8 +51,11 @@ pub struct Renderer {
     // fence_halfway: Fence,
     // fence_finished: Fence,
     // graphics_queue_early: Queue,
-    // graphics_queue_late: Queue,
+    // graphics_queue_late: Queue
 
+    graphics_fence: Fence,
+    image_rendered: Semaphore,
+    image_acquired: Semaphore,
     descriptor_pool: DescriptorPool,
     scissors: Vec<Rect2D>,
     viewports: Vec<Viewport>,
@@ -173,7 +176,14 @@ impl Renderer {
             device.create_descriptor_pool(&create_info, None)?
         };
 
+        let (image_acquired, image_rendered) = setup::get_semaphores(&device)?;
+
+        let graphics_fence = setup::get_graphics_fence(&device)?;
+
         Ok(Renderer {
+            graphics_fence: graphics_fence,
+            image_rendered: image_rendered,
+            image_acquired: image_acquired,
             descriptor_pool: descriptor_pool,
             scissors: scissors,
             viewports: viewports,
