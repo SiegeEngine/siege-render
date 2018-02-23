@@ -15,7 +15,8 @@ pub use self::image_wrap::ImageWrap;
 use std::sync::Arc;
 
 use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
-                   PhysicalDeviceFeatures, Device, Queue, Extent2D};
+                   PhysicalDeviceFeatures, Device, Queue, Extent2D,
+                   ShaderModule};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -25,6 +26,8 @@ use self::memory::{Memory, Lifetime};
 use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
 use self::resource_manager::ResourceManager;
+use self::mesh::VulkanMesh;
+use super::vertex::*;
 use errors::*;
 use config::Config;
 
@@ -193,5 +196,28 @@ impl Renderer {
             // Present swapchain Late
             // wait on drawEarly_halfway
         }
+    }
+
+    pub fn load_shader(&mut self, name: &str) -> Result<ShaderModule>
+    {
+        self.resource_manager.load_shader(&self.device, name)
+    }
+
+    pub fn load_graybox_mesh(&mut self, name: &str) -> Result<VulkanMesh<GrayboxVertex>>
+    {
+        self.resource_manager.load_graybox_mesh(
+            &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
+    }
+
+    pub fn load_cubemap_mesh(&mut self, name: &str) -> Result<VulkanMesh<CubemapVertex>>
+    {
+        self.resource_manager.load_cubemap_mesh(
+            &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
+    }
+
+    pub fn load_texture(&mut self, name: &str) -> Result<ImageWrap>
+    {
+        self.resource_manager.load_texture(
+            &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
     }
 }
