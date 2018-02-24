@@ -23,7 +23,7 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    PhysicalDeviceProperties,
                    DescriptorPool, Semaphore, Fence, PipelineLayoutCreateInfo,
                    BufferUsageFlags, DescriptorSetLayoutCreateInfo,
-                   DescriptorSetLayout, DescriptorSet, Pipeline,
+                   DescriptorSetLayout, DescriptorSet, Pipeline, PipelineLayout,
                    Timeout, SamplerCreateInfo, Sampler,
                    PipelineVertexInputStateCreateInfo, PrimitiveTopology,
                    CullModeFlags, FrontFace, ImageView};
@@ -275,7 +275,7 @@ impl Renderer {
                            depth_handling: DepthHandling,
                            alpha_blend: bool,
                            pass: Pass)
-                           -> Result<Pipeline>
+                           -> Result<(PipelineLayout, Pipeline)>
     {
         use dacite::core::{GraphicsPipelineCreateInfo, PipelineCreateFlags,
                            PipelineShaderStageCreateInfo, PipelineShaderStageCreateFlags,
@@ -420,7 +420,7 @@ impl Renderer {
                 dynamic_states: vec![DynamicState::Viewport, DynamicState::Scissor],
                 chain: None,
             }),
-            layout: layout,
+            layout: layout.clone(),
             render_pass: match pass {
                 Pass::EarlyZ => self.early_z_pass.render_pass.clone(),
                 Pass::Opaque => self.opaque_pass.render_pass.clone(),
@@ -462,7 +462,7 @@ impl Renderer {
         let create_infos = vec![create_info];
         let pipelines = self.device.create_graphics_pipelines(None, &create_infos, None)
             .map_err(|(e, _)| e)?;
-        Ok(pipelines[0].clone())
+        Ok((layout, pipelines[0].clone()))
     }
 
     pub fn create_sampler(&mut self,
