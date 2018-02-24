@@ -13,6 +13,7 @@ mod passes;
 
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
+pub use self::mesh::VulkanMesh;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -34,7 +35,6 @@ use self::memory::{Memory, Lifetime};
 use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
 use self::resource_manager::ResourceManager;
-use self::mesh::VulkanMesh;
 use self::target_data::TargetData;
 use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
                    BloomFilterPass, BloomHPass, BloomVPass,
@@ -466,13 +466,25 @@ impl Renderer {
         Ok(self.device.create_sampler(&create_info, None)?)
     }
 
-    pub fn create_host_visible_buffer(&mut self, size: u64, flags: BufferUsageFlags,
-                                      lifetime: Lifetime, purpose: &str)
-                                      -> Result<HostVisibleBuffer<u8>>
+    pub fn create_host_visible_buffer(
+        &mut self, size: u64, usage: BufferUsageFlags,
+        lifetime: Lifetime, reason: &str)
+        -> Result<HostVisibleBuffer<u8>>
     {
         HostVisibleBuffer::new(
             &self.device, &mut self.memory,
-            size, flags, lifetime, purpose)
+            size, usage, lifetime, reason)
+    }
+
+    pub fn create_device_local_buffer<T: Copy>(
+        &mut self, usage: BufferUsageFlags,
+        lifetime: Lifetime, reason: &str, data: &[T])
+        -> Result<DeviceLocalBuffer<T>>
+    {
+        DeviceLocalBuffer::new_uploaded(
+            &self.device, &mut self.memory, &self.commander,
+            &self.staging_buffer, data, usage,
+            lifetime, reason)
     }
 
     pub fn create_descriptor_set(&mut self, create_info: DescriptorSetLayoutCreateInfo)
