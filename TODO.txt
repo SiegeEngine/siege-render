@@ -1,6 +1,5 @@
-1. Add a shared structure with 2 atomic bools for ShuttingDown and Resized
-2a. BloomFilterH pipeline, BloomVMerge pipeline, and bloom_gfx
-2b. PostPipeline post_gfx
+1. BloomFilterH pipeline, BloomVMerge pipeline, and bloom_gfx
+2. PostPipeline post_gfx
 
 
 Low priority:

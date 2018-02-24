@@ -17,6 +17,7 @@ pub use self::mesh::VulkanMesh;
 pub use self::memory::Lifetime;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    ShaderModule, Rect2D, Viewport, Offset2D,
@@ -101,12 +102,16 @@ pub struct Renderer {
     debug_callback: Option<DebugReportCallbackExt>,
     #[allow(dead_code)] // This must stay alive until we shut down
     instance: Instance,
+    shutdown: Arc<AtomicBool>,
+    resized: Arc<AtomicBool>,
     window: Arc<Window>,
     config: Config,
 }
 
 impl Renderer {
-    pub fn new(config: Config, window: Arc<Window>)
+    pub fn new(config: Config, window: Arc<Window>,
+               resized: Arc<AtomicBool>,
+               shutdown: Arc<AtomicBool>)
                -> Result<Renderer>
     {
         let instance = setup::setup_instance(&config, &window)?;
@@ -223,6 +228,8 @@ impl Renderer {
             surface: surface,
             debug_callback: debug_callback,
             instance: instance,
+            shutdown: shutdown,
+            resized: resized,
             window: window,
             config: config
         })
@@ -559,14 +566,12 @@ impl Renderer {
             // On windows (at least, perhaps also elsewhere), vulkan won't give us an
             // OutOfDateKhr error on a window resize.  But the window will remain black
             // after resizing.  We have to detect resizes and rebuild the swapchain.
-            /* FIXME - add API for sharing this AtomicBool
-            if self.state.resized.load(Ordering::Relaxed) {
+            if self.resized.load(Ordering::Relaxed) {
                 self.rebuild()?;
-                self.state.resized.store(false, Ordering::Relaxed);
+                self.resized.store(false, Ordering::Relaxed);
                 self.graphics_fence.wait_for(Timeout::Infinite)?;
                 continue;
             }
-             */
 
             // Wait until the GPU is idle.
             self.graphics_fence.wait_for(Timeout::Infinite)?;
@@ -594,14 +599,12 @@ impl Renderer {
             }
 
             // Shutdown when it is time to do so
-            /* FIXME: add API for sharing this atomic bool
-            if self.state.terminating.load(Ordering::Relaxed) {
+            if self.shutdown.load(Ordering::Relaxed) {
                 info!("Graphics is shutting down...");
                 self.device.wait_idle()?;
                 self.window.hide();
                 return Ok(());
             }
-             */
         }
     }
 
