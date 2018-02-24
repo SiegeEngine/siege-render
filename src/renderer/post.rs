@@ -162,7 +162,6 @@ impl PostGfx {
     }
 
     pub fn record(&self, command_buffer: CommandBuffer)
-                  -> Result<()>
     {
         // Bind our pipeline
         command_buffer.bind_pipeline(PipelineBindPoint::Graphics, &self.pipeline);
@@ -177,7 +176,5 @@ impl PostGfx {
         );
 
         command_buffer.draw(3, 1, 0, 0);
-
-        Ok(())
     }
 }

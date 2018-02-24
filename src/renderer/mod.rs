@@ -569,7 +569,7 @@ impl Renderer {
 
                 for plugin in &self.plugins {
                     // NOTE: Try to draw front to back
-                    plugin.record_earlyz(command_buffer.clone())?;
+                    plugin.record_earlyz(command_buffer.clone());
                 }
 
                 self.early_z_pass.record_exit(command_buffer.clone())?;
@@ -587,7 +587,7 @@ impl Renderer {
                     // except for far-plane items (each overwrites the last)
 
                     // NOTE: Try to draw front to back
-                    plugin.record_opaque(command_buffer.clone())?;
+                    plugin.record_opaque(command_buffer.clone());
                 }
 
                 self.opaque_pass.record_exit(command_buffer.clone())?;
@@ -600,7 +600,7 @@ impl Renderer {
                 self.transparent_pass.record_entry(command_buffer.clone())?;
 
                 for plugin in &self.plugins {
-                    plugin.record_transparent(command_buffer.clone())?;
+                    plugin.record_transparent(command_buffer.clone());
                 }
 
                 self.transparent_pass.record_exit(command_buffer.clone())?;
@@ -615,7 +615,7 @@ impl Renderer {
                 /* TBD
                 self.blur_h_pipeline.record(command_buffer.clone(),
                                             &self.bloom_gfx,
-                                            BloomPhase::Filter)?;
+                                            BloomPhase::Filter);
                  */
 
                 self.blur_h_pass.record_exit(command_buffer.clone())?;
@@ -630,7 +630,7 @@ impl Renderer {
                 /* TBD:
                 self.blur_v_pipeline.record(command_buffer.clone(),
                                             &self.bloom_gfx,
-                                            BloomPhase::H)?;
+                                            BloomPhase::H);
                  */
 
                 self.blur_v_pass.record_exit(command_buffer.clone())?;
@@ -643,7 +643,7 @@ impl Renderer {
                 self.post_pass.record_entry(command_buffer.clone(),
                                             present_index)?;
 
-                self.post_gfx.record(command_buffer.clone())?;
+                self.post_gfx.record(command_buffer.clone());
 
                 self.post_pass.record_exit(command_buffer.clone())?;
             }
@@ -656,7 +656,7 @@ impl Renderer {
                                           present_index)?;
 
                 for plugin in &self.plugins {
-                    plugin.record_ui(command_buffer.clone())?;
+                    plugin.record_ui(command_buffer.clone());
                 }
 
                 self.ui_pass.record_exit(command_buffer.clone())?;
