@@ -142,7 +142,7 @@ fn build_images(
     format: Format)
     -> Result<Vec<ImageWrap>>
 {
-    use dacite::core::{ComponentMapping, ImageUsageFlags, ImageLayout, ImageTiling,
+    use dacite::core::{ComponentMapping, ImageUsageFlags, ImageTiling,
                        Extent3D};
 
     let images = {
@@ -158,7 +158,6 @@ fn build_images(
                     depth: 1
                 },
                 image_wrap_type: ImageWrapType::Swapchain,
-                layout: ImageLayout::PresentSrcKhr,
                 tiling: ImageTiling::Optimal,
                 usage: ImageUsageFlags::COLOR_ATTACHMENT,
                 size: 0,

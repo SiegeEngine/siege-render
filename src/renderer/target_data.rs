@@ -69,7 +69,7 @@ impl TargetData {
         // write shading:
         self.shading_image.transition_layout(
             command_buffer.clone(),
-            ImageLayout::ColorAttachmentOptimal,
+            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
             Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
             PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ImageSubresourceRange {
@@ -100,7 +100,7 @@ impl TargetData {
         // read shading:
         self.shading_image.transition_layout(
             command_buffer.clone(),
-            ImageLayout::ShaderReadOnlyOptimal,
+            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
             AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
             PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
             ImageSubresourceRange {
@@ -114,7 +114,7 @@ impl TargetData {
         // write blur:
         self.blur_image.transition_layout(
             command_buffer,
-            ImageLayout::ColorAttachmentOptimal,
+            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
             Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
             PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ImageSubresourceRange {
@@ -134,7 +134,7 @@ impl TargetData {
         // read blur:
         self.blur_image.transition_layout(
             command_buffer.clone(),
-            ImageLayout::ShaderReadOnlyOptimal,
+            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
             AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
             PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
             ImageSubresourceRange {
@@ -148,7 +148,7 @@ impl TargetData {
         // write shading:
         self.shading_image.transition_layout(
             command_buffer,
-            ImageLayout::ColorAttachmentOptimal,
+            ImageLayout::ShaderReadOnlyOptimal, ImageLayout::ColorAttachmentOptimal,
             AccessFlags::SHADER_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
             PipelineStageFlags::FRAGMENT_SHADER, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             ImageSubresourceRange {
@@ -168,7 +168,7 @@ impl TargetData {
         // read shading:
         self.shading_image.transition_layout(
             command_buffer.clone(),
-            ImageLayout::ShaderReadOnlyOptimal,
+            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
             AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
             PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
             ImageSubresourceRange {
@@ -225,7 +225,7 @@ fn build_images(
 
         depth_image_wrap.transition_layout_now(
             device,
-            ImageLayout::DepthStencilAttachmentOptimal,
+            ImageLayout::Undefined, ImageLayout::DepthStencilAttachmentOptimal,
             Default::default(),
             AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             PipelineStageFlags::TOP_OF_PIPE,
@@ -269,23 +269,6 @@ fn build_images(
             Lifetime::Permanent,
             "Shading Image")?;
 
-        shading_image_wrap.transition_layout_now(
-            device,
-            ImageLayout::ColorAttachmentOptimal,
-            Default::default(),
-            AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            },
-            commander
-        )?;
-
         shading_image_wrap
     };
 
@@ -308,23 +291,6 @@ fn build_images(
                 | ImageUsageFlags::SAMPLED,
             Lifetime::Permanent,
             "Blur Image")?;
-
-        blur_image_wrap.transition_layout_now(
-            device,
-            ImageLayout::ColorAttachmentOptimal,
-            Default::default(),
-            AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            },
-            commander
-        )?;
 
         blur_image_wrap
     };

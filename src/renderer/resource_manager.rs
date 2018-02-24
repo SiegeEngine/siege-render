@@ -386,7 +386,8 @@ impl ResourceManager {
                            OptionalArrayLayers, ImageSubresourceRange,
                            PipelineStageFlags};
         image_wrap.transition_layout_now(
-            device, ImageLayout::ShaderReadOnlyOptimal,
+            device,
+            ImageLayout::Undefined, ImageLayout::ShaderReadOnlyOptimal,
             AccessFlags::TRANSFER_WRITE, AccessFlags::SHADER_READ,
             PipelineStageFlags::TRANSFER, PipelineStageFlags::VERTEX_SHADER,
             ImageSubresourceRange {

@@ -30,7 +30,6 @@ pub struct ImageWrap {
     pub format: Format,
     pub extent: Extent3D,
     pub image_wrap_type: ImageWrapType,
-    pub layout: ImageLayout,
     pub tiling: ImageTiling,
     pub usage: ImageUsageFlags,
     pub size: u64,
@@ -46,7 +45,7 @@ impl ImageWrap {
         swizzle: ComponentMapping,
         extent: Extent3D,
         image_wrap_type: ImageWrapType,
-        layout: ImageLayout,
+        initial_layout: ImageLayout,
         mut tiling: ImageTiling,
         mut usage: ImageUsageFlags,
         lifetime: Lifetime,
@@ -81,7 +80,7 @@ impl ImageWrap {
                 usage: usage,
                 sharing_mode: SharingMode::Exclusive,
                 queue_family_indices: vec![], // ignored if not concurrent
-                initial_layout: layout,
+                initial_layout: initial_layout,
                 chain: None,
             };
             device.create_image(&create_info, None)?
@@ -102,7 +101,6 @@ impl ImageWrap {
             format: format,
             extent: extent,
             image_wrap_type: image_wrap_type,
-            layout: layout,
             tiling: tiling,
             usage: usage,
             size: memory_requirements.size,
@@ -148,7 +146,7 @@ impl ImageWrap {
 
     pub fn transition_layout_now(&mut self,
                                  device: &Device,
-                                 dst_layout: ImageLayout,
+                                 src_layout: ImageLayout, dst_layout: ImageLayout,
                                  src_access: AccessFlags, dst_access: AccessFlags,
                                  src_stage: PipelineStageFlags, dst_stage: PipelineStageFlags,
                                  subresource_range: ImageSubresourceRange,
@@ -171,7 +169,7 @@ impl ImageWrap {
 
         self.transition_layout(
             commander.gfx_command_buffers[0].clone(),
-            dst_layout,
+            src_layout, dst_layout,
             src_access, dst_access,
             src_stage, dst_stage,
             subresource_range)?;
@@ -202,7 +200,7 @@ impl ImageWrap {
 
     pub fn transition_layout(&mut self,
                              command_buffer: CommandBuffer,
-                             dst_layout: ImageLayout,
+                             src_layout: ImageLayout, dst_layout: ImageLayout,
                              src_access: AccessFlags, dst_access: AccessFlags,
                              src_stage: PipelineStageFlags, dst_stage: PipelineStageFlags,
                              subresource_range: ImageSubresourceRange)
@@ -214,7 +212,7 @@ impl ImageWrap {
         let layout_transition_barrier = ImageMemoryBarrier {
             src_access_mask: src_access,
             dst_access_mask: dst_access,
-            old_layout: self.layout,
+            old_layout: src_layout,
             new_layout: dst_layout,
             src_queue_family_index: QueueFamilyIndex::Ignored,
             dst_queue_family_index: QueueFamilyIndex::Ignored,
@@ -230,8 +228,6 @@ impl ImageWrap {
             None, //memory barriers
             None , //buffer memory barriers
             Some(&[layout_transition_barrier])); //image memory barriers
-
-        self.layout = dst_layout;
 
         Ok(())
     }

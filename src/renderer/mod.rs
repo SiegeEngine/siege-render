@@ -707,7 +707,7 @@ impl Renderer {
             //  very first time it will be Undefined).
             self.swapchain_data.images[present_index].transition_layout(
                 command_buffer.clone(),
-                ImageLayout::ColorAttachmentOptimal,
+                ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
                 AccessFlags::HOST_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
                 PipelineStageFlags::HOST, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
                 ImageSubresourceRange {
@@ -827,7 +827,7 @@ impl Renderer {
             // Transition swapchain image to PresentImageKhr
             self.swapchain_data.images[present_index].transition_layout(
                 command_buffer.clone(),
-                ImageLayout::PresentSrcKhr,
+                ImageLayout::ColorAttachmentOptimal, ImageLayout::PresentSrcKhr,
                 AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::HOST_READ,
                 PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::HOST,
                 ImageSubresourceRange {
