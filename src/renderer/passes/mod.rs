@@ -8,8 +8,8 @@ pub use self::opaque::OpaquePass;
 pub mod transparent;
 pub use self::transparent::TransparentPass;
 
-pub mod bloom;
-pub use self::bloom::{BloomFilterPass, BloomHPass, BloomVPass};
+pub mod blur;
+pub use self::blur::{BlurHPass, BlurVPass};
 
 pub mod post;
 pub use self::post::PostPass;

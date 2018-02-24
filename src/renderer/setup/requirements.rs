@@ -17,7 +17,7 @@ pub const SWAPCHAIN_FORMAT: Format = Format::B8G8R8A8_sRGB;
 
 pub const SHADING_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
 
-pub const BRIGHT_AND_BLUR_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
+pub const BLUR_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
 
 pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
     large_points: true,

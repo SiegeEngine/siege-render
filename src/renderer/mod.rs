@@ -39,8 +39,7 @@ use self::commander::Commander;
 use self::resource_manager::ResourceManager;
 use self::target_data::TargetData;
 use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
-                   BloomFilterPass, BloomHPass, BloomVPass,
-                   PostPass, UiPass};
+                   BlurHPass, BlurVPass, PostPass, UiPass};
 use super::vertex::*;
 use super::plugin::Plugin;
 use errors::*;
@@ -73,9 +72,8 @@ pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
     ui_pass: UiPass,
     post_pass: PostPass,
-    bloom_v_pass: BloomVPass,
-    bloom_h_pass: BloomHPass,
-    bloom_filter_pass: BloomFilterPass,
+    blur_v_pass: BlurVPass,
+    blur_h_pass: BlurHPass,
     transparent_pass: TransparentPass,
     opaque_pass: OpaquePass,
     early_z_pass: EarlyZPass,
@@ -186,14 +184,12 @@ impl Renderer {
             &device, &target_data.depth_image, &target_data.shading_image)?;
         let transparent_pass = TransparentPass::new(
             &device, &target_data.depth_image, &target_data.shading_image)?;
-        let bloom_filter_pass = BloomFilterPass::new(
-            &device, &target_data.shading_image, &target_data.bright_image)?;
-        let bloom_h_pass = BloomHPass::new(
-            &device, &target_data.bright_image, &target_data.blurpong_image)?;
-        let bloom_v_pass = BloomVPass::new(
-            &device, &target_data.blurpong_image, &target_data.bright_image)?;
+        let blur_h_pass = BlurHPass::new(
+            &device, &target_data.shading_image, &target_data.blur_image)?;
+        let blur_v_pass = BlurVPass::new(
+            &device, &target_data.blur_image, &target_data.shading_image)?;
         let post_pass = PostPass::new(
-            &device, &target_data.shading_image, &target_data.bright_image, &swapchain_data)?;
+            &device, &target_data.shading_image, &swapchain_data)?;
         let ui_pass = UiPass::new(
             &device, &swapchain_data)?;
 
@@ -201,9 +197,8 @@ impl Renderer {
             plugins: Vec::new(),
             ui_pass: ui_pass,
             post_pass: post_pass,
-            bloom_v_pass: bloom_v_pass,
-            bloom_h_pass: bloom_h_pass,
-            bloom_filter_pass: bloom_filter_pass,
+            blur_v_pass: blur_v_pass,
+            blur_h_pass: blur_h_pass,
             transparent_pass: transparent_pass,
             opaque_pass: opaque_pass,
             early_z_pass: early_z_pass,
@@ -765,49 +760,34 @@ impl Renderer {
                 self.transparent_pass.record_exit(command_buffer.clone())?;
             }
 
-            self.target_data.transition_for_bloom_filter(command_buffer.clone())?;
+            self.target_data.transition_for_blurh(command_buffer.clone())?;
 
-            // Bloom Filter pass
+            // Blur/Bloom Filter/Horizontal pass
             {
-                self.bloom_filter_pass.record_entry(command_buffer.clone())?;
+                self.blur_h_pass.record_entry(command_buffer.clone())?;
 
                 /* TBD
-                self.bloom_pipeline_filter.record(command_buffer.clone(),
-                                                  &self.bloom_gfx,
-                                                  BloomPhase::Filter)?;
+                self.blur_h_pipeline.record(command_buffer.clone(),
+                                            &self.bloom_gfx,
+                                            BloomPhase::Filter)?;
                  */
 
-                self.bloom_filter_pass.record_exit(command_buffer.clone())?;
+                self.blur_h_pass.record_exit(command_buffer.clone())?;
             }
 
-            self.target_data.transition_for_bloom_h(command_buffer.clone())?;
+            self.target_data.transition_for_blurv(command_buffer.clone())?;
 
-            // Bloom H pass
+            // Blur/Bloom Vertical/Merge pass
             {
-                self.bloom_h_pass.record_entry(command_buffer.clone())?;
+                self.blur_v_pass.record_entry(command_buffer.clone())?;
 
                 /* TBD:
-                self.bloom_pipeline_h.record(command_buffer.clone(),
-                                             &self.bloom_gfx,
-                                             BloomPhase::H)?;
+                self.blur_v_pipeline.record(command_buffer.clone(),
+                                            &self.bloom_gfx,
+                                            BloomPhase::H)?;
                  */
 
-                self.bloom_h_pass.record_exit(command_buffer.clone())?;
-            }
-
-            self.target_data.transition_for_bloom_v(command_buffer.clone())?;
-
-            // Bloom V pass
-            {
-                self.bloom_v_pass.record_entry(command_buffer.clone())?;
-
-                /* TBD:
-                self.bloom_pipeline_v.record(command_buffer.clone(),
-                                             &self.bloom_gfx,
-                                             BloomPhase::V)?;
-                 */
-
-                self.bloom_v_pass.record_exit(command_buffer.clone())?;
+                self.blur_v_pass.record_exit(command_buffer.clone())?;
             }
 
             self.target_data.transition_for_post(command_buffer.clone())?;
@@ -883,18 +863,14 @@ impl Renderer {
         self.transparent_pass.rebuild(&self.device,
                                       &self.target_data.depth_image,
                                       &self.target_data.shading_image)?;
-        self.bloom_filter_pass.rebuild(&self.device,
-                                       &self.target_data.shading_image,
-                                       &self.target_data.bright_image)?;
-        self.bloom_h_pass.rebuild(&self.device,
-                                  &self.target_data.bright_image,
-                                  &self.target_data.blurpong_image)?;
-        self.bloom_v_pass.rebuild(&self.device,
-                                  &self.target_data.blurpong_image,
-                                  &self.target_data.bright_image)?;
+        self.blur_h_pass.rebuild(&self.device,
+                                 &self.target_data.shading_image,
+                                 &self.target_data.blur_image)?;
+        self.blur_v_pass.rebuild(&self.device,
+                                 &self.target_data.blur_image,
+                                 &self.target_data.shading_image)?;
         self.post_pass.rebuild(&self.device,
                                &self.target_data.shading_image,
-                               &self.target_data.bright_image,
                                &self.swapchain_data)?;
         self.ui_pass.rebuild(&self.device,
                              &self.swapchain_data)?;

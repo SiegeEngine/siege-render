@@ -7,11 +7,10 @@ use super::image_wrap::{ImageWrap, ImageWrapType};
 use super::memory::{Memory, Lifetime};
 use super::commander::Commander;
 use super::setup::requirements::{DEPTH_FORMAT, SHADING_IMAGE_FORMAT,
-                                 BRIGHT_AND_BLUR_IMAGE_FORMAT};
+                                 BLUR_IMAGE_FORMAT};
 
 pub struct TargetData {
-    pub blurpong_image: ImageWrap,
-    pub bright_image: ImageWrap,
+    pub blur_image: ImageWrap,
     pub shading_image: ImageWrap,
     pub depth_image: ImageWrap,
     pub extent: Extent2D,
@@ -24,12 +23,11 @@ impl TargetData {
                   extent: Extent2D)
                   -> Result<TargetData>
     {
-        let (depth_image, shading_image, bright_image, blurpong_image) =
+        let (depth_image, shading_image, blur_image) =
             build_images(device, memory, commander, extent)?;
 
         Ok(TargetData {
-            blurpong_image: blurpong_image,
-            bright_image: bright_image,
+            blur_image: blur_image,
             shading_image: shading_image,
             depth_image: depth_image,
             extent: extent
@@ -46,12 +44,11 @@ impl TargetData {
         self.extent = extent;
 
         // Rebuild images
-        let (depth_image, shading_image, bright_image, blurpong_image) =
+        let (depth_image, shading_image, blur_image) =
             build_images(device, memory, commander, extent)?;
         self.depth_image = depth_image;
         self.shading_image = shading_image;
-        self.bright_image = bright_image;
-        self.blurpong_image = blurpong_image;
+        self.blur_image = blur_image;
 
         Ok(())
     }
@@ -97,8 +94,8 @@ impl TargetData {
         Ok(())
     }
 
-    pub fn transition_for_bloom_filter(&mut self, command_buffer: CommandBuffer)
-                                        -> Result<()>
+    pub fn transition_for_blurh(&mut self, command_buffer: CommandBuffer)
+                                 -> Result<()>
     {
         // read shading:
         self.shading_image.transition_layout(
@@ -114,8 +111,8 @@ impl TargetData {
                 layer_count: OptionalArrayLayers::ArrayLayers(1),
             })?;
 
-        // write bright:
-        self.bright_image.transition_layout(
+        // write blur:
+        self.blur_image.transition_layout(
             command_buffer,
             ImageLayout::ColorAttachmentOptimal,
             Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
@@ -131,11 +128,11 @@ impl TargetData {
         Ok(())
     }
 
-    pub fn transition_for_bloom_h(&mut self, command_buffer: CommandBuffer)
-                                  -> Result<()>
+    pub fn transition_for_blurv(&mut self, command_buffer: CommandBuffer)
+                                -> Result<()>
     {
-        // read bright:
-        self.bright_image.transition_layout(
+        // read blur:
+        self.blur_image.transition_layout(
             command_buffer.clone(),
             ImageLayout::ShaderReadOnlyOptimal,
             AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
@@ -148,42 +145,8 @@ impl TargetData {
                 layer_count: OptionalArrayLayers::ArrayLayers(1),
             })?;
 
-        // write blurpong
-        self.blurpong_image.transition_layout(
-            command_buffer,
-            ImageLayout::ColorAttachmentOptimal,
-            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
-
-        Ok(())
-    }
-
-    pub fn transition_for_bloom_v(&mut self, command_buffer: CommandBuffer)
-                                    -> Result<()>
-    {
-        // read blurpong:
-        self.blurpong_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::ShaderReadOnlyOptimal,
-            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
-
-        // write bright:
-        self.bright_image.transition_layout(
+        // write shading:
+        self.shading_image.transition_layout(
             command_buffer,
             ImageLayout::ColorAttachmentOptimal,
             AccessFlags::SHADER_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
@@ -202,10 +165,8 @@ impl TargetData {
     pub fn transition_for_post(&mut self, command_buffer: CommandBuffer)
                                -> Result<()>
     {
-        // read shading: already there
-
-        // read bright:
-        self.bright_image.transition_layout(
+        // read shading:
+        self.shading_image.transition_layout(
             command_buffer.clone(),
             ImageLayout::ShaderReadOnlyOptimal,
             AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
@@ -237,7 +198,7 @@ fn build_images(
     memory: &mut Memory,
     commander: &Commander,
     extent: Extent2D)
-    -> Result<(ImageWrap, ImageWrap, ImageWrap, ImageWrap)>
+    -> Result<(ImageWrap, ImageWrap, ImageWrap)>
 {
     use dacite::core::{ComponentMapping, ImageUsageFlags, ImageLayout, ImageTiling,
                        AccessFlags, PipelineStageFlags, ImageAspectFlags,
@@ -328,11 +289,11 @@ fn build_images(
         shading_image_wrap
     };
 
-    let bright_image = {
-        let mut bright_image_wrap = ImageWrap::new(
+    let blur_image = {
+        let mut blur_image_wrap = ImageWrap::new(
             device,
             memory,
-            BRIGHT_AND_BLUR_IMAGE_FORMAT,
+            BLUR_IMAGE_FORMAT,
             ComponentMapping::identity(),
             Extent3D {
                 // FIXME: can we have half dimensions?
@@ -346,9 +307,9 @@ fn build_images(
             ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
                 | ImageUsageFlags::SAMPLED,
             Lifetime::Permanent,
-            "bright Image")?;
+            "Blur Image")?;
 
-        bright_image_wrap.transition_layout_now(
+        blur_image_wrap.transition_layout_now(
             device,
             ImageLayout::ColorAttachmentOptimal,
             Default::default(),
@@ -365,48 +326,8 @@ fn build_images(
             commander
         )?;
 
-        bright_image_wrap
+        blur_image_wrap
     };
 
-    let blurpong_image = {
-        let mut blurpong_image_wrap = ImageWrap::new(
-            device,
-            memory,
-            BRIGHT_AND_BLUR_IMAGE_FORMAT,
-            ComponentMapping::identity(),
-            Extent3D {
-                // FIXME can we have half dimensions?
-                width: extent.width,
-                height: extent.height,
-                depth: 1,
-            },
-            ImageWrapType::Standard,
-            ImageLayout::Undefined,
-            ImageTiling::Optimal,
-            ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
-                | ImageUsageFlags::SAMPLED,
-            Lifetime::Permanent,
-            "Blur-pong Image")?;
-
-        blurpong_image_wrap.transition_layout_now(
-            device,
-            ImageLayout::ColorAttachmentOptimal,
-            Default::default(),
-            AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            },
-            commander
-        )?;
-
-        blurpong_image_wrap
-    };
-
-    Ok((depth_image, shading_image, bright_image, blurpong_image))
+    Ok((depth_image, shading_image, blur_image))
 }

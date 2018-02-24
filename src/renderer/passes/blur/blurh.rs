@@ -4,20 +4,20 @@ use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
 use errors::*;
 use renderer::image_wrap::ImageWrap;
 
-pub struct BloomVPass {
+pub struct BlurHPass {
     pub framebuffer: Framebuffer,
-    pub bright_image_view: ImageView,
-    pub blurpong_image_view: ImageView,
+    pub blur_image_view: ImageView,
+    pub shading_image_view: ImageView,
     pub extent: Extent2D,
     pub render_pass: RenderPass,
 }
 
-impl BloomVPass {
+impl BlurHPass {
     pub fn new(
         device: &Device,
-        blurpong_image: &ImageWrap,
-        bright_image: &ImageWrap)
-        -> Result<BloomVPass>
+        shading_image: &ImageWrap,
+        blur_image: &ImageWrap)
+        -> Result<BlurHPass>
     {
         let render_pass = {
             use dacite::core::{AttachmentLoadOp, AttachmentStoreOp, ImageLayout,
@@ -27,43 +27,43 @@ impl BloomVPass {
                                RenderPassCreateFlags, RenderPassCreateInfo,
                                AttachmentReference, AttachmentIndex};
 
-            let blurpong_attachment_description = blurpong_image.get_attachment_description(
+            let shading_attachment_description = shading_image.get_attachment_description(
+                AttachmentLoadOp::Load,
+                AttachmentStoreOp::Store,
+                ImageLayout::ShaderReadOnlyOptimal,
+                ImageLayout::ShaderReadOnlyOptimal,
+            );
+
+            let shading_attachment_reference = AttachmentReference {
+                attachment: AttachmentIndex::Index(0),
+                layout: ImageLayout::ShaderReadOnlyOptimal
+            };
+
+            let blur_attachment_description = blur_image.get_attachment_description(
                 AttachmentLoadOp::Load,
                 AttachmentStoreOp::DontCare,
                 ImageLayout::ShaderReadOnlyOptimal,
                 ImageLayout::ShaderReadOnlyOptimal,
             );
 
-            let blurpong_attachment_reference = AttachmentReference {
+            let blur_attachment_reference = AttachmentReference {
                 attachment: AttachmentIndex::Index(0),
                 layout: ImageLayout::ShaderReadOnlyOptimal
-            };
-
-            let bright_attachment_description = bright_image.get_attachment_description(
-                AttachmentLoadOp::Clear,
-                AttachmentStoreOp::Store,
-                ImageLayout::ColorAttachmentOptimal,
-                ImageLayout::ColorAttachmentOptimal,
-            );
-
-            let bright_attachment_reference = AttachmentReference {
-                attachment: AttachmentIndex::Index(1),
-                layout: ImageLayout::ColorAttachmentOptimal
             };
 
             let subpass = SubpassDescription {
                 flags: SubpassDescriptionFlags::empty(),
                 pipeline_bind_point: PipelineBindPoint::Graphics,
-                input_attachments: vec![blurpong_attachment_reference],
-                color_attachments: vec![bright_attachment_reference],
+                input_attachments: vec![shading_attachment_reference],
+                color_attachments: vec![blur_attachment_reference],
                 resolve_attachments: vec![],
                 depth_stencil_attachment: None,
                 preserve_attachments: vec![],
             };
 
             // We must have written the shading image before this RenderPass reads it
-            let bloom_h_to_bloom_v = SubpassDependency {
-                src_subpass: SubpassIndex::External, // bloom_h (prior pass)
+            let transparent_to_blurh = SubpassDependency {
+                src_subpass: SubpassIndex::External, // blur_filter (prior pass)
                 dst_subpass: SubpassIndex::Index(0), // us
                 src_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
                 dst_stage_mask: PipelineStageFlags::FRAGMENT_SHADER,
@@ -72,10 +72,10 @@ impl BloomVPass {
                 dependency_flags:  DependencyFlags::BY_REGION,
             };
 
-            // We must write the bright image before the next RenderPass reads it
-            let bloom_v_to_post = SubpassDependency {
+            // We must write the blur image before the next RenderPass reads it
+            let blurh_to_blurv = SubpassDependency {
                 src_subpass: SubpassIndex::Index(0), // us
-                dst_subpass: SubpassIndex::External, // post
+                dst_subpass: SubpassIndex::External, // blur_h
                 src_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
                 dst_stage_mask: PipelineStageFlags::FRAGMENT_SHADER,
                 src_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
@@ -86,13 +86,13 @@ impl BloomVPass {
             let create_info = RenderPassCreateInfo {
                 flags: RenderPassCreateFlags::empty(),
                 attachments: vec![
-                    blurpong_attachment_description,
-                    bright_attachment_description,
+                    shading_attachment_description,
+                    blur_attachment_description,
                 ],
                 subpasses: vec![subpass],
                 dependencies: vec![
-                    bloom_h_to_bloom_v,
-                    bloom_v_to_post
+                    transparent_to_blurh,
+                    blurh_to_blurv,
                 ],
                 chain: None,
             };
@@ -100,29 +100,29 @@ impl BloomVPass {
             device.create_render_pass(&create_info, None)?
         };
 
-        let (blurpong_image_view, bright_image_view, framebuffer, extent) =
-            build(device, render_pass.clone(), blurpong_image, bright_image)?;
+        let (shading_image_view, blur_image_view, framebuffer, extent) =
+            build(device, render_pass.clone(), shading_image, blur_image)?;
 
-        Ok(BloomVPass {
+        Ok(BlurHPass {
             framebuffer: framebuffer,
-            bright_image_view: bright_image_view,
-            blurpong_image_view: blurpong_image_view,
+            blur_image_view: blur_image_view,
+            shading_image_view: shading_image_view,
             extent: extent,
             render_pass: render_pass,
         })
     }
 
     pub fn rebuild(&mut self, device: &Device,
-                   blurpong_image: &ImageWrap,
-                   bright_image: &ImageWrap)
+                   shading_image: &ImageWrap,
+                   blur_image: &ImageWrap)
                    -> Result<()>
     {
-        let (blurpong_image_view, bright_image_view, framebuffer, extent) =
-            build(device, self.render_pass.clone(), blurpong_image, bright_image)?;
+        let (shading_image_view, blur_image_view, framebuffer, extent) =
+            build(device, self.render_pass.clone(), shading_image, blur_image)?;
 
         self.framebuffer = framebuffer;
-        self.blurpong_image_view = blurpong_image_view;
-        self.bright_image_view = bright_image_view;
+        self.shading_image_view = shading_image_view;
+        self.blur_image_view = blur_image_view;
         self.extent = extent;
 
         Ok(())
@@ -165,17 +165,17 @@ impl BloomVPass {
     }
 }
 
-fn build(device: &Device, render_pass: RenderPass, blurpong_image: &ImageWrap,
-         bright_image: &ImageWrap)
+fn build(device: &Device, render_pass: RenderPass, shading_image: &ImageWrap,
+         blur_image: &ImageWrap)
     -> Result<(ImageView, ImageView, Framebuffer, Extent2D)>
 {
-    let blurpong_image_view = blurpong_image.get_image_view(device)?;
+    let shading_image_view = shading_image.get_image_view(device)?;
 
-    let bright_image_view = bright_image.get_image_view(device)?;
+    let blur_image_view = blur_image.get_image_view(device)?;
 
     let extent = Extent2D {
-        width: blurpong_image.extent.width,
-        height: blurpong_image.extent.height
+        width: shading_image.extent.width,
+        height: shading_image.extent.height
     };
 
     let framebuffer = {
@@ -185,8 +185,8 @@ fn build(device: &Device, render_pass: RenderPass, blurpong_image: &ImageWrap,
             flags: FramebufferCreateFlags::empty(),
             render_pass: render_pass,
             attachments: vec![
-                blurpong_image_view.clone(),
-                bright_image_view.clone(),
+                shading_image_view.clone(),
+                blur_image_view.clone(),
             ],
             width: extent.width,
             height: extent.height,
@@ -196,5 +196,5 @@ fn build(device: &Device, render_pass: RenderPass, blurpong_image: &ImageWrap,
         device.create_framebuffer(&create_info, None)?
     };
 
-    Ok((blurpong_image_view, bright_image_view, framebuffer, extent))
+    Ok((shading_image_view, blur_image_view, framebuffer, extent))
 }

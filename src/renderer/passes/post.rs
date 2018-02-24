@@ -8,7 +8,6 @@ use renderer::swapchain_data::SwapchainData;
 pub struct PostPass {
     pub framebuffers: Vec<Framebuffer>,
     pub swapchain_image_views: Vec<ImageView>,
-    pub bright_image_view: ImageView,
     pub shading_image_view: ImageView,
     pub extent: Extent2D,
     pub render_pass: RenderPass,
@@ -18,7 +17,6 @@ impl PostPass {
     pub fn new(
         device: &Device,
         shading_image: &ImageWrap,
-        bright_image: &ImageWrap,
         swapchain_data: &SwapchainData)
         -> Result<PostPass>
     {
@@ -42,18 +40,6 @@ impl PostPass {
                 layout: ImageLayout::ShaderReadOnlyOptimal
             };
 
-            let bright_attachment_description = bright_image.get_attachment_description(
-                AttachmentLoadOp::Load,
-                AttachmentStoreOp::DontCare,
-                ImageLayout::ShaderReadOnlyOptimal,
-                ImageLayout::ShaderReadOnlyOptimal,
-            );
-
-            let bright_attachment_reference = AttachmentReference {
-                attachment: AttachmentIndex::Index(1),
-                layout: ImageLayout::ShaderReadOnlyOptimal
-            };
-
             let swapchain_attachment_description = swapchain_data.images[0].get_attachment_description(
                 AttachmentLoadOp::Clear,
                 AttachmentStoreOp::Store,
@@ -62,23 +48,22 @@ impl PostPass {
             );
 
             let swapchain_attachment_reference = AttachmentReference {
-                attachment: AttachmentIndex::Index(2),
+                attachment: AttachmentIndex::Index(1),
                 layout: ImageLayout::ColorAttachmentOptimal
             };
 
             let subpass = SubpassDescription {
                 flags: SubpassDescriptionFlags::empty(),
                 pipeline_bind_point: PipelineBindPoint::Graphics,
-                input_attachments: vec![shading_attachment_reference,
-                                        bright_attachment_reference],
+                input_attachments: vec![shading_attachment_reference],
                 color_attachments: vec![swapchain_attachment_reference],
                 resolve_attachments: vec![],
                 depth_stencil_attachment: None,
                 preserve_attachments: vec![],
             };
 
-            // We must have written the bright image before this pass reads it
-            let bloom_v_to_post = SubpassDependency {
+            // We must have written the shading image before this pass reads it
+            let blur_v_to_post = SubpassDependency {
                 src_subpass: SubpassIndex::External, // bloom_v pass
                 dst_subpass: SubpassIndex::Index(0), // us
                 src_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
@@ -103,12 +88,11 @@ impl PostPass {
                 flags: RenderPassCreateFlags::empty(),
                 attachments: vec![
                     shading_attachment_description, // 0
-                    bright_attachment_description, // 1
-                    swapchain_attachment_description // 2
+                    swapchain_attachment_description // 1
                 ],
                 subpasses: vec![subpass],
                 dependencies: vec![
-                    bloom_v_to_post,
+                    blur_v_to_post,
                     post_to_ui
                 ],
                 chain: None,
@@ -117,13 +101,12 @@ impl PostPass {
             device.create_render_pass(&create_info, None)?
         };
 
-        let (shading_image_view, bright_image_view, swapchain_image_views, framebuffers, extent) =
-            build(device, render_pass.clone(), shading_image, bright_image, swapchain_data)?;
+        let (shading_image_view, swapchain_image_views, framebuffers, extent) =
+            build(device, render_pass.clone(), shading_image, swapchain_data)?;
 
         Ok(PostPass {
             framebuffers: framebuffers,
             swapchain_image_views: swapchain_image_views,
-            bright_image_view: bright_image_view,
             shading_image_view: shading_image_view,
             extent: extent,
             render_pass: render_pass,
@@ -132,16 +115,14 @@ impl PostPass {
 
     pub fn rebuild(&mut self, device: &Device,
                    shading_image: &ImageWrap,
-                   bright_image: &ImageWrap,
                    swapchain_data: &SwapchainData)
                    -> Result<()>
     {
-        let (shading_image_view, bright_image_view, swapchain_image_views, framebuffers, extent) =
-            build(device, self.render_pass.clone(), shading_image, bright_image, swapchain_data)?;
+        let (shading_image_view, swapchain_image_views, framebuffers, extent) =
+            build(device, self.render_pass.clone(), shading_image, swapchain_data)?;
 
         self.framebuffers = framebuffers;
         self.shading_image_view = shading_image_view;
-        self.bright_image_view = bright_image_view;
         self.swapchain_image_views = swapchain_image_views;
         self.extent = extent;
 
@@ -186,14 +167,12 @@ impl PostPass {
 }
 
 fn build(device: &Device, render_pass: RenderPass, shading_image: &ImageWrap,
-         bright_image: &ImageWrap, swapchain_data: &SwapchainData)
-    -> Result<(ImageView, ImageView, Vec<ImageView>, Vec<Framebuffer>, Extent2D)>
+         swapchain_data: &SwapchainData)
+    -> Result<(ImageView, Vec<ImageView>, Vec<Framebuffer>, Extent2D)>
 {
     let extent = swapchain_data.extent;
 
     let shading_image_view = shading_image.get_image_view(device)?;
-
-    let bright_image_view = bright_image.get_image_view(device)?;
 
     let mut image_views = Vec::new();
     let mut framebuffers = Vec::new();
@@ -208,7 +187,6 @@ fn build(device: &Device, render_pass: RenderPass, shading_image: &ImageWrap,
             render_pass: render_pass.clone(),
             attachments: vec![
                 shading_image_view.clone(),
-                bright_image_view.clone(),
                 image_view.clone(),
             ],
             width: extent.width,
@@ -222,5 +200,5 @@ fn build(device: &Device, render_pass: RenderPass, shading_image: &ImageWrap,
         framebuffers.push(framebuffer);
     };
 
-    Ok((shading_image_view, bright_image_view, image_views, framebuffers, extent))
+    Ok((shading_image_view, image_views, framebuffers, extent))
 }
