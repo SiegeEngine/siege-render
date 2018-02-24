@@ -14,6 +14,7 @@ mod passes;
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
 pub use self::mesh::VulkanMesh;
+pub use self::memory::Lifetime;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -25,13 +26,13 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    DescriptorSetLayout, DescriptorSet, Pipeline,
                    Timeout, SamplerCreateInfo, Sampler,
                    PipelineVertexInputStateCreateInfo, PrimitiveTopology,
-                   CullModeFlags, FrontFace};
+                   CullModeFlags, FrontFace, ImageView};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
 
 use self::setup::Physical;
-use self::memory::{Memory, Lifetime};
+use self::memory::Memory;
 use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
 use self::resource_manager::ResourceManager;
@@ -248,6 +249,11 @@ impl Renderer {
     {
         self.resource_manager.load_texture(
             &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
+    }
+
+    pub fn get_image_view(&self, image: &ImageWrap) -> Result<ImageView>
+    {
+        image.get_image_view(&self.device)
     }
 
     pub fn get_extent(&self) -> Extent2D {

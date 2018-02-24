@@ -48,7 +48,7 @@ pub use config::Config;
 
 pub mod renderer;
 pub use renderer::{Renderer, Pass, DepthHandling, ImageWrap, SiegeBuffer,
-                   HostVisibleBuffer, DeviceLocalBuffer, VulkanMesh};
+                   HostVisibleBuffer, DeviceLocalBuffer, VulkanMesh, Lifetime};
 
 pub mod vertex;
 pub use vertex::{VulkanVertex, ColoredVertex, StandardVertex, GuiRectangleVertex,
