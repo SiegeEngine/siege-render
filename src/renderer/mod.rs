@@ -10,6 +10,7 @@ mod mesh;
 mod resource_manager;
 mod target_data;
 mod passes;
+mod post;
 
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
@@ -40,6 +41,7 @@ use self::resource_manager::ResourceManager;
 use self::target_data::TargetData;
 use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
                    BlurHPass, BlurVPass, PostPass, UiPass};
+use self::post::PostGfx;
 use super::vertex::*;
 use super::plugin::Plugin;
 use errors::*;
@@ -70,6 +72,7 @@ pub enum DepthHandling {
 
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
+    post_gfx: PostGfx,
     ui_pass: UiPass,
     post_pass: PostPass,
     blur_v_pass: BlurVPass,
@@ -146,7 +149,7 @@ impl Renderer {
             &device, &queue_indices,
             swapchain_data.images.len() as u32)?;
 
-        let resource_manager = ResourceManager::new(
+        let mut resource_manager = ResourceManager::new(
             config.asset_path.clone());
 
         let staging_buffer = HostVisibleBuffer::new(
@@ -193,8 +196,14 @@ impl Renderer {
         let ui_pass = UiPass::new(
             &device, &swapchain_data)?;
 
+        let post_gfx = PostGfx::new(&device, descriptor_pool.clone(),
+                                    &target_data, &mut resource_manager,
+                                    post_pass.render_pass.clone(),
+                                    viewports[0].clone(), scissors[0].clone())?;
+
         Ok(Renderer {
             plugins: Vec::new(),
+            post_gfx: post_gfx,
             ui_pass: ui_pass,
             post_pass: post_pass,
             blur_v_pass: blur_v_pass,
@@ -710,7 +719,6 @@ impl Renderer {
                 }
             )?;
 
-
             // Bind viewports and scissors
             command_buffer.set_viewport(0, &self.viewports);
             command_buffer.set_scissor(0, &self.scissors);
@@ -797,12 +805,7 @@ impl Renderer {
                 self.post_pass.record_entry(command_buffer.clone(),
                                             present_index)?;
 
-                // Do all post processing
-                // FIXME: merge shading AND bright images
-                /* TBD:
-                self.post_pipeline.record(command_buffer.clone(),
-                                          &self.post_gfx)?;
-                 */
+                self.post_gfx.record(command_buffer.clone())?;
 
                 self.post_pass.record_exit(command_buffer.clone())?;
             }
@@ -874,6 +877,10 @@ impl Renderer {
                                &self.swapchain_data)?;
         self.ui_pass.rebuild(&self.device,
                              &self.swapchain_data)?;
+
+        // Rebuild post, blur
+        self.post_gfx.rebuild(&self.device, &self.target_data)?;
+        // TBD: rebuild blur
 
         // Update viewports and scissors
         self.viewports[0].width = self.swapchain_data.extent.width as f32;

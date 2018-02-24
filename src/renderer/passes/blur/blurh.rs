@@ -40,15 +40,15 @@ impl BlurHPass {
             };
 
             let blur_attachment_description = blur_image.get_attachment_description(
-                AttachmentLoadOp::Load,
-                AttachmentStoreOp::DontCare,
-                ImageLayout::ShaderReadOnlyOptimal,
-                ImageLayout::ShaderReadOnlyOptimal,
+                AttachmentLoadOp::Clear,
+                AttachmentStoreOp::Store,
+                ImageLayout::ColorAttachmentOptimal,
+                ImageLayout::ColorAttachmentOptimal,
             );
 
             let blur_attachment_reference = AttachmentReference {
-                attachment: AttachmentIndex::Index(0),
-                layout: ImageLayout::ShaderReadOnlyOptimal
+                attachment: AttachmentIndex::Index(1),
+                layout: ImageLayout::ColorAttachmentOptimal
             };
 
             let subpass = SubpassDescription {
