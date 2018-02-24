@@ -880,7 +880,12 @@ impl Renderer {
         // Update viewports and scissors
         self.viewports[0].width = self.swapchain_data.extent.width as f32;
         self.viewports[0].height = self.swapchain_data.extent.height as f32;
-        self.scissors[0].extent = self.swapchain_data.extent.clone();
+        self.scissors[0].extent = self.swapchain_data.extent;
+
+        // Rebuild plugins
+        for plugin in &mut self.plugins {
+            plugin.rebuild(self.swapchain_data.extent)?;
+        }
 
         // Re-record command buffers (the framebuffer image views are new, so we must)
         self.record_command_buffers()?;
