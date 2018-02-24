@@ -12,6 +12,7 @@ mod target_data;
 mod passes;
 mod pipeline;
 mod post;
+mod blur;
 
 pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
@@ -43,6 +44,7 @@ use self::target_data::TargetData;
 use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
                    BlurHPass, BlurVPass, PostPass, UiPass};
 use self::post::PostGfx;
+use self::blur::BlurGfx;
 use super::vertex::*;
 use super::plugin::Plugin;
 use errors::*;
@@ -73,6 +75,7 @@ pub enum DepthHandling {
 
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
+    blur_gfx: BlurGfx,
     post_gfx: PostGfx,
     ui_pass: UiPass,
     post_pass: PostPass,
@@ -202,8 +205,15 @@ impl Renderer {
                                     post_pass.render_pass.clone(),
                                     viewports[0].clone(), scissors[0].clone())?;
 
+        let blur_gfx = BlurGfx::new(&device, descriptor_pool.clone(),
+                                    &target_data, &mut resource_manager,
+                                    blur_h_pass.render_pass.clone(),
+                                    blur_v_pass.render_pass.clone(),
+                                    viewports[0].clone(), scissors[0].clone())?;
+
         Ok(Renderer {
             plugins: Vec::new(),
+            blur_gfx: blur_gfx,
             post_gfx: post_gfx,
             ui_pass: ui_pass,
             post_pass: post_pass,
@@ -612,11 +622,7 @@ impl Renderer {
             {
                 self.blur_h_pass.record_entry(command_buffer.clone())?;
 
-                /* TBD
-                self.blur_h_pipeline.record(command_buffer.clone(),
-                                            &self.bloom_gfx,
-                                            BloomPhase::Filter);
-                 */
+                self.blur_gfx.record_blurh(command_buffer.clone());
 
                 self.blur_h_pass.record_exit(command_buffer.clone())?;
             }
@@ -627,11 +633,7 @@ impl Renderer {
             {
                 self.blur_v_pass.record_entry(command_buffer.clone())?;
 
-                /* TBD:
-                self.blur_v_pipeline.record(command_buffer.clone(),
-                                            &self.bloom_gfx,
-                                            BloomPhase::H);
-                 */
+                self.blur_gfx.record_blurv(command_buffer.clone());
 
                 self.blur_v_pass.record_exit(command_buffer.clone())?;
             }
@@ -718,7 +720,7 @@ impl Renderer {
 
         // Rebuild post, blur
         self.post_gfx.rebuild(&self.device, &self.target_data)?;
-        // TBD: rebuild blur
+        self.blur_gfx.rebuild(&self.device, &self.target_data)?;
 
         // Update viewports and scissors
         self.viewports[0].width = self.swapchain_data.extent.width as f32;
