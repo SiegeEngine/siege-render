@@ -47,14 +47,14 @@ impl UiPass {
                 preserve_attachments: vec![],
             };
 
-            // We must have written the shading buffer before this pass reads it
+            // We must have written the shading buffer before this pass blends into it
             let post_to_ui = SubpassDependency {
                 src_subpass: SubpassIndex::External, // post pass
                 dst_subpass: SubpassIndex::Index(0), // us
                 src_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-                dst_stage_mask: PipelineStageFlags::FRAGMENT_SHADER,
+                dst_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
                 src_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
-                dst_access_mask: AccessFlags::COLOR_ATTACHMENT_READ,
+                dst_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
                 dependency_flags:  DependencyFlags::BY_REGION,
             };
 
