@@ -2,10 +2,12 @@
 use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    DescriptorSetLayoutBinding, Sampler, ImageView, ImageLayout,
                    DescriptorType, CommandBuffer, RenderPass, Viewport, Rect2D,
-                   PipelineBindPoint, Pipeline, PipelineLayout};
+                   PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
+                   CullModeFlags, FrontFace};
 use errors::*;
 use super::target_data::TargetData;
 use super::resource_manager::ResourceManager;
+use super::DepthHandling;
 
 pub struct PostGfx {
     pipeline: Pipeline,
@@ -92,19 +94,19 @@ impl PostGfx {
             descriptor_sets.pop().unwrap()
         };
 
-        let pipeline_layout = build_pipeline_layout(
-            device,
-            desc_layout.clone()
-        )?;
-
-        let pipeline = build_pipeline(
-            device,
-            resource_manager,
-            render_pass,
-            viewport,
-            scissors,
-            pipeline_layout.clone()
-        )?;
+        let vertex_shader = resource_manager.load_shader(&device, "post2.vert")?;
+        let fragment_shader = resource_manager.load_shader(&device, "post2.frag")?;
+        let (pipeline_layout, pipeline) =
+            super::pipeline::create(
+                device, viewport, scissors,
+                true, // reversed depth buffer irrelevant for post
+                render_pass, vec![desc_layout.clone()],
+                Some(vertex_shader), Some(fragment_shader),
+                None,
+                PrimitiveTopology::TriangleList,
+                CullModeFlags::NONE, FrontFace::Clockwise,
+                DepthHandling::None,
+                false)?;
 
         let mut post_gfx = PostGfx {
             pipeline: pipeline,
@@ -178,160 +180,4 @@ impl PostGfx {
 
         Ok(())
     }
-}
-
-fn build_pipeline_layout(
-    device: &Device,
-    descriptor_set_layout: DescriptorSetLayout)
-    -> Result<PipelineLayout>
-{
-    use dacite::core::{PipelineLayoutCreateInfo, PipelineLayoutCreateFlags};
-
-    let create_info = PipelineLayoutCreateInfo {
-        flags: PipelineLayoutCreateFlags::empty(),
-        set_layouts: vec![descriptor_set_layout],
-        push_constant_ranges: vec![],
-        chain: None,
-    };
-    Ok(device.create_pipeline_layout(&create_info, None)?)
-}
-
-fn build_pipeline(
-    device: &Device,
-    resource_manager: &mut ResourceManager,
-    render_pass: RenderPass,
-    viewport: Viewport,
-    scissors: Rect2D,
-    pipeline_layout: PipelineLayout)
-    -> Result<Pipeline>
-{
-    use dacite::core::{GraphicsPipelineCreateInfo, PipelineCreateFlags,
-                       PipelineShaderStageCreateInfo, PipelineShaderStageCreateFlags,
-                       ShaderStageFlagBits,
-                       PipelineInputAssemblyStateCreateInfo,
-                       PipelineInputAssemblyStateCreateFlags,
-                       PrimitiveTopology,
-                       PipelineViewportStateCreateInfo,
-                       PipelineViewportStateCreateFlags,
-                       PipelineRasterizationStateCreateInfo,
-                       PipelineRasterizationStateCreateFlags,
-                       PolygonMode, CullModeFlags, FrontFace,
-                       PipelineMultisampleStateCreateInfo,
-                       PipelineMultisampleStateCreateFlags,
-                       SampleCountFlagBits,
-                       PipelineColorBlendStateCreateInfo,
-                       PipelineColorBlendStateCreateFlags,
-                       LogicOp, BlendFactor, BlendOp,
-                       PipelineColorBlendAttachmentState,
-                       ColorComponentFlags,
-                       PipelineDynamicStateCreateInfo, DynamicState,
-                       PipelineVertexInputStateCreateInfo,
-                       PipelineVertexInputStateCreateFlags};
-
-    let vertex_shader = resource_manager.load_shader(&device, "post2.vert")?;
-
-    let fragment_shader = resource_manager.load_shader(&device, "post2.frag")?;
-
-    let create_infos = vec![GraphicsPipelineCreateInfo {
-        flags: PipelineCreateFlags::empty(),
-        stages: vec![
-            // A vertex shader is required by vulkan.
-            PipelineShaderStageCreateInfo {
-                flags: PipelineShaderStageCreateFlags::empty(),
-                stage: ShaderStageFlagBits::Vertex,
-                module: vertex_shader,
-                name: "main".to_owned(),
-                specialization_info: None,
-                chain: None,
-            },
-            PipelineShaderStageCreateInfo {
-                flags: PipelineShaderStageCreateFlags::empty(),
-                stage: ShaderStageFlagBits::Fragment,
-                module: fragment_shader,
-                name: "main".to_owned(),
-                specialization_info: None,
-                chain: None,
-            },
-        ],
-        // we have NO vertex input, we compute from gl_VertexIndex within the shader
-        vertex_input_state: PipelineVertexInputStateCreateInfo {
-            flags: PipelineVertexInputStateCreateFlags::empty(),
-            vertex_binding_descriptions: vec![],
-            vertex_attribute_descriptions: vec![],
-            chain: None,
-        },
-        input_assembly_state: PipelineInputAssemblyStateCreateInfo {
-            flags: PipelineInputAssemblyStateCreateFlags::empty(),
-            topology: PrimitiveTopology::TriangleList,
-            primitive_restart_enable: false,
-            chain: None,
-        },
-        tessellation_state: None,
-        viewport_state: Some(PipelineViewportStateCreateInfo {
-            flags: PipelineViewportStateCreateFlags::empty(),
-            viewports: vec![viewport],
-            scissors: vec![scissors],
-            chain: None,
-        }),
-        rasterization_state: PipelineRasterizationStateCreateInfo {
-            flags: PipelineRasterizationStateCreateFlags::empty(),
-            depth_clamp_enable: false,
-            rasterizer_discard_enable: false,
-            polygon_mode: PolygonMode::Fill,
-            cull_mode: CullModeFlags::NONE, // TEMP
-            front_face: FrontFace::Clockwise,
-            depth_bias_enable: false,
-            depth_bias_constant_factor: 0.0,
-            depth_bias_clamp: 0.0,
-            depth_bias_slope_factor: 0.0,
-            line_width: 1.0,
-            chain: None,
-        },
-        multisample_state: Some(PipelineMultisampleStateCreateInfo {
-            flags: PipelineMultisampleStateCreateFlags::empty(),
-            rasterization_samples: SampleCountFlagBits::SampleCount1,
-            sample_shading_enable: false,
-            min_sample_shading: 0.0,
-            sample_mask: vec![],
-            alpha_to_coverage_enable: false,
-            alpha_to_one_enable: false,
-            chain: None,
-        }),
-        depth_stencil_state: None,
-        color_blend_state: Some(PipelineColorBlendStateCreateInfo {
-            flags: PipelineColorBlendStateCreateFlags::empty(),
-            logic_op_enable: false,
-            logic_op: LogicOp::Clear,
-            attachments: vec![PipelineColorBlendAttachmentState {
-                blend_enable: false, // no blending to final image
-                // outputColor = colorBlendOp(
-                //      srcColor * srcColorBlendFactor, dstColor * dstColorBlendFactor);
-                src_color_blend_factor: BlendFactor::SrcAlpha,
-                dst_color_blend_factor: BlendFactor::OneMinusSrcAlpha,
-                color_blend_op: BlendOp::Add,
-                src_alpha_blend_factor: BlendFactor::One,
-                dst_alpha_blend_factor: BlendFactor::Zero,
-                alpha_blend_op: BlendOp::Add,
-                color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
-            }],
-            blend_constants: [0.0, 0.0, 0.0, 0.0],
-            chain: None,
-        }),
-        dynamic_state: Some(PipelineDynamicStateCreateInfo {
-            flags: Default::default(),
-            dynamic_states: vec![DynamicState::Viewport, DynamicState::Scissor],
-            chain: None,
-        }),
-        layout: pipeline_layout,
-        render_pass: render_pass,
-        subpass: 0,
-        base_pipeline: None,
-        base_pipeline_index: None,
-        chain: None,
-    }];
-
-    let pipelines = device.create_graphics_pipelines(None, &create_infos, None)
-        .map_err(|(e, _)| e)?;
-
-    Ok(pipelines[0].clone())
 }
