@@ -102,11 +102,11 @@ pub struct Renderer {
     #[allow(dead_code)] // This must stay alive until we shut down
     instance: Instance,
     window: Arc<Window>,
-    config: Arc<Config>,
+    config: Config,
 }
 
 impl Renderer {
-    pub fn new(config: Arc<Config>, window: Arc<Window>)
+    pub fn new(config: Config, window: Arc<Window>)
                -> Result<Renderer>
     {
         let instance = setup::setup_instance(&config, &window)?;
@@ -394,27 +394,23 @@ impl Renderer {
                     chain: None,
                 })
             },
-            color_blend_state: if alpha_blend {
-                Some(PipelineColorBlendStateCreateInfo {
-                    flags: PipelineColorBlendStateCreateFlags::empty(),
-                    logic_op_enable: false,
-                    logic_op: LogicOp::Copy,
-                    attachments: vec![PipelineColorBlendAttachmentState {
-                        blend_enable: true,
-                        src_color_blend_factor: BlendFactor::SrcAlpha,
-                        dst_color_blend_factor: BlendFactor::OneMinusSrcAlpha,
-                        color_blend_op: BlendOp::Add,
-                        src_alpha_blend_factor: BlendFactor::One,
-                        dst_alpha_blend_factor: BlendFactor::Zero,
-                        alpha_blend_op: BlendOp::Add,
-                        color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
-                    }],
-                    blend_constants: [0.0, 0.0, 0.0, 0.0],
-                    chain: None,
-                })
-            } else {
-                None
-            },
+            color_blend_state: Some(PipelineColorBlendStateCreateInfo {
+                flags: PipelineColorBlendStateCreateFlags::empty(),
+                logic_op_enable: false,
+                logic_op: LogicOp::Copy,
+                attachments: vec![PipelineColorBlendAttachmentState {
+                    blend_enable: alpha_blend,
+                    src_color_blend_factor: BlendFactor::SrcAlpha,
+                    dst_color_blend_factor: BlendFactor::OneMinusSrcAlpha,
+                    color_blend_op: BlendOp::Add,
+                    src_alpha_blend_factor: BlendFactor::One,
+                    dst_alpha_blend_factor: BlendFactor::Zero,
+                    alpha_blend_op: BlendOp::Add,
+                    color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
+                }],
+                blend_constants: [0.0, 0.0, 0.0, 0.0],
+                chain: None,
+            }),
             dynamic_state: Some(PipelineDynamicStateCreateInfo {
                 flags: Default::default(),
                 dynamic_states: vec![DynamicState::Viewport, DynamicState::Scissor],
