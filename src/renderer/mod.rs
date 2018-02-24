@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    ShaderModule, Rect2D, Viewport, Offset2D,
+                   PhysicalDeviceProperties,
                    DescriptorPool, Semaphore, Fence, PipelineLayoutCreateInfo,
                    BufferUsageFlags, DescriptorSetLayoutCreateInfo,
                    DescriptorSetLayout, DescriptorSet, Pipeline,
@@ -92,7 +93,7 @@ pub struct Renderer {
     device: Device,
     //queue_indices: QueueIndices,
     //ph_feats: PhysicalDeviceFeatures,
-    //ph_props: PhysicalDeviceProperties,
+    ph_props: PhysicalDeviceProperties,
     ph: PhysicalDevice,
     surface: SurfaceKhr,
     #[allow(dead_code)] // We don't use this directly, FFI uses it
@@ -216,7 +217,7 @@ impl Renderer {
             device: device,
             //queue_indices: queue_indices,
             //ph_feats: physical_device_features,
-            //ph_props: physical_device_properties,
+            ph_props: physical_device_properties,
             ph: physical_device,
             surface: surface,
             debug_callback: debug_callback,
@@ -251,6 +252,10 @@ impl Renderer {
 
     pub fn get_extent(&self) -> Extent2D {
         self.swapchain_data.extent
+    }
+
+    pub fn get_min_uniform_alignment(&self) -> usize {
+        self.ph_props.limits.min_uniform_buffer_offset_alignment as usize
     }
 
     pub fn create_pipeline(&mut self,
