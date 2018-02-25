@@ -7,7 +7,7 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
 use errors::*;
 use super::target_data::TargetData;
 use super::resource_manager::ResourceManager;
-use super::DepthHandling;
+use super::{DepthHandling, BlendMode};
 
 pub struct PostGfx {
     pipeline: Pipeline,
@@ -106,7 +106,7 @@ impl PostGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                false)?;
+                BlendMode::None)?;
 
         let mut post_gfx = PostGfx {
             pipeline: pipeline,

@@ -73,6 +73,12 @@ pub enum DepthHandling {
     Some(bool, bool) // test, write
 }
 
+pub enum BlendMode {
+    None,
+    Alpha,
+    Add
+}
+
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
     blur_gfx: BlurGfx,
@@ -295,7 +301,7 @@ impl Renderer {
                            cull_mode: CullModeFlags,
                            front_face: FrontFace,
                            depth_handling: DepthHandling,
-                           alpha_blend: bool,
+                           blend: BlendMode,
                            pass: Pass)
                            -> Result<(PipelineLayout, Pipeline)>
     {
@@ -317,7 +323,7 @@ impl Renderer {
                 Pass::Ui => self.ui_pass.render_pass.clone(),
             },
             desc_set_layouts, vs, fs,
-            vertex_type, topology, cull_mode, front_face, depth_handling, alpha_blend)
+            vertex_type, topology, cull_mode, front_face, depth_handling, blend)
     }
 
     pub fn create_sampler(&mut self,

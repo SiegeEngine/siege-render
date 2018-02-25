@@ -7,7 +7,7 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
 use errors::*;
 use super::target_data::TargetData;
 use super::resource_manager::ResourceManager;
-use super::DepthHandling;
+use super::{DepthHandling, BlendMode};
 
 pub struct BlurGfx {
     pipeline_v: Pipeline,
@@ -120,7 +120,7 @@ impl BlurGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                false)?;
+                BlendMode::None)?;
 
         let vertex_shader = resource_manager.load_shader(&device, "blurv.vert")?;
         let fragment_shader = resource_manager.load_shader(&device, "blurv.frag")?;
@@ -134,7 +134,7 @@ impl BlurGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                false)?;
+                BlendMode::Add)?;
 
         let mut blur_gfx = BlurGfx {
             pipeline_v: pipeline_v,

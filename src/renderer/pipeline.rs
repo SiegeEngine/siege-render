@@ -27,7 +27,7 @@ use dacite::core::{Device, Viewport, Rect2D, RenderPass, ShaderModule,
                    PipelineDynamicStateCreateInfo, DynamicState,
                    PipelineLayoutCreateFlags};
 use errors::*;
-use super::DepthHandling;
+use super::{DepthHandling, BlendMode};
 
 pub fn create(
     device: &Device,
@@ -43,7 +43,7 @@ pub fn create(
     cull_mode: CullModeFlags,
     front_face: FrontFace,
     depth_handling: DepthHandling,
-    alpha_blend: bool) -> Result<(PipelineLayout, Pipeline)>
+    blend: BlendMode) -> Result<(PipelineLayout, Pipeline)>
 {
     let layout = device.create_pipeline_layout(
         &PipelineLayoutCreateInfo {
@@ -143,9 +143,18 @@ pub fn create(
             logic_op_enable: false,
             logic_op: LogicOp::Copy,
             attachments: vec![PipelineColorBlendAttachmentState {
-                blend_enable: alpha_blend,
-                src_color_blend_factor: BlendFactor::SrcAlpha,
-                dst_color_blend_factor: BlendFactor::OneMinusSrcAlpha,
+                blend_enable: match blend {
+                    BlendMode::None => false,
+                    _ => true,
+                },
+                src_color_blend_factor: match blend {
+                    BlendMode::Add => BlendFactor::One,
+                    _ => BlendFactor::SrcAlpha,
+                },
+                dst_color_blend_factor: match blend {
+                    BlendMode::Add => BlendFactor::One,
+                    _ => BlendFactor::OneMinusSrcAlpha,
+                },
                 color_blend_op: BlendOp::Add,
                 src_alpha_blend_factor: BlendFactor::One,
                 dst_alpha_blend_factor: BlendFactor::Zero,
