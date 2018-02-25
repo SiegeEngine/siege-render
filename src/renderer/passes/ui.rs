@@ -101,7 +101,6 @@ impl UiPass {
     pub fn record_entry(&self,
                         command_buffer: CommandBuffer,
                         present_index: usize)
-                        -> Result<()>
     {
         use dacite::core::{Rect2D, Offset2D,
                            SubpassContents, RenderPassBeginInfo,
@@ -119,17 +118,13 @@ impl UiPass {
 
         command_buffer.begin_render_pass(
             &begin_info, SubpassContents::Inline);
-
-        Ok(())
     }
 
     pub fn record_exit(
         &self,
-        command_buffer: CommandBuffer) -> Result<()>
+        command_buffer: CommandBuffer)
     {
         command_buffer.end_render_pass();
-
-        Ok(())
     }
 }
 

@@ -129,9 +129,7 @@ impl TransparentPass {
         Ok(())
     }
 
-    pub fn record_entry(&self,
-                        command_buffer: CommandBuffer)
-                        -> Result<()>
+    pub fn record_entry(&self, command_buffer: CommandBuffer)
     {
         use dacite::core::{Rect2D, Offset2D,
                            SubpassContents, RenderPassBeginInfo,
@@ -154,17 +152,11 @@ impl TransparentPass {
 
         command_buffer.begin_render_pass(
             &begin_info, SubpassContents::Inline);
-
-        Ok(())
     }
 
-    pub fn record_exit(
-        &self,
-        command_buffer: CommandBuffer) -> Result<()>
+    pub fn record_exit(&self, command_buffer: CommandBuffer)
     {
         command_buffer.end_render_pass();
-
-        Ok(())
     }
 }
 

@@ -581,21 +581,21 @@ impl Renderer {
 
             // Early Z pass
             {
-                self.early_z_pass.record_entry(command_buffer.clone())?;
+                self.early_z_pass.record_entry(command_buffer.clone());
 
                 for plugin in &self.plugins {
                     // NOTE: Try to draw front to back
                     plugin.record_earlyz(command_buffer.clone());
                 }
 
-                self.early_z_pass.record_exit(command_buffer.clone())?;
+                self.early_z_pass.record_exit(command_buffer.clone());
             }
 
             self.target_data.transition_for_opaque(command_buffer.clone())?;
 
             // Opaque pass
             {
-                self.opaque_pass.record_entry(command_buffer.clone())?;
+                self.opaque_pass.record_entry(command_buffer.clone());
 
                 for plugin in &self.plugins {
                     // Draw all geometry with opaque pipelines
@@ -606,42 +606,42 @@ impl Renderer {
                     plugin.record_opaque(command_buffer.clone());
                 }
 
-                self.opaque_pass.record_exit(command_buffer.clone())?;
+                self.opaque_pass.record_exit(command_buffer.clone());
             }
 
             self.target_data.transition_for_transparent(command_buffer.clone())?;
 
             // Transparent pass
             {
-                self.transparent_pass.record_entry(command_buffer.clone())?;
+                self.transparent_pass.record_entry(command_buffer.clone());
 
                 for plugin in &self.plugins {
                     plugin.record_transparent(command_buffer.clone());
                 }
 
-                self.transparent_pass.record_exit(command_buffer.clone())?;
+                self.transparent_pass.record_exit(command_buffer.clone());
             }
 
             self.target_data.transition_for_blurh(command_buffer.clone())?;
 
             // Blur/Bloom Filter/Horizontal pass
             {
-                self.blur_h_pass.record_entry(command_buffer.clone())?;
+                self.blur_h_pass.record_entry(command_buffer.clone());
 
                 self.blur_gfx.record_blurh(command_buffer.clone());
 
-                self.blur_h_pass.record_exit(command_buffer.clone())?;
+                self.blur_h_pass.record_exit(command_buffer.clone());
             }
 
             self.target_data.transition_for_blurv(command_buffer.clone())?;
 
             // Blur/Bloom Vertical/Merge pass
             {
-                self.blur_v_pass.record_entry(command_buffer.clone())?;
+                self.blur_v_pass.record_entry(command_buffer.clone());
 
                 self.blur_gfx.record_blurv(command_buffer.clone());
 
-                self.blur_v_pass.record_exit(command_buffer.clone())?;
+                self.blur_v_pass.record_exit(command_buffer.clone());
             }
 
             self.target_data.transition_for_post(command_buffer.clone())?;
@@ -649,11 +649,11 @@ impl Renderer {
             // Post pass
             {
                 self.post_pass.record_entry(command_buffer.clone(),
-                                            present_index)?;
+                                            present_index);
 
                 self.post_gfx.record(command_buffer.clone());
 
-                self.post_pass.record_exit(command_buffer.clone())?;
+                self.post_pass.record_exit(command_buffer.clone());
             }
 
             self.target_data.transition_for_ui(command_buffer.clone())?;
@@ -661,13 +661,13 @@ impl Renderer {
             // Ui pass
             {
                 self.ui_pass.record_entry(command_buffer.clone(),
-                                          present_index)?;
+                                          present_index);
 
                 for plugin in &self.plugins {
                     plugin.record_ui(command_buffer.clone());
                 }
 
-                self.ui_pass.record_exit(command_buffer.clone())?;
+                self.ui_pass.record_exit(command_buffer.clone());
             }
 
             // Transition swapchain image to PresentImageKhr
