@@ -491,6 +491,10 @@ impl Renderer {
         let mut render_duration_sum: Duration = Duration::new(0,0);
         let mut report_time: Instant = Instant::now();
 
+        let mut sum_of_seconds_per_frame: f32 = 0.0;
+        let mut count_of_sum: u32 = 0;
+        const TIMING_NUMFRAMES: u64 = 5000;
+
         loop {
             for plugin in &mut self.plugins {
                 plugin.update()?;
@@ -539,10 +543,12 @@ impl Renderer {
                 ::std::thread::sleep(loop_throttle - render_duration);
             }
 
-            // FPS calculation every 500 frames
-            if frame_number % 500 == 0 {
-                let seconds_per_frame = duration_to_seconds(&render_duration_sum)/500.0;
-                let fps = 500.0 / duration_to_seconds(&report_time.elapsed());
+            // FPS calculation
+            if frame_number % TIMING_NUMFRAMES == 0 {
+                let seconds_per_frame = duration_to_seconds(&render_duration_sum)
+                    / (TIMING_NUMFRAMES as f32);
+                let fps = (TIMING_NUMFRAMES as f32)
+                    / duration_to_seconds(&report_time.elapsed());
                 trace!("{:>6.1} fps; {:>8.6} s/frame; {:>5.1}%",
                        fps, seconds_per_frame,
                        100.0 * seconds_per_frame / 0.016666667);
@@ -550,6 +556,15 @@ impl Renderer {
                 // reset data
                 report_time = Instant::now();
                 render_duration_sum = Duration::new(0, 0);
+
+                 // Average over periods
+                if frame_number != TIMING_NUMFRAMES { // not first time
+                    sum_of_seconds_per_frame += seconds_per_frame;
+                    count_of_sum += 1;
+                    let avg = sum_of_seconds_per_frame / count_of_sum as f32;
+                    trace!("Periods={},  Average={}  {:>5.1}%",
+                           count_of_sum, avg, 100.0 * avg / 0.0166666667);
+                }
             }
 
             // Shutdown when it is time to do so
