@@ -3,10 +3,10 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    DescriptorSetLayoutBinding, ImageView, ImageLayout, Sampler,
                    DescriptorType, CommandBuffer, RenderPass, Viewport, Rect2D,
                    PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
-                   CullModeFlags, FrontFace};
+                   CullModeFlags, FrontFace, ShaderModuleCreateFlags,
+                   ShaderModuleCreateInfo, ShaderModule};
 use errors::*;
 use super::target_data::TargetData;
-use super::resource_manager::ResourceManager;
 use super::{DepthHandling, BlendMode};
 
 pub struct BlurGfx {
@@ -27,7 +27,6 @@ impl BlurGfx {
     pub fn new(device: &Device,
                descriptor_pool: DescriptorPool,
                target_data: &TargetData,
-               resource_manager: &mut ResourceManager,
                blurh_render_pass: RenderPass,
                blurv_render_pass: RenderPass,
                viewport: Viewport,
@@ -108,28 +107,30 @@ impl BlurGfx {
             (dsh, dsv)
         };
 
-        let vertex_shader = resource_manager.load_shader(&device, "blurh.vert")?;
-        let fragment_shader = resource_manager.load_shader(&device, "blurh.frag")?;
+        let vertex_shader_h = vertex_shader_h(device)?;
+        let fragment_shader_h = fragment_shader_h(device)?;
+
         let (pipeline_layout_h, pipeline_h) =
             super::pipeline::create(
                 device, viewport, scissors,
                 true, // reversed depth buffer irrelevant for blur
                 blurh_render_pass, vec![desc_layout.clone()],
-                Some(vertex_shader), Some(fragment_shader),
+                Some(vertex_shader_h), Some(fragment_shader_h),
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
                 BlendMode::None)?;
 
-        let vertex_shader = resource_manager.load_shader(&device, "blurv.vert")?;
-        let fragment_shader = resource_manager.load_shader(&device, "blurv.frag")?;
+        let vertex_shader_v = vertex_shader_v(device)?;
+        let fragment_shader_v = fragment_shader_v(device)?;
+
         let (pipeline_layout_v, pipeline_v) =
             super::pipeline::create(
                 device, viewport, scissors,
                 true, // reversed depth buffer irrelevant for blur
                 blurv_render_pass, vec![desc_layout.clone()],
-                Some(vertex_shader), Some(fragment_shader),
+                Some(vertex_shader_v), Some(fragment_shader_v),
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
@@ -242,4 +243,185 @@ impl BlurGfx {
 
         command_buffer.draw(3, 1, 0, 0);
     }
+}
+
+fn vertex_shader_h(device: &Device) -> Result<ShaderModule>
+{
+    let bytes: &[u8] = glsl_vs!(r#"
+#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (location = 0) out vec2 outUV;
+
+out gl_PerVertex
+{
+	vec4 gl_Position;
+};
+
+void main()
+{
+	outUV = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+	gl_Position = vec4(outUV * 2.0f - 1.0f, 0.0f, 1.0f);
+}
+"#);
+
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes.to_vec(),
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
+}
+
+fn fragment_shader_h(device: &Device) -> Result<ShaderModule>
+{
+    let bytes: &[u8] = glsl_fs!(r#"
+#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (binding = 0) uniform sampler2D samplerColor;
+
+/*layout (binding = 0) uniform UBO
+  {
+  float blurScale;
+  float blurStrength;
+  } ubo;*/
+
+layout (location = 0) in vec2 inUV;
+
+layout (location = 0) out vec4 outFragColor;
+
+// NOTE: Because we are filter-sampling and blurring at once, we are filter-sampling
+// about 10x as much as we really need to (if we had another render pass and another
+// target to hold the bright pixels only).
+
+// Bright pass filter sampling
+vec3 samp(vec2 offset) {
+  vec3 color = texture(samplerColor, inUV + offset).rgb;
+
+  // This is Mike's made-up-on-the-spot bright-pass filter.
+  const float one_over_pi = 1.0 / 3.14159265359;
+  const float sharpness = 3;
+  float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+  float mult = 0.5 + atan(sharpness * (lum - 1)) * one_over_pi;
+
+  return color * mult;
+}
+
+void main()
+{
+  float blurScale = 1.1;
+  float blurStrength = 0.65;
+
+  float weight[5];
+  weight[0] = 0.227027;
+  weight[1] = 0.1945946;
+  weight[2] = 0.1216216;
+  weight[3] = 0.054054;
+  weight[4] = 0.016216;
+
+  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * blurScale; // gets size of single texel
+  vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
+  for (int i = 1; i < 5; ++i) {
+    result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i] * blurStrength;
+    result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i] * blurStrength;
+  }
+  outFragColor = vec4(result, 1.0);
+}
+"#);
+
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes.to_vec(),
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
+}
+
+fn vertex_shader_v(device: &Device) -> Result<ShaderModule>
+{
+    let bytes: &[u8] = glsl_vs!(r#"
+#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (location = 0) out vec2 outUV;
+
+out gl_PerVertex
+{
+	vec4 gl_Position;
+};
+
+void main()
+{
+	outUV = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+	gl_Position = vec4(outUV * 2.0f - 1.0f, 0.0f, 1.0f);
+}
+"#);
+
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes.to_vec(),
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
+}
+
+fn fragment_shader_v(device: &Device) -> Result<ShaderModule>
+{
+    let bytes: &[u8] = glsl_fs!(r#"
+#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (binding = 0) uniform sampler2D samplerColor;
+
+/*layout (binding = 0) uniform UBO
+  {
+  float blurScale;
+  float blurStrength;
+  } ubo;*/
+
+layout (location = 0) in vec2 inUV;
+
+layout (location = 0) out vec4 outFragColor;
+
+void main()
+{
+  float blurScale = 1.1;
+  float blurStrength = 0.65;
+
+  float weight[5];
+  weight[0] = 0.227027;
+  weight[1] = 0.1945946;
+  weight[2] = 0.1216216;
+  weight[3] = 0.054054;
+  weight[4] = 0.016216;
+
+  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * blurScale; // gets size of single texel
+  vec3 result = texture(samplerColor, inUV).rgb * weight[0]; // current fragment's contribution
+  for (int i = 1; i < 5; ++i) {
+    result += texture(samplerColor, inUV + vec2(0.0, tex_offset.y * i)).rgb * weight[i] * blurStrength;
+    result += texture(samplerColor, inUV - vec2(0.0, tex_offset.y * i)).rgb * weight[i] * blurStrength;
+  }
+  outFragColor = vec4(result, 1.0);
+}
+"#);
+
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes.to_vec(),
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
 }

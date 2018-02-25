@@ -159,7 +159,7 @@ impl Renderer {
             &device, &queue_indices,
             swapchain_data.images.len() as u32)?;
 
-        let mut resource_manager = ResourceManager::new(
+        let resource_manager = ResourceManager::new(
             config.asset_path.clone());
 
         let staging_buffer = HostVisibleBuffer::new(
@@ -207,12 +207,11 @@ impl Renderer {
             &device, &swapchain_data)?;
 
         let post_gfx = PostGfx::new(&device, descriptor_pool.clone(),
-                                    &target_data, &mut resource_manager,
-                                    post_pass.render_pass.clone(),
+                                    &target_data, post_pass.render_pass.clone(),
                                     viewports[0].clone(), scissors[0].clone())?;
 
         let blur_gfx = BlurGfx::new(&device, descriptor_pool.clone(),
-                                    &target_data, &mut resource_manager,
+                                    &target_data,
                                     blur_h_pass.render_pass.clone(),
                                     blur_v_pass.render_pass.clone(),
                                     viewports[0].clone(), scissors[0].clone())?;

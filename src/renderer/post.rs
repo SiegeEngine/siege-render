@@ -3,10 +3,10 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    DescriptorSetLayoutBinding, Sampler, ImageView, ImageLayout,
                    DescriptorType, CommandBuffer, RenderPass, Viewport, Rect2D,
                    PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
-                   CullModeFlags, FrontFace};
+                   CullModeFlags, FrontFace, ShaderModuleCreateFlags,
+                   ShaderModuleCreateInfo, ShaderModule};
 use errors::*;
 use super::target_data::TargetData;
-use super::resource_manager::ResourceManager;
 use super::{DepthHandling, BlendMode};
 
 pub struct PostGfx {
@@ -23,11 +23,10 @@ impl PostGfx {
     pub fn new(device: &Device,
                descriptor_pool: DescriptorPool,
                target_data: &TargetData,
-               resource_manager: &mut ResourceManager,
                render_pass: RenderPass,
                viewport: Viewport,
                scissors: Rect2D)
-               -> Result<PostGfx>
+              -> Result<PostGfx>
     {
         let sampler = {
             use dacite::core::{SamplerCreateInfo, SamplerMipmapMode, SamplerAddressMode,
@@ -94,8 +93,10 @@ impl PostGfx {
             descriptor_sets.pop().unwrap()
         };
 
-        let vertex_shader = resource_manager.load_shader(&device, "post2.vert")?;
-        let fragment_shader = resource_manager.load_shader(&device, "post2.frag")?;
+        let vertex_shader = vertex_shader(device)?;
+
+        let fragment_shader = fragment_shader(device)?;
+
         let (pipeline_layout, pipeline) =
             super::pipeline::create(
                 device, viewport, scissors,
@@ -178,3 +179,87 @@ impl PostGfx {
         command_buffer.draw(3, 1, 0, 0);
     }
 }
+
+fn vertex_shader(device: &Device) -> Result<ShaderModule>
+{
+    let bytes: &[u8] = glsl_vs!(r#"
+#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (location = 0) out vec2 outUV;
+
+out gl_PerVertex
+{
+  vec4 gl_Position;
+};
+
+void main()
+{
+  // We are rendering 1 full triangle which covers the entire screen
+  // and goes beyond the screen. This trick was used by Sascha Willems
+  // and also described by Bill Bilodeau from AMD as being faster
+  // than a quad.
+
+  // (0, 0),
+  // (2, 0),
+  // (0, 2)
+  outUV = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+
+  // (-1.p, -1.0, 0.0, 1.0)
+  // ( 1.0,  3.0, 0.0, 1.0)
+  // ( 3.0,  1.0, 0.0, 1.0)
+  gl_Position = vec4(outUV * 2.0f - 1.0f, 0.0f, 1.0f);
+}
+"#);
+
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes.to_vec(),
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
+}
+
+fn fragment_shader(device: &Device) -> Result<ShaderModule>
+{
+    let bytes: &[u8] = glsl_fs!(r#"
+#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (binding = 0) uniform sampler2D shadingTex;
+
+layout (location = 0) in vec2 inUV;
+
+layout (location = 0) out vec4 outFragColor;
+
+void main()
+{
+  // Load from shadingTex
+  vec3 hdrColor = texture(shadingTex, inUV).rgb;
+
+  // Tone Mapping
+  // 1) Reinhard:
+  // vec3 mapped = hdrColor / (hdrColor + vec3(1.0));
+  //
+  // 2) Exposure tone mapping:
+  const float exposure = 1.0;
+  vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+
+  outFragColor = vec4(mapped, 1.0);
+}
+"#);
+
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes.to_vec(),
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
+}
+
