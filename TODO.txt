@@ -1,6 +1,15 @@
-1. BloomFilterH pipeline, BloomVMerge pipeline, and bloom_gfx
-2. PostPipeline post_gfx
+Try blooming with a separate filter step.  But first, compare performance on nvidia
+  at work to see if our current layout is faster or slower.
 
+Add a descriptor set for blur steps, where the blur parameters can be tweaked.
+  In particular, let the filter function be dynamically adjusted, so that more
+  and more stuff gets blurred, to the point where everything gets blurred (e.g.
+  underwater or just-got-punched).
+
+Threading: We know that our AMD card only has one graphics queue, so this setup will
+  have to be an alternate code path.  See THREADING.txt
+
+load_shader() - fix skipping of bad bytes (error instead)
 
 Low priority:
   target_data.rs:

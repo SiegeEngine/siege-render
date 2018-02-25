@@ -1,0 +1,279 @@
+
+Shared State:
+  drawA_halfway:            Fence
+  drawA_finished:           Fence
+  drawB_halfway:            Fence
+  drawB_finished:           Fence
+
+Threads:
+   Control
+   Transfer
+   Record
+
+Data:
+   DataA -- all the data (uniform buffers, etc) that must be written from
+            the CPU to the GPU which phase-A consumes.
+   DataB -- all the data (uniform buffers, etc) that must be written from
+            the CPU to the GPU which phase-B consumes.
+
+---------------------------------------------------------------------------------------------------
+control thread:
+---------------
+
+(DataA, EarlyDataB) = UpdateData();
+Upload (DataA)
+
+submit 1st half to QueueA, fence=drawA_halfway
+wait on drawA_halfway
+
+loop {
+  DataB = EarlyDataB;
+  (DataA, EarlyDataB) = UpdateData();
+  Upload (DataA, DataB)
+
+  submit 2st half to QueueA, fence=drawA_finished
+  submit 1st half to QueueB, fence=drawB_halfway
+  wait on drawA_finished
+  Present swapchain A
+  wait on drawB_halfway
+
+  DataB = EarlyDataB;
+  (DataA, EarlyDataB) = UpdateData();
+  Upload(DataA, DataB)
+
+  submit 2nd half to QueueB, fence=drawB_finished
+  submit 1st half to QueueA, fence=drawA_halfway
+  wait on drawB_finished
+  Present swapchain B
+  wait on drawA_halfway
+}
+
+-----
+from siege client:
+
+Threading:
+----------
+* Vulkan encourages threaded updates of buffers (vertex/index/instance/uniforms).
+* Vulkan encourages threaded pipeline state creation
+* Vulkan encourages threaded generation of command buffers
+  * One pool per thread
+  * Command_buffer.wait_events() and command_buffer.pipeline_barrier()
+    can wait for memory barriers (for your uniform upload to finish?)
+  * Use multiple queues
+    * Queues can be told to "wait" before processing the command buffer
+    * Queues can be told to "signal" when they are finished
+* Events/Barriers: synchronize work within command buffer
+* Semaphore: synchronize work across queues
+* Fences: synchronize work between GPU and CPU
+  * Use fence to determine when command buffer is no longer in use and ready
+    to be recycled
+* Descriptor pool should be in just one thread, and doing the allocation there.
+  Then the descriptors themselves can be shared among threads, and different
+  threads can write them.
+
+Pipeline stages (for graphics pipelines)
+  Top of Pipe
+  Draw Indirect
+  Vertex Input
+  Vertex Shader -- V
+  Tessellation control
+  Tessellation eval --T
+  Geometry shader -- G
+  Early Frag
+  Frag  --F
+  Late Frag
+  Color Output --C
+  Bottom of Pipe
+
+  We will write like this: VTGFC
+
+
+CHUNK #1
+  early-z
+    V
+
+CHUNK #2
+  shading-as-color-output
+  opaque
+    V
+    F
+    C
+  transparent
+    V
+    F
+    C
+
+CHUNK #3
+  shading-as-shader-read
+  bright-as-color-output
+  bloom-filter
+    V
+    F
+    C
+  bright-as-shader-read
+  blurpong-as-color-output
+  bloom-h
+    V
+    F
+    C
+  blurpong-as-shader-read
+  bright-as-color-output
+  bloom-v
+    V
+    F
+    C
+  shading-as-shader-read
+
+CHUNK #4
+  swapchain-as-color-output
+  post
+    V
+    F
+    C
+
+CHUNK #5
+  ui
+    V
+    F
+    C
+  swapchain-as-present
+
+  [presented after
+   it signalled
+   complete]
+
+Two threads synchronize command buffer submissions using fences:
+
+Thread 1                                           Thread 2
+--------                                           --------
+update uniforms
+CHUNK #1 (depth)                                   CHUNK #3 (shading, bright, blurpong)
+                                                   CHUNK #4 (shading, bright, swapchain)
+------------------------------------FENCE A--------------------------------------------
+CHUNK #2 (depth, shading)                          CHUNK #5 (swapchain)
+------------------------------------FENCE B--------------------------------------------
+                                                   DO SWAP
+                                                   update uniforms
+CHUNK #3 (shading, bright, blurpong)               CHUNK #1 (depth)
+CHUNK #4 (shading, bright, swapchain)
+------------------------------------FENCE A'-------------------------------------------
+CHUNK #5 (swapchain)                               CHUNK #2 (depth, shading)
+------------------------------------FENCE B'-------------------------------------------
+DO SWAP
+
+
+in other words:
+  earlyz     in parallel with     bloom/post
+  geometry   in parallel with     ui
+  bloom/post in parallel with     earlyz
+  ui         in parallel with     geometry
+
+
+===============================================================================
+Wednesday Night Thinking
+
+COMMANDS
+  reset
+  begin
+
+  bind viewport
+  bind scissors
+
+  SYNCHRONIZE -- do not enter the region below until it is unoccupied.
+
+  signal fence: Geometry Updates LOCKED
+
+  begin earlyz pass
+    GRAYBOX
+      bind graybox_earlyz pipeline
+      bind camera descriptor set
+      (for each graybox)
+        bind graybox vertex buffer & index buffer
+        bind graybox desc set
+        draw indexed						DEPTH BUFFER WRITES
+    HORIZON
+      bind horizon earlyz pipeline
+      bind desc sets: camera
+      draw horizon						DEPTH BUFFER WRITES
+  end earlyz pass
+
+  transition shading (Undefined to ColorAttachment)
+
+  begin opaque pass
+    [implicit clear shading attachment]
+    GRAYBOX
+      bind graybox shading pipeline
+      bind camera desc set
+      bind lights desc set
+      (for each graybox)
+        bind graybox vertex buffer & index bffer
+        bind graybox desc set
+	draw indexed						DEPTH CHECK, SHADING WRITE
+    HORIZON
+      bind horizon shading pipeline
+      bind desc sets: camera
+      draw horizon						DEPTH CHECK, SHADING WRITE
+    GALAXY
+      bind galaxy pipeline
+      bind desc sets: camera, lights, stars
+      bind vertex & index buffers (galaxy mesh)
+      draw indexed						DEPTH CHECK, SHADING WRITE
+    STARS
+      bind stars pipeline
+      bind desc sets: camera, lights, stars
+      bind vertex buffer (stars)
+      draw                                                      DEPTH CHECK, SHADING WRITE
+    SUNS
+      bind suns pipeline
+      bind desc sets: camera, lights, suns
+      draw                                                      DEPTH CHECK, SHADING WRITE
+  end opaque pass
+
+  begin transparent pass
+    ...                                                         DEPTH CHECK, SHADING WRITE
+  end transparent pass
+
+  signal fence: Geometry Updates UNLOCKED
+
+  SYNCHRONIZE
+    -- clear the fact that we are no longer in the above region.
+    -- do not enter the region below until it is unoccupied.
+
+  transition shading (ColorAttachment to ShaderRead)
+
+  transition blur (Undefined to ColorAttachment)
+
+  begin BlurFiltH pass
+    [implicit clear]
+    bind pipeline blurbloom1
+    bind desc sets: filter/h
+    draw							SHADING READ, BLUR WRITE
+  end BlurFiltH pass
+
+  transition blur (ColorAttachment to ShaderRead)
+
+  transition shading (ShaderRead to ColorAttachment)
+
+  begin BlurVMerge pass
+    bind pipeline blurbloom2
+    bind desc sets: v/merge
+    draw							BLUR READ, SHADING WRITE
+  end BlurVMerge pass
+
+  transition shading (ColorAttachment to ShaderRead)
+
+  transition swapchain (Undefined to ColorAttachment)
+
+  begin post pass
+    bind post pipeline
+    bind desc sets: postgfx
+    draw							SHADING READ, SWAPCHAIN WRITE
+  end post pass
+
+  SYNCHRONIZE
+    -- clear the fact that we are no longer in the above region.
+
+  transition swapchain (ColorAttachment to PresentSrcKHR)
+
+  end
+
