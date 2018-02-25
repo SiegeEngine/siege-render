@@ -30,8 +30,9 @@ impl BlurGfx {
                blurh_render_pass: RenderPass,
                blurv_render_pass: RenderPass,
                viewport: Viewport,
-               scissors: Rect2D)
-        -> Result<BlurGfx>
+               scissors: Rect2D,
+               params_layout: DescriptorSetLayout)
+               -> Result<BlurGfx>
     {
         let sampler = {
             use dacite::core::{SamplerCreateInfo, SamplerMipmapMode, SamplerAddressMode,
@@ -114,7 +115,10 @@ impl BlurGfx {
             super::pipeline::create(
                 device, viewport, scissors,
                 true, // reversed depth buffer irrelevant for blur
-                blurh_render_pass, vec![desc_layout.clone()],
+                blurh_render_pass, vec![
+                    desc_layout.clone(),
+                    params_layout.clone(),
+                ],
                 Some(vertex_shader_h), Some(fragment_shader_h),
                 None,
                 PrimitiveTopology::TriangleList,
@@ -129,7 +133,9 @@ impl BlurGfx {
             super::pipeline::create(
                 device, viewport, scissors,
                 true, // reversed depth buffer irrelevant for blur
-                blurv_render_pass, vec![desc_layout.clone()],
+                blurv_render_pass, vec![
+                    desc_layout.clone(),
+                    params_layout.clone()],
                 Some(vertex_shader_v), Some(fragment_shader_v),
                 None,
                 PrimitiveTopology::TriangleList,
@@ -212,7 +218,8 @@ impl BlurGfx {
         );
     }
 
-    pub fn record_blurh(&self, command_buffer: CommandBuffer)
+    pub fn record_blurh(&self, command_buffer: CommandBuffer,
+                        params_desc_set: DescriptorSet)
     {
         // Bind our pipeline
         command_buffer.bind_pipeline(PipelineBindPoint::Graphics, &self.pipeline_h);
@@ -221,14 +228,16 @@ impl BlurGfx {
             PipelineBindPoint::Graphics,
             &self.pipeline_layout_h,
             0, // starting with first set
-            &[self.descriptor_set_h.clone()],
+            &[self.descriptor_set_h.clone(),
+              params_desc_set],
             None,
         );
 
         command_buffer.draw(3, 1, 0, 0);
     }
 
-    pub fn record_blurv(&self, command_buffer: CommandBuffer)
+    pub fn record_blurv(&self, command_buffer: CommandBuffer,
+                        params_desc_set: DescriptorSet)
     {
         // Bind our pipeline
         command_buffer.bind_pipeline(PipelineBindPoint::Graphics, &self.pipeline_v);
@@ -237,7 +246,8 @@ impl BlurGfx {
             PipelineBindPoint::Graphics,
             &self.pipeline_layout_v,
             0, // starting with first set
-            &[self.descriptor_set_v.clone()],
+            &[self.descriptor_set_v.clone(),
+              params_desc_set],
             None,
         );
 
@@ -286,11 +296,12 @@ fn fragment_shader_h(device: &Device) -> Result<ShaderModule>
 
 layout (binding = 0) uniform sampler2D samplerColor;
 
-/*layout (binding = 0) uniform UBO
-  {
-  float blurScale;
-  float blurStrength;
-  } ubo;*/
+layout (set = 1, binding = 0) uniform UBO
+{
+  float bloom_strength;
+  float bloom_scale;
+  float blur_level;
+} ubo;
 
 layout (location = 0) in vec2 inUV;
 
@@ -315,9 +326,6 @@ vec3 samp(vec2 offset) {
 
 void main()
 {
-  float blurScale = 1.1;
-  float blurStrength = 0.65;
-
   float weight[5];
   weight[0] = 0.227027;
   weight[1] = 0.1945946;
@@ -325,11 +333,11 @@ void main()
   weight[3] = 0.054054;
   weight[4] = 0.016216;
 
-  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * blurScale; // gets size of single texel
+  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
   vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
   for (int i = 1; i < 5; ++i) {
-    result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i] * blurStrength;
-    result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i] * blurStrength;
+    result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i] * ubo.bloom_strength;
+    result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i] * ubo.bloom_strength;
   }
   outFragColor = vec4(result, 1.0);
 }
@@ -383,13 +391,14 @@ fn fragment_shader_v(device: &Device) -> Result<ShaderModule>
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
-layout (binding = 0) uniform sampler2D samplerColor;
+layout (set = 0, binding = 0) uniform sampler2D samplerColor;
 
-/*layout (binding = 0) uniform UBO
-  {
-  float blurScale;
-  float blurStrength;
-  } ubo;*/
+layout (set = 1, binding = 0) uniform UBO
+{
+  float bloom_strength;
+  float bloom_scale;
+  float blur_level;
+} ubo;
 
 layout (location = 0) in vec2 inUV;
 
@@ -397,9 +406,6 @@ layout (location = 0) out vec4 outFragColor;
 
 void main()
 {
-  float blurScale = 1.1;
-  float blurStrength = 0.65;
-
   float weight[5];
   weight[0] = 0.227027;
   weight[1] = 0.1945946;
@@ -407,11 +413,11 @@ void main()
   weight[3] = 0.054054;
   weight[4] = 0.016216;
 
-  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * blurScale; // gets size of single texel
+  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
   vec3 result = texture(samplerColor, inUV).rgb * weight[0]; // current fragment's contribution
   for (int i = 1; i < 5; ++i) {
-    result += texture(samplerColor, inUV + vec2(0.0, tex_offset.y * i)).rgb * weight[i] * blurStrength;
-    result += texture(samplerColor, inUV - vec2(0.0, tex_offset.y * i)).rgb * weight[i] * blurStrength;
+    result += texture(samplerColor, inUV + vec2(0.0, tex_offset.y * i)).rgb * weight[i] * ubo.bloom_strength;
+    result += texture(samplerColor, inUV - vec2(0.0, tex_offset.y * i)).rgb * weight[i] * ubo.bloom_strength;
   }
   outFragColor = vec4(result, 1.0);
 }

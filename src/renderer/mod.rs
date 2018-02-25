@@ -30,7 +30,9 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    DescriptorSetLayout, DescriptorSet, Pipeline, PipelineLayout,
                    Timeout, SamplerCreateInfo, Sampler,
                    PipelineVertexInputStateCreateInfo, PrimitiveTopology,
-                   CullModeFlags, FrontFace, ImageView};
+                   CullModeFlags, FrontFace, ImageView,
+                   DescriptorSetAllocateInfo, DescriptorType, ShaderStageFlags,
+                   WriteDescriptorSetElements, DescriptorSetLayoutBinding};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -79,10 +81,24 @@ pub enum BlendMode {
     Add
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Params {
+    pub bloom_strength: f32, // 0.65
+    pub bloom_scale: f32, // 1.1
+    pub blur_level: f32, // 0.0
+}
+
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
     blur_gfx: BlurGfx,
     post_gfx: PostGfx,
+    params_desc_set: DescriptorSet,
+    #[allow(dead_code)]
+    params_desc_layout: DescriptorSetLayout,
+    #[allow(dead_code)]
+    params_ubo: HostVisibleBuffer<u8>,
+    params: Params,
     ui_pass: UiPass,
     post_pass: PostPass,
     blur_v_pass: BlurVPass,
@@ -206,6 +222,75 @@ impl Renderer {
         let ui_pass = UiPass::new(
             &device, &swapchain_data)?;
 
+        let params = Params {
+            bloom_strength: 0.65,
+            bloom_scale: 1.1,
+            blur_level: 0.0,
+        };
+
+        let params_ubo = HostVisibleBuffer::new(
+            &device, &mut memory,
+            ::std::mem::size_of::<Params>() as u64,
+            BufferUsageFlags::UNIFORM_BUFFER,
+            Lifetime::Permanent,
+            "Render Parameter Uniforms")?;
+        params_ubo.block.write_one(&params, 0)?;
+
+        let (params_desc_layout, params_desc_set) = {
+            let layout = {
+                let create_info = DescriptorSetLayoutCreateInfo {
+                    flags: Default::default(),
+                    bindings: vec![
+                        DescriptorSetLayoutBinding {
+                            binding: 0,
+                            descriptor_type: DescriptorType::UniformBuffer,
+                            descriptor_count: 1, // just one UBO
+                            stage_flags: ShaderStageFlags::FRAGMENT,
+                            immutable_samplers: vec![],
+                        },
+                    ],
+                    chain: None,
+                };
+                device.create_descriptor_set_layout(&create_info, None)?
+            };
+
+            let alloc_info = DescriptorSetAllocateInfo {
+                descriptor_pool: descriptor_pool.clone(),
+                set_layouts: vec![layout.clone()],
+                chain: None,
+            };
+            let mut dsets = DescriptorPool::allocate_descriptor_sets(&alloc_info)?;
+            let descriptor_set = dsets.pop().unwrap();
+
+            use dacite::core::{OptionalDeviceSize, DescriptorBufferInfo,
+                               WriteDescriptorSet};
+            DescriptorSet::update(
+                Some(&[
+                    WriteDescriptorSet {
+                        dst_set: descriptor_set.clone(),
+                        dst_binding: 0,
+                        dst_array_element: 0, // only have 1 element
+                        descriptor_type: DescriptorType::UniformBuffer,
+                        elements: WriteDescriptorSetElements::BufferInfo(
+                            vec![
+                                DescriptorBufferInfo {
+                                    buffer: params_ubo.buffer.clone(),
+                                    offset: 0,
+                                    range: OptionalDeviceSize::Size(
+                                        ::std::mem::size_of::<Params>() as u64
+                                    ),
+                                }
+                            ]
+                        ),
+                        chain: None,
+                    }
+                ]),
+                None
+            );
+
+            (layout, descriptor_set)
+        };
+
         let post_gfx = PostGfx::new(&device, descriptor_pool.clone(),
                                     &target_data, post_pass.render_pass.clone(),
                                     viewports[0].clone(), scissors[0].clone())?;
@@ -214,12 +299,17 @@ impl Renderer {
                                     &target_data,
                                     blur_h_pass.render_pass.clone(),
                                     blur_v_pass.render_pass.clone(),
-                                    viewports[0].clone(), scissors[0].clone())?;
+                                    viewports[0].clone(), scissors[0].clone(),
+                                    params_desc_layout.clone())?;
 
         Ok(Renderer {
             plugins: Vec::new(),
             blur_gfx: blur_gfx,
             post_gfx: post_gfx,
+            params_desc_set: params_desc_set,
+            params_desc_layout: params_desc_layout,
+            params_ubo: params_ubo,
+            params: params,
             ui_pass: ui_pass,
             post_pass: post_pass,
             blur_v_pass: blur_v_pass,
@@ -373,6 +463,13 @@ impl Renderer {
     pub fn plugin(&mut self, plugin: Box<Plugin>)
     {
         self.plugins.push(plugin);
+    }
+
+    pub fn set_params(&mut self, params: Params) -> Result<()>
+    {
+        self.params = params;
+        self.params_ubo.block.write_one(&self.params, 0)?;
+        Ok(())
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.
@@ -627,7 +724,8 @@ impl Renderer {
             {
                 self.blur_h_pass.record_entry(command_buffer.clone());
 
-                self.blur_gfx.record_blurh(command_buffer.clone());
+                self.blur_gfx.record_blurh(command_buffer.clone(),
+                                           self.params_desc_set.clone());
 
                 self.blur_h_pass.record_exit(command_buffer.clone());
             }
@@ -638,7 +736,8 @@ impl Renderer {
             {
                 self.blur_v_pass.record_entry(command_buffer.clone());
 
-                self.blur_gfx.record_blurv(command_buffer.clone());
+                self.blur_gfx.record_blurv(command_buffer.clone(),
+                                           self.params_desc_set.clone());
 
                 self.blur_v_pass.record_exit(command_buffer.clone());
             }
