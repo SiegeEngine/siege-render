@@ -274,7 +274,7 @@ impl Renderer {
                         elements: WriteDescriptorSetElements::BufferInfo(
                             vec![
                                 DescriptorBufferInfo {
-                                    buffer: params_ubo.buffer.clone(),
+                                    buffer: params_ubo.inner(),
                                     offset: 0,
                                     range: OptionalDeviceSize::Size(
                                         ::std::mem::size_of::<Params>() as u64

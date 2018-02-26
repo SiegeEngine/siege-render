@@ -73,8 +73,8 @@ impl<T: Copy> HostVisibleBuffer<T> {
         })
     }
 
-    pub fn inner<'a>(&'a self) -> &'a Buffer {
-        &self.buffer
+    pub fn inner(&self) -> Buffer {
+        self.buffer.clone()
     }
 
     /*
@@ -138,7 +138,7 @@ impl<T: Copy> HostVisibleBuffer<T> {
         commander.xfr_command_buffer.begin(&command_buffer_begin_info)?;
 
         commander.xfr_command_buffer.copy_buffer(
-            self.inner(),
+            &self.buffer,
             dest,
             regions);
 
@@ -195,8 +195,8 @@ impl<T: Copy> DeviceLocalBuffer<T> {
         })
     }
 
-    pub fn inner<'a>(&'a self) -> &'a Buffer {
-        &self.buffer
+    pub fn inner(&self) -> Buffer {
+        self.buffer.clone()
     }
 
     pub fn new_uploaded(
