@@ -44,11 +44,76 @@ fn _new(
     Ok((buffer, block))
 }
 
-pub trait SiegeBuffer: Sized {
-    fn new(device: &Device, memory: &mut Memory, size: u64,
-           usage: BufferUsageFlags, lifetime: Lifetime, reason: &str) -> Result<Self>;
+#[derive(Debug, Clone)]
+pub struct HostVisibleBuffer<T: Copy> {
+    pub buffer: Buffer,
+    pub block: Block,
+    pub size: u64, // this is the size of the data.  block.size might be padded out.
+    _phantom: PhantomData<T>, // we don't actually keep the data in here.
+}
 
-    fn inner<'a>(&'a self) -> &'a Buffer;
+impl<T: Copy> HostVisibleBuffer<T> {
+    pub fn new(
+        device: &Device,
+        memory: &mut Memory,
+        size: u64,
+        usage: BufferUsageFlags,
+        lifetime: Lifetime,
+        reason: &str)
+        -> Result<HostVisibleBuffer<T>>
+    {
+        let (buffer, block) = _new(device, memory, size, usage, lifetime, reason,
+                                   MemoryPropertyFlags::HOST_VISIBLE)?;
+
+        Ok(HostVisibleBuffer {
+            buffer: buffer,
+            block: block,
+            size: size,
+            _phantom: PhantomData,
+        })
+    }
+
+    pub fn inner<'a>(&'a self) -> &'a Buffer {
+        &self.buffer
+    }
+
+    /*
+    pub fn new_with_data(
+        device: &Device,
+        memory: &mut Memory,
+        data: &[T],
+        usage: BufferUsageFlags,
+        lifetime: Lifetime,
+        reason: &str)
+        -> Result<HostVisibleBuffer<T>>
+    {
+        let size = ::std::mem::size_of_val(data) as u64;
+
+        let output = Self::new(device, memory, size, usage, lifetime, reason)?;
+
+        output.block.write(data, 0)?;
+
+        Ok(output)
+    }
+     */
+
+    pub fn new_with_single_data(
+        device: &Device,
+        memory: &mut Memory,
+        data: &T,
+        usage: BufferUsageFlags,
+        lifetime: Lifetime,
+        reason: &str)
+        -> Result<HostVisibleBuffer<T>>
+    {
+        let size = ::std::mem::size_of_val(data) as u64;
+
+        let output = Self::new(device, memory, size, usage, lifetime, reason)?;
+
+        output.block.write_one(data, 0)?;
+
+        Ok(output)
+    }
 
     fn copy_to_buffer(
         &self,
@@ -102,80 +167,6 @@ pub trait SiegeBuffer: Sized {
 }
 
 #[derive(Debug, Clone)]
-pub struct HostVisibleBuffer<T: Copy> {
-    pub buffer: Buffer,
-    pub block: Block,
-    pub size: u64, // this is the size of the data.  block.size might be padded out.
-    _phantom: PhantomData<T>, // we don't actually keep the data in here.
-}
-
-impl<T: Copy> SiegeBuffer for HostVisibleBuffer<T> {
-    fn new(
-        device: &Device,
-        memory: &mut Memory,
-        size: u64,
-        usage: BufferUsageFlags,
-        lifetime: Lifetime,
-        reason: &str)
-        -> Result<HostVisibleBuffer<T>>
-    {
-        let (buffer, block) = _new(device, memory, size, usage, lifetime, reason,
-                                   MemoryPropertyFlags::HOST_VISIBLE)?;
-
-        Ok(HostVisibleBuffer {
-            buffer: buffer,
-            block: block,
-            size: size,
-            _phantom: PhantomData,
-        })
-    }
-
-    fn inner<'a>(&'a self) -> &'a Buffer {
-        &self.buffer
-    }
-}
-
-impl<T: Copy> HostVisibleBuffer<T> {
-    /*
-    pub fn new_with_data(
-        device: &Device,
-        memory: &mut Memory,
-        data: &[T],
-        usage: BufferUsageFlags,
-        lifetime: Lifetime,
-        reason: &str)
-        -> Result<HostVisibleBuffer<T>>
-    {
-        let size = ::std::mem::size_of_val(data) as u64;
-
-        let output = Self::new(device, memory, size, usage, lifetime, reason)?;
-
-        output.block.write(data, 0)?;
-
-        Ok(output)
-    }
-     */
-
-    pub fn new_with_single_data(
-        device: &Device,
-        memory: &mut Memory,
-        data: &T,
-        usage: BufferUsageFlags,
-        lifetime: Lifetime,
-        reason: &str)
-        -> Result<HostVisibleBuffer<T>>
-    {
-        let size = ::std::mem::size_of_val(data) as u64;
-
-        let output = Self::new(device, memory, size, usage, lifetime, reason)?;
-
-        output.block.write_one(data, 0)?;
-
-        Ok(output)
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct DeviceLocalBuffer<T: Copy> {
     pub buffer: Buffer,
     pub block: Block,
@@ -183,8 +174,8 @@ pub struct DeviceLocalBuffer<T: Copy> {
     _phantom: PhantomData<T>, // we don't actually keep the data in here.
 }
 
-impl<T: Copy> SiegeBuffer for DeviceLocalBuffer<T> {
-    fn new(
+impl<T: Copy> DeviceLocalBuffer<T> {
+    pub fn new(
         device: &Device,
         memory: &mut Memory,
         size: u64,
@@ -204,12 +195,10 @@ impl<T: Copy> SiegeBuffer for DeviceLocalBuffer<T> {
         })
     }
 
-    fn inner<'a>(&'a self) -> &'a Buffer {
+    pub fn inner<'a>(&'a self) -> &'a Buffer {
         &self.buffer
     }
-}
 
-impl<T: Copy> DeviceLocalBuffer<T> {
     pub fn new_uploaded(
         device: &Device,
         memory: &mut Memory,

@@ -14,7 +14,7 @@ mod pipeline;
 mod post;
 mod blur;
 
-pub use self::buffer::{SiegeBuffer, HostVisibleBuffer, DeviceLocalBuffer};
+pub use self::buffer::{HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
 pub use self::mesh::VulkanMesh;
 pub use self::memory::Lifetime;
