@@ -91,6 +91,7 @@ impl ImageWrap {
             device,
             &memory_requirements,
             MemoryPropertyFlags::DEVICE_LOCAL,
+            None,
             lifetime,
             reason)?;
 

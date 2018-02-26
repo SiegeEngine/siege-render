@@ -6,10 +6,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use dacite::core::{Device, ShaderModule};
 
-use siege_mesh::{VertexType,
-                 GrayboxVertex, CubemapVertex};
-//ColoredVertex, StandardVertex, GuiRectangleVertex
-//CheapV1Vertex, CheapV2Vertex
+use siege_mesh::VertexType;
 use super::buffer::HostVisibleBuffer;
 use super::image_wrap::{ImageWrap, ImageWrapType};
 use super::memory::Memory;
@@ -19,19 +16,7 @@ use super::mesh::VulkanMesh;
 pub struct ResourceManager {
     asset_path: PathBuf,
     shaders: HashMap<String, ShaderModule>,
-
-    // We can't use type parameterization for meshes, we have to enumerate them.
-    // (a trait with type erasure doesn't give us enough power)
-    // We split them up by vertex type, but possibly we want to split them up by
-    // pipeline.
-//    colored_meshes: HashMap<String, VulkanMesh<ColoredVertex>>,
-//    standard_meshes: HashMap<String, VulkanMesh<StandardVertex>>,
-//    gui_rectangle_meshes: HashMap<String, VulkanMesh<GuiRectangleVertex>>,
-    graybox_meshes: HashMap<String, VulkanMesh<GrayboxVertex>>,
-//    cheap_v1_meshes: HashMap<String, VulkanMesh<CheapV1Vertex>>,
-//    cheap_v2_meshes: HashMap<String, VulkanMesh<CheapV2Vertex>>,
-    cubemap_meshes: HashMap<String, VulkanMesh<CubemapVertex>>,
-
+    meshes: HashMap<String, VulkanMesh>,
     textures: HashMap<String, ImageWrap>,
 }
 
@@ -41,13 +26,7 @@ impl ResourceManager {
         ResourceManager {
             asset_path: asset_path,
             shaders: HashMap::new(),
-//            colored_meshes: HashMap::new(),
-//            standard_meshes: HashMap::new(),
-//            gui_rectangle_meshes: HashMap::new(),
-            graybox_meshes: HashMap::new(),
-//            cheap_v1_meshes: HashMap::new(),
-//            cheap_v2_meshes: HashMap::new(),
-            cubemap_meshes: HashMap::new(),
+            meshes: HashMap::new(),
             textures: HashMap::new(),
         }
     }
@@ -81,208 +60,70 @@ impl ResourceManager {
         Ok(shader_module)
     }
 
-    /*
-    pub fn load_colored_mesh(&mut self,
-                             device: &Device,
-                             memory: &mut Memory,
-                             commander: &Commander,
-                             staging_buffer: &HostVisibleBuffer<u8>,
-                             name: &str)
-                             -> Result<VulkanMesh<ColoredVertex>>
+    pub fn load_mesh(&mut self,
+                     device: &Device,
+                     memory: &mut Memory,
+                     commander: &Commander,
+                     staging_buffer: &HostVisibleBuffer,
+                     name: &str)
+                     -> Result<VulkanMesh>
     {
         // Check if we already have it
-        if let Some(m) = self.colored_meshes.get(name) {
-            return Ok(m.clone());
-        }
-
-        let mut path = self.asset_path.clone();
-        path.push(format!("meshes/colored/{}.mesh", name));
-        let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
-        if vertex_type != VertexType::Colored {
-            return Err(ErrorKind::WrongVertexType.into());
-        }
-        let mesh = ::siege_mesh::deserialize_colored(&*bytes)?;
-        let vulkan_mesh = VulkanMesh::new(device, memory, commander,
-                                          staging_buffer,
-                                          mesh, name)?;
-        self.colored_meshes.insert(name.to_owned(), vulkan_mesh.clone());
-
-        Ok(vulkan_mesh)
-    }
-     */
-
-    /*
-    pub fn load_standard_mesh(&mut self,
-                              device: &Device,
-                              memory: &mut Memory,
-                              commander: &Commander,
-                              staging_buffer: &HostVisibleBuffer<u8>,
-                              name: &str)
-                              -> Result<VulkanMesh<StandardVertex>>
-    {
-        // Check if we already have it
-        if let Some(m) = self.standard_meshes.get(name) {
-            return Ok(m.clone());
-        }
-
-        let mut path = self.asset_path.clone();
-        path.push(format!("meshes/standard/{}.mesh", name));
-        let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
-        if vertex_type != VertexType::Standard {
-            return Err(ErrorKind::WrongVertexType.into());
-        }
-        let mesh = ::siege_mesh::deserialize_standard(&*bytes)?;
-        let vulkan_mesh = VulkanMesh::new(device, memory, commander,
-                                          staging_buffer,
-                                          mesh, name)?;
-        self.standard_meshes.insert(name.to_owned(), vulkan_mesh.clone());
-
-        Ok(vulkan_mesh)
-    }
-     */
-
-    /*
-    pub fn load_gui_rectangle_mesh(&mut self,
-                                   device: &Device,
-                                   memory: &mut Memory,
-                                   commander: &Commander,
-                                   staging_buffer: &HostVisibleBuffer<u8>,
-                                   name: &str)
-                                   -> Result<VulkanMesh<GuiRectangleVertex>>
-    {
-        // Check if we already have it
-        if let Some(m) = self.gui_rectangle_meshes.get(name) {
-            return Ok(m.clone());
-        }
-
-        let mut path = self.asset_path.clone();
-        path.push(format!("meshes/gui_rectangle/{}.mesh", name));
-        let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
-        if vertex_type != VertexType::GuiRectangle {
-            return Err(ErrorKind::WrongVertexType.into());
-        }
-        let mesh = ::siege_mesh::deserialize_gui_rectangle(&*bytes)?;
-        let vulkan_mesh = VulkanMesh::new(device, memory, commander,
-                                          staging_buffer,
-                                          mesh, name)?;
-        self.gui_rectangle_meshes.insert(name.to_owned(), vulkan_mesh.clone());
-
-        Ok(vulkan_mesh)
-    }
-     */
-
-    pub fn load_graybox_mesh(&mut self,
-                             device: &Device,
-                             memory: &mut Memory,
-                             commander: &Commander,
-                             staging_buffer: &HostVisibleBuffer<u8>,
-                             name: &str)
-                             -> Result<VulkanMesh<GrayboxVertex>>
-    {
-        // Check if we already have it
-        if let Some(m) = self.graybox_meshes.get(name) {
+        if let Some(m) = self.meshes.get(name) {
             return Ok(m.clone());
         }
 
         let mut path = self.asset_path.clone();
         path.push(format!("meshes/graybox/{}.mesh", name));
         let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
-        if vertex_type != VertexType::Graybox {
-            return Err(ErrorKind::WrongVertexType.into());
-        }
-        let mesh = ::siege_mesh::deserialize_graybox(&*bytes)?;
-        let vulkan_mesh = VulkanMesh::new(device, memory, commander,
-                                          staging_buffer,
-                                          mesh, name)?;
-        self.graybox_meshes.insert(name.to_owned(), vulkan_mesh.clone());
+        let vulkan_mesh = {
+            // FIXME: this per-vertex-type code is probably not required
+            // anymore; will need to bubble up changes into siege-mesh.
+            match vertex_type {
+                VertexType::Colored => {
+                    let mesh = ::siege_mesh::deserialize_colored(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+                VertexType::Standard => {
+                    let mesh = ::siege_mesh::deserialize_standard(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+                VertexType::GuiRectangle => {
+                    let mesh = ::siege_mesh::deserialize_gui_rectangle(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+                VertexType::Graybox => {
+                    let mesh = ::siege_mesh::deserialize_graybox(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+                VertexType::CheapV1 => {
+                    let mesh = ::siege_mesh::deserialize_cheapv1(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+                VertexType::CheapV2 => {
+                    let mesh = ::siege_mesh::deserialize_cheapv2(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+                VertexType::Star => {
+                    let mesh = ::siege_mesh::deserialize_star(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+                VertexType::Cubemap => {
+                    let mesh = ::siege_mesh::deserialize_cubemap(&*bytes)?;
+                    VulkanMesh::new(device, memory, commander,
+                                    staging_buffer, mesh, name)?
+                },
+            }
+        };
 
-        Ok(vulkan_mesh)
-    }
-
-    /*
-    pub fn load_cheap_v1_mesh(&mut self,
-                              device: &Device,
-                              memory: &mut Memory,
-                              commander: &Commander,
-                              staging_buffer: &HostVisibleBuffer<u8>,
-                              name: &str)
-                              -> Result<VulkanMesh<CheapV1Vertex>>
-    {
-        // Check if we already have it
-        if let Some(m) = self.cheap_v1_meshes.get(name) {
-            return Ok(m.clone());
-        }
-
-        let mut path = self.asset_path.clone();
-        path.push(format!("meshes/cheapv1/{}.mesh", name));
-        let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
-        if vertex_type != VertexType::CheapV1 {
-            return Err(ErrorKind::WrongVertexType.into());
-        }
-        let mesh = ::siege_mesh::deserialize_cheapv1(&*bytes)?;
-        let vulkan_mesh = VulkanMesh::new(device, memory, commander,
-                                          staging_buffer,
-                                          mesh, name)?;
-        self.cheap_v1_meshes.insert(name.to_owned(), vulkan_mesh.clone());
-
-        Ok(vulkan_mesh)
-    }
-     */
-
-    /*
-    pub fn load_cheap_v2_mesh(&mut self,
-                              device: &Device,
-                              memory: &mut Memory,
-                              commander: &Commander,
-                              staging_buffer: &HostVisibleBuffer<u8>,
-                              name: &str)
-                              -> Result<VulkanMesh<CheapV2Vertex>>
-    {
-        // Check if we already have it
-        if let Some(m) = self.cheap_v2_meshes.get(name) {
-            return Ok(m.clone());
-        }
-
-        let mut path = self.asset_path.clone();
-        path.push(format!("meshes/cheapv2/{}.mesh", name));
-        let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
-        if vertex_type != VertexType::CheapV2 {
-            return Err(ErrorKind::WrongVertexType.into());
-        }
-        let mesh = ::siege_mesh::deserialize_cheapv2(&*bytes)?;
-        let vulkan_mesh = VulkanMesh::new(device, memory, commander,
-                                          staging_buffer,
-                                          mesh, name)?;
-        self.cheap_v2_meshes.insert(name.to_owned(), vulkan_mesh.clone());
-
-        Ok(vulkan_mesh)
-    }
-     */
-
-    pub fn load_cubemap_mesh(&mut self,
-                             device: &Device,
-                             memory: &mut Memory,
-                             commander: &Commander,
-                             staging_buffer: &HostVisibleBuffer<u8>,
-                             name: &str)
-                             -> Result<VulkanMesh<CubemapVertex>>
-    {
-        // Check if we already have it
-        if let Some(m) = self.cubemap_meshes.get(name) {
-            return Ok(m.clone());
-        }
-
-        let mut path = self.asset_path.clone();
-        path.push(format!("meshes/cubemap/{}.mesh", name));
-        let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
-        if vertex_type != VertexType::Cubemap {
-            return Err(ErrorKind::WrongVertexType.into());
-        }
-        let mesh = ::siege_mesh::deserialize_cubemap(&*bytes)?;
-        let vulkan_mesh = VulkanMesh::new(device, memory, commander,
-                                          staging_buffer,
-                                          mesh, name)?;
-        self.cubemap_meshes.insert(name.to_owned(), vulkan_mesh.clone());
+        self.meshes.insert(name.to_owned(), vulkan_mesh.clone());
 
         Ok(vulkan_mesh)
     }
@@ -292,7 +133,7 @@ impl ResourceManager {
         device: &Device,
         memory: &mut Memory,
         commander: &Commander,
-        staging_buffer: &HostVisibleBuffer<u8>,
+        staging_buffer: &HostVisibleBuffer,
         name: &str)
         -> Result<ImageWrap>
     {
@@ -353,11 +194,11 @@ impl ResourceManager {
         };
 
         // Copy texture to staging buffer
-        let mut offset: u64 = 0;
+        let mut offset: usize = 0;
         for layer in 0..num_layers {
             let data = dds.get_data(layer)?;
             staging_buffer.write_array(data, Some(offset), true)?;
-            offset += data.len() as u64;
+            offset += data.len();
         }
 
         // create image wrap

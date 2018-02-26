@@ -47,7 +47,6 @@ use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
                    BlurHPass, BlurVPass, PostPass, UiPass};
 use self::post::PostGfx;
 use self::blur::BlurGfx;
-use super::vertex::*;
 use super::plugin::Plugin;
 use errors::*;
 use config::Config;
@@ -97,8 +96,7 @@ pub struct Renderer {
     #[allow(dead_code)]
     params_desc_layout: DescriptorSetLayout,
     #[allow(dead_code)]
-    params_ubo: HostVisibleBuffer<u8>,
-    params: Params,
+    params_ubo: HostVisibleBuffer,
     ui_pass: UiPass,
     post_pass: PostPass,
     blur_v_pass: BlurVPass,
@@ -113,7 +111,7 @@ pub struct Renderer {
     descriptor_pool: DescriptorPool,
     scissors: Vec<Rect2D>,
     viewports: Vec<Viewport>,
-    staging_buffer: HostVisibleBuffer<u8>,
+    staging_buffer: HostVisibleBuffer,
     resource_manager: ResourceManager,
     commander: Commander,
     present_queue: Queue,
@@ -178,9 +176,9 @@ impl Renderer {
         let resource_manager = ResourceManager::new(
             config.asset_path.clone());
 
-        let staging_buffer = HostVisibleBuffer::new(
+        let staging_buffer = HostVisibleBuffer::new::<u8>(
             &device, &mut memory,
-            ::renderer::setup::requirements::MAX_GPU_UPLOAD,
+            ::renderer::setup::requirements::MAX_GPU_UPLOAD as usize,
             BufferUsageFlags::TRANSFER_SRC,
             Lifetime::Permanent, "Staging Buffer"
         )?;
@@ -222,19 +220,21 @@ impl Renderer {
         let ui_pass = UiPass::new(
             &device, &swapchain_data)?;
 
-        let params = Params {
-            bloom_strength: 0.65,
-            bloom_scale: 1.1,
-            blur_level: 0.0,
-        };
-
-        let params_ubo = HostVisibleBuffer::new(
-            &device, &mut memory,
-            ::std::mem::size_of::<Params>() as u64,
+        let params_ubo = HostVisibleBuffer::new::<Params>(
+            &device, &mut memory, 1,
             BufferUsageFlags::UNIFORM_BUFFER,
             Lifetime::Permanent,
             "Render Parameter Uniforms")?;
-        params_ubo.block.write_one(&params, 0)?;
+
+        // write initial data
+        {
+            let params = Params {
+                bloom_strength: 0.65,
+                bloom_scale: 1.1,
+                blur_level: 0.0,
+            };
+            params_ubo.write(&params, None, true)?;
+        }
 
         let (params_desc_layout, params_desc_set) = {
             let layout = {
@@ -309,7 +309,6 @@ impl Renderer {
             params_desc_set: params_desc_set,
             params_desc_layout: params_desc_layout,
             params_ubo: params_ubo,
-            params: params,
             ui_pass: ui_pass,
             post_pass: post_pass,
             blur_v_pass: blur_v_pass,
@@ -350,15 +349,9 @@ impl Renderer {
         self.resource_manager.load_shader(&self.device, name)
     }
 
-    pub fn load_graybox_mesh(&mut self, name: &str) -> Result<VulkanMesh<GrayboxVertex>>
+    pub fn load_mesh(&mut self, name: &str) -> Result<VulkanMesh>
     {
-        self.resource_manager.load_graybox_mesh(
-            &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
-    }
-
-    pub fn load_cubemap_mesh(&mut self, name: &str) -> Result<VulkanMesh<CubemapVertex>>
-    {
-        self.resource_manager.load_cubemap_mesh(
+        self.resource_manager.load_mesh(
             &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
     }
 
@@ -422,22 +415,22 @@ impl Renderer {
         Ok(self.device.create_sampler(&create_info, None)?)
     }
 
-    pub fn create_host_visible_buffer(
-        &mut self, size: u64, usage: BufferUsageFlags,
+    pub fn create_host_visible_buffer<T>(
+        &mut self, count: usize, usage: BufferUsageFlags,
         lifetime: Lifetime, reason: &str)
-        -> Result<HostVisibleBuffer<u8>>
+        -> Result<HostVisibleBuffer>
     {
-        HostVisibleBuffer::new(
+        HostVisibleBuffer::new::<T>(
             &self.device, &mut self.memory,
-            size, usage, lifetime, reason)
+            count, usage, lifetime, reason)
     }
 
     pub fn create_device_local_buffer<T: Copy>(
         &mut self, usage: BufferUsageFlags,
         lifetime: Lifetime, reason: &str, data: &[T])
-        -> Result<DeviceLocalBuffer<T>>
+        -> Result<DeviceLocalBuffer>
     {
-        DeviceLocalBuffer::new_uploaded(
+        DeviceLocalBuffer::new_uploaded::<T>(
             &self.device, &mut self.memory, &self.commander,
             &self.staging_buffer, data, usage,
             lifetime, reason)
@@ -465,11 +458,10 @@ impl Renderer {
         self.plugins.push(plugin);
     }
 
-    pub fn set_params(&mut self, params: Params) -> Result<()>
+    pub fn set_params(&mut self, params: &Params) -> Result<()>
     {
-        self.params = params;
-        self.params_ubo.block.write_one(&self.params, 0)?;
-        Ok(())
+        *(self.params_ubo.as_ptr()) = *params;
+        self.params_ubo.flush()
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.
