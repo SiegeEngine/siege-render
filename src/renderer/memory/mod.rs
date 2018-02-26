@@ -5,10 +5,14 @@ pub use self::chunk::CHUNK_SIZE;
 mod block;
 pub use self::block::Block;
 
+mod mapped;
+pub use self::mapped::Mapped;
+
 use std::collections::HashMap;
 use dacite::core::{Device, PhysicalDeviceMemoryProperties,
                    PhysicalDeviceProperties,
-                   MemoryRequirements, MemoryPropertyFlags};
+                   MemoryRequirements, MemoryPropertyFlags,
+                   BufferUsageFlags};
 
 use errors::*;
 use self::chunk::Chunk;
@@ -23,18 +27,18 @@ pub struct Memory {
     // This maps from heap_index to the chunk set
     chunks: HashMap<u32, Vec<Chunk>>,
     memory_properties: PhysicalDeviceMemoryProperties,
-//    max_memory_allocation_count: u32,
+    properties: PhysicalDeviceProperties
 }
 
 impl Memory {
     pub fn new(memory_properties: PhysicalDeviceMemoryProperties,
-               properties: &PhysicalDeviceProperties) -> Memory
+               properties: PhysicalDeviceProperties) -> Memory
     {
         info!("Max allocations: {}", properties.limits.max_memory_allocation_count);
         Memory {
             chunks: HashMap::new(),
             memory_properties: memory_properties,
-//            max_memory_allocation_count: properties.limits.max_memory_allocation_count,
+            properties: properties
         }
     }
 
@@ -43,6 +47,7 @@ impl Memory {
         device: &Device,
         memory_requirements: &MemoryRequirements,
         memory_property_flags: MemoryPropertyFlags,
+        buffer_usage: Option<BufferUsageFlags>,
         lifetime: Lifetime,
         reason: &str)
         -> Result<Block>
@@ -71,6 +76,8 @@ impl Memory {
             );
         }
 
+        let element_alignment = self.element_alignment(buffer_usage);
+
         // Get the chunk vector for the memory_type we care about
         let chunk_vec = self.chunks.get_mut(&memory_type_index).unwrap();
 
@@ -79,6 +86,7 @@ impl Memory {
             if let Some(block) = chunk.allocate(
                 memory_requirements.size,
                 memory_requirements.alignment,
+                element_alignment,
                 lifetime,
                 reason)
             {
@@ -93,6 +101,7 @@ impl Memory {
         let block = new_chunk.allocate(
             memory_requirements.size,
             memory_requirements.alignment,
+            element_alignment,
             lifetime,
             reason);
         chunk_vec.push(new_chunk);
@@ -110,6 +119,44 @@ impl Memory {
                 chunk.log_usage(i);
             }
         }
+    }
+
+    pub fn element_alignment(&self, buffer_usage: Option<BufferUsageFlags>)
+                             -> u64
+    {
+        // Determine element_alignment
+        let mut element_alignment = 1;
+        if let Some(bu) = buffer_usage {
+            if bu.contains(BufferUsageFlags::UNIFORM_BUFFER) {
+                element_alignment = element_alignment.max(
+                    self.properties.limits.min_uniform_buffer_offset_alignment);
+            }
+            if bu.contains(BufferUsageFlags::STORAGE_BUFFER) {
+                element_alignment = element_alignment.max(
+                    self.properties.limits.min_storage_buffer_offset_alignment);
+            }
+            if bu.contains(BufferUsageFlags::UNIFORM_TEXEL_BUFFER) {
+                element_alignment = element_alignment.max(
+                    self.properties.limits.min_uniform_buffer_offset_alignment);
+                element_alignment = element_alignment.max(
+                    self.properties.limits.min_texel_buffer_offset_alignment);
+            }
+            if bu.contains(BufferUsageFlags::STORAGE_TEXEL_BUFFER) {
+                element_alignment = element_alignment.max(
+                    self.properties.limits.min_storage_buffer_offset_alignment);
+                element_alignment = element_alignment.max(
+                    self.properties.limits.min_texel_buffer_offset_alignment);
+            }
+        }
+        element_alignment
+    }
+
+    pub fn stride(&self, size_one: usize, buffer_usage: Option<BufferUsageFlags>)
+                  -> usize
+    {
+        let element_alignment = self.element_alignment(buffer_usage);
+
+        _stride(size_one, element_alignment as usize)
     }
 
     fn find_memory_type_index(
@@ -155,5 +202,15 @@ impl Memory {
             memory_type_bits = memory_type_bits >> 1;
         }
         None
+    }
+}
+
+fn _stride(size_one: usize, element_alignment: usize)
+           -> usize
+{
+    if element_alignment<=1 {
+        size_one
+    } else {
+        element_alignment * (1 + ( (size_one-1)/element_alignment ) )
     }
 }

@@ -76,19 +76,23 @@ impl Chunk {
     }
 
     /// Allocate a block on the chunk, with the given size, alignment, and reason.
-   /// If permanent, block is efficiently allocated and cannot be deallocated.
-    pub fn allocate(&mut self, size: u64, alignment: u64, lifetime: Lifetime, reason: &str)
+    /// element_alignment specifies alignment of each array element.
+    /// If permanent, block is efficiently allocated and cannot be deallocated.
+    pub fn allocate(&mut self, size: u64, alignment: u64,
+                    element_alignment: u64, lifetime: Lifetime, reason: &str)
                     -> Option<Block>
     {
         match lifetime {
             Lifetime::Permanent =>
-                self.allocate_perm(size, alignment, reason),
+                self.allocate_perm(size, alignment, element_alignment, reason),
             Lifetime::Temporary =>
-                self.allocate_normal(size, alignment, reason)
+                self.allocate_normal(size, alignment, element_alignment, reason)
         }
     }
 
-    fn allocate_perm(&mut self, size: u64, alignment: u64, reason: &str)
+    fn allocate_perm(&mut self, size: u64, alignment: u64,
+                     element_alignment: u64,
+                     reason: &str)
                      -> Option<Block>
     {
         let offset = if let Some(unaligned_offset) = self.start_of_perm.checked_sub(size) {
@@ -104,10 +108,12 @@ impl Chunk {
         }
 
         self.start_of_perm = offset;
-        Some(self.make_block(offset, size, reason, None))
+        Some(self.make_block(offset, size, element_alignment, reason, None))
     }
 
-    fn allocate_normal(&mut self, size: u64, alignment: u64, reason: &str)
+    fn allocate_normal(&mut self, size: u64, alignment: u64,
+                       element_alignment: u64,
+                       reason: &str)
                     -> Option<Block>
     {
         // Clear the freelist
@@ -129,7 +135,7 @@ impl Chunk {
         while i < num_blocks {
             // If we have a big enough hole
             if self.blocks[i].offset > p + size {
-                return Some(self.make_block(p, size, reason, Some(i)));
+                return Some(self.make_block(p, size, element_alignment, reason, Some(i)));
             } else {
                 // move past the block
                 p = align_up(self.blocks[i].offset + self.blocks[i].size, alignment);
@@ -137,13 +143,14 @@ impl Chunk {
             i += 1;
         }
         if self.start_of_perm > p + size {
-            Some(self.make_block(p, size, reason, Some(i)))
+            Some(self.make_block(p, size, element_alignment, reason, Some(i)))
         } else {
             None
         }
     }
 
-    fn make_block(&mut self, offset: u64, size: u64, reason: &str,
+    fn make_block(&mut self, offset: u64, size: u64,
+                  element_alignment: u64, reason: &str,
                   insert_block_at: Option<usize>) -> Block
     {
         use dacite::core::MemoryPropertyFlags;
@@ -151,11 +158,14 @@ impl Chunk {
         let block = Block {
             memory: self.memory.clone(),
             offset: offset,
-            size: size,
             memory_type_index: self.memory_type_index,
+            host_visible: self.memory_type.property_flags.contains(
+                MemoryPropertyFlags::HOST_VISIBLE),
             is_coherent: self.memory_type.property_flags.contains(
                 MemoryPropertyFlags::HOST_COHERENT),
             freelist: self.freelist.clone(),
+            size: size,
+            element_alignment: element_alignment
         };
 
         let blockinfo = BlockInfo {

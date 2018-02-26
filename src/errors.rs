@@ -38,6 +38,9 @@ error_chain! {
         OutOfGraphicsMemory {
             description("Out of graphics memory (or memory type requested does not exist)"),
         }
+        MemoryNotHostWritable {
+            description("Device memory is not host writable"),
+        }
         NoSuitableSurfaceFormat {
             description("No Suitable Surface Format Found"),
         }

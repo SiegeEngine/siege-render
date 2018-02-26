@@ -161,7 +161,7 @@ impl Renderer {
             &physical_device, device_extensions, &queue_indices)?;
 
         let mut memory = Memory::new(physical_device_memory_properties,
-                                     &physical_device_properties);
+                                     physical_device_properties.clone());
 
         let swapchain_data = SwapchainData::create(
             &physical_device, &device, &surface,
