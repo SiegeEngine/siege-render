@@ -356,7 +356,7 @@ impl ResourceManager {
         let mut offset: u64 = 0;
         for layer in 0..num_layers {
             let data = dds.get_data(layer)?;
-            staging_buffer.block.write(data, offset)?;
+            staging_buffer.write_array(data, Some(offset), true)?;
             offset += data.len() as u64;
         }
 

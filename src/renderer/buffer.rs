@@ -1,9 +1,8 @@
 
 use errors::*;
-use std::marker::PhantomData;
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
                    BufferCopy};
-use super::memory::{Memory, Block, Lifetime};
+use super::memory::{Memory, Block, Mapped, Lifetime};
 use super::commander::Commander;
 
 fn _new(
@@ -35,6 +34,7 @@ fn _new(
             device,
             &memory_requirements,
             flags,
+            Some(usage),
             lifetime,
             reason)?
     };
@@ -44,32 +44,35 @@ fn _new(
     Ok((buffer, block))
 }
 
-#[derive(Debug, Clone)]
-pub struct HostVisibleBuffer<T: Copy> {
+#[derive(Debug)]
+pub struct HostVisibleBuffer {
     buffer: Buffer,
-    pub block: Block,
-    pub size: u64, // this is the size of the data.  block.size might be padded out.
-    _phantom: PhantomData<T>, // we don't actually keep the data in here.
+    mapped: Mapped,
 }
 
-impl<T: Copy> HostVisibleBuffer<T> {
-    pub fn new(
+impl HostVisibleBuffer {
+    // Creates a new HostVisibleBuffer. The type T is used for sizing (including alignment
+    // padding) but is not part of the created type, so you can use it with
+    // other types later.
+    pub fn new<T>(
         device: &Device,
         memory: &mut Memory,
-        size: u64,
+        count: usize,
         usage: BufferUsageFlags,
         lifetime: Lifetime,
         reason: &str)
-        -> Result<HostVisibleBuffer<T>>
+        -> Result<HostVisibleBuffer>
     {
+        let stride = memory.stride(::std::mem::size_of::<T>(), Some(usage));
+        let size = (count * stride) as u64;
+
         let (buffer, block) = _new(device, memory, size, usage, lifetime, reason,
                                    MemoryPropertyFlags::HOST_VISIBLE)?;
+        let mapped = block.into_mapped()?;
 
         Ok(HostVisibleBuffer {
             buffer: buffer,
-            block: block,
-            size: size,
-            _phantom: PhantomData,
+            mapped: mapped,
         })
     }
 
@@ -77,121 +80,63 @@ impl<T: Copy> HostVisibleBuffer<T> {
         self.buffer.clone()
     }
 
-    /*
-    pub fn new_with_data(
-        device: &Device,
-        memory: &mut Memory,
-        data: &[T],
-        usage: BufferUsageFlags,
-        lifetime: Lifetime,
-        reason: &str)
-        -> Result<HostVisibleBuffer<T>>
-    {
-        let size = ::std::mem::size_of_val(data) as u64;
-
-        let output = Self::new(device, memory, size, usage, lifetime, reason)?;
-
-        output.block.write(data, 0)?;
-
-        Ok(output)
-    }
-     */
-
-    pub fn new_with_single_data(
-        device: &Device,
-        memory: &mut Memory,
-        data: &T,
-        usage: BufferUsageFlags,
-        lifetime: Lifetime,
-        reason: &str)
-        -> Result<HostVisibleBuffer<T>>
-    {
-        let size = ::std::mem::size_of_val(data) as u64;
-
-        let output = Self::new(device, memory, size, usage, lifetime, reason)?;
-
-        output.block.write_one(data, 0)?;
-
-        Ok(output)
+    pub fn size(&self) -> u64 {
+        self.mapped.block.size
     }
 
-    fn copy_to_buffer(
-        &self,
-        device: &Device,
-        commander: &Commander,
-        dest: &Buffer,
-        regions: &[BufferCopy])
-        -> Result<()>
+    pub fn as_ptr<T>(&self) -> &mut T {
+        self.mapped.as_ptr()
+    }
+
+     pub fn as_ptr_at_offset<T>(&self) -> &mut T {
+        self.mapped.as_ptr()
+    }
+
+    pub fn write<T: Copy>(&self, data: &T, offset: Option<usize>, flush: bool)
+                          -> Result<()>
     {
-        use dacite::core::{CommandBufferResetFlags, CommandBufferBeginInfo,
-                           CommandBufferUsageFlags,
-                           FenceCreateInfo, FenceCreateFlags, Fence, Timeout,
-                           SubmitInfo, PipelineStageFlags};
+        self.mapped.write(data, offset, flush)
+    }
 
-        commander.xfr_command_buffer.reset(CommandBufferResetFlags::RELEASE_RESOURCES)?;
+    pub fn write_array<T: Copy>(&self, data: &[T], offset: Option<usize>, flush: bool)
+                                -> Result<()>
+    {
+        self.mapped.write_array(data, offset, flush)
+    }
 
-        let command_buffer_begin_info = CommandBufferBeginInfo {
-            flags: CommandBufferUsageFlags::ONE_TIME_SUBMIT,
-            inheritance_info: None,
-            chain: None
-        };
-        commander.xfr_command_buffer.begin(&command_buffer_begin_info)?;
-
-        commander.xfr_command_buffer.copy_buffer(
-            &self.buffer,
-            dest,
-            regions);
-
-        commander.xfr_command_buffer.end()?;
-
-        let fence = {
-            let create_info = FenceCreateInfo {
-                flags: FenceCreateFlags::empty(),
-                chain: None
-            };
-            device.create_fence(&create_info, None)?
-        };
-
-        let submit_info = SubmitInfo {
-            wait_semaphores: vec![],
-            wait_dst_stage_mask: vec![PipelineStageFlags::BOTTOM_OF_PIPE], // comes after TRANSFER
-            command_buffers: vec![commander.xfr_command_buffer.clone()],
-            signal_semaphores: vec![],
-            chain: None
-        };
-        Fence::reset_fences(&[fence.clone()])?;
-        commander.xfr_queue.submit( Some(&[submit_info]), Some(&fence) )?;
-        Fence::wait_for_fences(&[fence], true, Timeout::Infinite)?;
-        Ok(())
+    pub fn flush(&self) -> Result<()> {
+        self.mapped.flush()
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct DeviceLocalBuffer<T: Copy> {
+pub struct DeviceLocalBuffer {
     buffer: Buffer,
-    pub block: Block,
-    pub size: u64, // this is the size of the data.  block.size might be padded out.
-    _phantom: PhantomData<T>, // we don't actually keep the data in here.
+    block: Block,
 }
 
-impl<T: Copy> DeviceLocalBuffer<T> {
-    pub fn new(
+impl DeviceLocalBuffer {
+    // Creates a new DeviceLocalBuffer. The type T is used for sizing (including alignment
+    // padding) but is not part of the created type, so you can use it with
+    // other types later.
+    pub fn new<T>(
         device: &Device,
         memory: &mut Memory,
-        size: u64,
+        count: usize,
         usage: BufferUsageFlags,
         lifetime: Lifetime,
         reason: &str)
-        -> Result<DeviceLocalBuffer<T>>
+        -> Result<DeviceLocalBuffer>
     {
+        let stride = memory.stride(::std::mem::size_of::<T>(), Some(usage));
+        let size = (count * stride) as u64;
+
         let (buffer, block) = _new(device, memory, size, usage, lifetime, reason,
                                    MemoryPropertyFlags::DEVICE_LOCAL)?;
 
         Ok(DeviceLocalBuffer {
             buffer: buffer,
             block: block,
-            size: size,
-            _phantom: PhantomData,
         })
     }
 
@@ -199,37 +144,41 @@ impl<T: Copy> DeviceLocalBuffer<T> {
         self.buffer.clone()
     }
 
-    pub fn new_uploaded(
+    pub fn size(&self) -> u64 {
+        self.block.size
+    }
+
+    pub fn new_uploaded<T: Copy>(
         device: &Device,
         memory: &mut Memory,
         commander: &Commander,
-        staging_buffer: &HostVisibleBuffer<u8>,
+        staging_buffer: &HostVisibleBuffer,
         data: &[T],
         mut usage: BufferUsageFlags,
         lifetime: Lifetime,
         reason: &str)
-        -> Result<DeviceLocalBuffer<T>>
+        -> Result<DeviceLocalBuffer>
     {
-        let size = ::std::mem::size_of_val(data) as u64;
-        assert!(size <= staging_buffer.size);
+        let stride = memory.stride(::std::mem::size_of::<T>(), Some(usage));
+        let size = (data.len() * stride) as u64;
+        assert!(size <= staging_buffer.size());
 
         // Create the device buffer
         usage |= BufferUsageFlags::TRANSFER_DST;
-        let device_buffer = Self::new(device, memory, size, usage, lifetime, reason)?;
+        let device_buffer = Self::new::<T>(device, memory, data.len(), usage, lifetime, reason)?;
 
         // Write the data to the staging buffer
-        staging_buffer.block.write(data, 0)?;
+        staging_buffer.write_array::<T>(data, None, true)?;
 
         // Copy the data through
-        staging_buffer.copy_to_buffer(
-            device,
-            commander,
-            &device_buffer.buffer,
-            &[BufferCopy {
-                src_offset: 0,
-                dst_offset: 0,
-                size: size,
-            }])?;
+        copy(device, commander,
+             &staging_buffer.buffer,
+             &device_buffer.buffer,
+             &[BufferCopy {
+                 src_offset: 0,
+                 dst_offset: 0,
+                 size: size,
+             }])?;
 
         Ok(device_buffer)
     }
@@ -265,4 +214,52 @@ impl<T: Copy> DeviceLocalBuffer<T> {
         Ok(())
     }
      */
+}
+
+fn copy(
+    device: &Device,
+    commander: &Commander,
+    src: &Buffer,
+    dest: &Buffer,
+    regions: &[BufferCopy])
+    -> Result<()>
+{
+    use dacite::core::{CommandBufferResetFlags, CommandBufferBeginInfo,
+                       CommandBufferUsageFlags,
+                       FenceCreateInfo, FenceCreateFlags, Fence, Timeout,
+                       SubmitInfo, PipelineStageFlags};
+
+    commander.xfr_command_buffer.reset(CommandBufferResetFlags::RELEASE_RESOURCES)?;
+
+    let command_buffer_begin_info = CommandBufferBeginInfo {
+        flags: CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+        inheritance_info: None,
+        chain: None
+    };
+    commander.xfr_command_buffer.begin(&command_buffer_begin_info)?;
+
+    commander.xfr_command_buffer.copy_buffer(
+        src, dest, regions);
+
+    commander.xfr_command_buffer.end()?;
+
+    let fence = {
+        let create_info = FenceCreateInfo {
+            flags: FenceCreateFlags::empty(),
+            chain: None
+        };
+        device.create_fence(&create_info, None)?
+    };
+
+    let submit_info = SubmitInfo {
+        wait_semaphores: vec![],
+        wait_dst_stage_mask: vec![PipelineStageFlags::BOTTOM_OF_PIPE], // comes after TRANSFER
+        command_buffers: vec![commander.xfr_command_buffer.clone()],
+        signal_semaphores: vec![],
+        chain: None
+    };
+    Fence::reset_fences(&[fence.clone()])?;
+    commander.xfr_queue.submit( Some(&[submit_info]), Some(&fence) )?;
+    Fence::wait_for_fences(&[fence], true, Timeout::Infinite)?;
+    Ok(())
 }
