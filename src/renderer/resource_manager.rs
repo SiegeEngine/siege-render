@@ -379,7 +379,7 @@ impl ResourceManager {
         image_wrap.copy_in_from_buffer(
             device,
             &commander,
-            &staging_buffer.buffer)?;
+            &staging_buffer.inner())?;
 
         // transfer layout to ImageLayout::ShaderReadOnlyOptimal
         use dacite::core::{AccessFlags, ImageAspectFlags, OptionalMipLevels,

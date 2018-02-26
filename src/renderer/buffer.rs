@@ -46,7 +46,7 @@ fn _new(
 
 #[derive(Debug, Clone)]
 pub struct HostVisibleBuffer<T: Copy> {
-    pub buffer: Buffer,
+    buffer: Buffer,
     pub block: Block,
     pub size: u64, // this is the size of the data.  block.size might be padded out.
     _phantom: PhantomData<T>, // we don't actually keep the data in here.
@@ -168,7 +168,7 @@ impl<T: Copy> HostVisibleBuffer<T> {
 
 #[derive(Debug, Clone)]
 pub struct DeviceLocalBuffer<T: Copy> {
-    pub buffer: Buffer,
+    buffer: Buffer,
     pub block: Block,
     pub size: u64, // this is the size of the data.  block.size might be padded out.
     _phantom: PhantomData<T>, // we don't actually keep the data in here.
