@@ -75,6 +75,7 @@ pub enum DepthHandling {
 
 pub enum BlendMode {
     None,
+    Off,
     Alpha,
     Add
 }

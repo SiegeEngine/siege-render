@@ -124,7 +124,7 @@ impl BlurGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                BlendMode::None)?;
+                BlendMode::Off)?;
 
         let vertex_shader_v = vertex_shader_v(device)?;
         let fragment_shader_v = fragment_shader_v(device)?;

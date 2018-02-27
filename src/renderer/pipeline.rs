@@ -53,6 +53,36 @@ pub fn create(
             chain: None,
         }, None)?;
 
+    let blend_create = match blend {
+        BlendMode::None => None,
+        _ => Some(PipelineColorBlendStateCreateInfo {
+            flags: PipelineColorBlendStateCreateFlags::empty(),
+            logic_op_enable: false,
+            logic_op: LogicOp::Copy,
+            attachments: vec![PipelineColorBlendAttachmentState {
+                blend_enable: match blend {
+                    BlendMode::Off => false,
+                    _ => true,
+                },
+                src_color_blend_factor: match blend {
+                    BlendMode::Add => BlendFactor::One,
+                    _ => BlendFactor::SrcAlpha,
+                },
+                dst_color_blend_factor: match blend {
+                    BlendMode::Add => BlendFactor::One,
+                    _ => BlendFactor::OneMinusSrcAlpha,
+                },
+                color_blend_op: BlendOp::Add,
+                src_alpha_blend_factor: BlendFactor::One,
+                dst_alpha_blend_factor: BlendFactor::Zero,
+                alpha_blend_op: BlendOp::Add,
+                color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
+            }],
+            blend_constants: [0.0, 0.0, 0.0, 0.0],
+            chain: None,
+        })
+    };
+
     let mut create_info = GraphicsPipelineCreateInfo {
         flags: PipelineCreateFlags::empty(),
         stages: vec![],
@@ -138,32 +168,7 @@ pub fn create(
                 chain: None,
             })
         },
-        color_blend_state: Some(PipelineColorBlendStateCreateInfo {
-            flags: PipelineColorBlendStateCreateFlags::empty(),
-            logic_op_enable: false,
-            logic_op: LogicOp::Copy,
-            attachments: vec![PipelineColorBlendAttachmentState {
-                blend_enable: match blend {
-                    BlendMode::None => false,
-                    _ => true,
-                },
-                src_color_blend_factor: match blend {
-                    BlendMode::Add => BlendFactor::One,
-                    _ => BlendFactor::SrcAlpha,
-                },
-                dst_color_blend_factor: match blend {
-                    BlendMode::Add => BlendFactor::One,
-                    _ => BlendFactor::OneMinusSrcAlpha,
-                },
-                color_blend_op: BlendOp::Add,
-                src_alpha_blend_factor: BlendFactor::One,
-                dst_alpha_blend_factor: BlendFactor::Zero,
-                alpha_blend_op: BlendOp::Add,
-                color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
-            }],
-            blend_constants: [0.0, 0.0, 0.0, 0.0],
-            chain: None,
-        }),
+        color_blend_state: blend_create,
         dynamic_state: Some(PipelineDynamicStateCreateInfo {
             flags: Default::default(),
             dynamic_states: vec![DynamicState::Viewport, DynamicState::Scissor],
