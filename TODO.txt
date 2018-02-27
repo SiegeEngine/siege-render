@@ -1,3 +1,8 @@
+FIX MEMORY MAPPING:
+  * We can only map a Chunk once, we cannot map multiple suballocations.
+  * 2 types of chunks: DeviceChunk and HostChunk
+  * HostChunk is always entirely mapped (for the time being)
+
 Try blooming with a separate filter step.  But first, compare performance on nvidia
   at work to see if our current layout is faster or slower.
 

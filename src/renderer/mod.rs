@@ -232,7 +232,7 @@ impl Renderer {
                 bloom_scale: 1.1,
                 blur_level: 0.0,
             };
-            params_ubo.write(&params, None, true)?;
+            params_ubo.write(&params, None)?;
         }
 
         let (params_desc_layout, params_desc_set) = {
@@ -458,10 +458,9 @@ impl Renderer {
         self.plugins.push(plugin);
     }
 
-    pub fn set_params(&mut self, params: &Params) -> Result<()>
+    pub fn set_params(&mut self, params: &Params)
     {
         *(self.params_ubo.as_ptr()) = *params;
-        self.params_ubo.flush()
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.
@@ -490,8 +489,8 @@ impl Renderer {
         loop {
             for plugin in &mut self.plugins {
                 plugin.update()?;
-                plugin.upload()?;
             }
+            self.memory.flush()?;
 
             // Render a frame
             render_start = match self.render() {

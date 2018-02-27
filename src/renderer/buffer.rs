@@ -2,7 +2,7 @@
 use errors::*;
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
                    BufferCopy};
-use super::memory::{Memory, Block, Mapped, Lifetime};
+use super::memory::{Memory, Block, Lifetime};
 use super::commander::Commander;
 
 fn _new(
@@ -47,7 +47,7 @@ fn _new(
 #[derive(Debug)]
 pub struct HostVisibleBuffer {
     buffer: Buffer,
-    mapped: Mapped,
+    block: Block,
 }
 
 impl HostVisibleBuffer {
@@ -68,11 +68,10 @@ impl HostVisibleBuffer {
 
         let (buffer, block) = _new(device, memory, size, usage, lifetime, reason,
                                    MemoryPropertyFlags::HOST_VISIBLE)?;
-        let mapped = block.into_mapped()?;
 
         Ok(HostVisibleBuffer {
             buffer: buffer,
-            mapped: mapped,
+            block: block,
         })
     }
 
@@ -81,31 +80,27 @@ impl HostVisibleBuffer {
     }
 
     pub fn size(&self) -> u64 {
-        self.mapped.block.size
+        self.block.size
     }
 
     pub fn as_ptr<T>(&self) -> &mut T {
-        self.mapped.as_ptr()
+        self.block.as_ptr()
     }
 
     pub fn as_ptr_at_offset<T>(&self, offset: usize) -> &mut T {
-        self.mapped.as_ptr_at_offset(offset)
+        self.block.as_ptr_at_offset(offset)
     }
 
-    pub fn write<T: Copy>(&self, data: &T, offset: Option<usize>, flush: bool)
+    pub fn write<T: Copy>(&self, data: &T, offset: Option<usize>)
                           -> Result<()>
     {
-        self.mapped.write(data, offset, flush)
+        self.block.write(data, offset)
     }
 
-    pub fn write_array<T: Copy>(&self, data: &[T], offset: Option<usize>, flush: bool)
+    pub fn write_array<T: Copy>(&self, data: &[T], offset: Option<usize>)
                                 -> Result<()>
     {
-        self.mapped.write_array(data, offset, flush)
-    }
-
-    pub fn flush(&self) -> Result<()> {
-        self.mapped.flush()
+        self.block.write_array(data, offset)
     }
 }
 
@@ -168,7 +163,7 @@ impl DeviceLocalBuffer {
         let device_buffer = Self::new::<T>(device, memory, data.len(), usage, lifetime, reason)?;
 
         // Write the data to the staging buffer
-        staging_buffer.write_array::<T>(data, None, true)?;
+        staging_buffer.write_array::<T>(data, None)?;
 
         // Copy the data through
         copy(device, commander,

@@ -5,9 +5,6 @@ pub use self::chunk::CHUNK_SIZE;
 mod block;
 pub use self::block::Block;
 
-mod mapped;
-pub use self::mapped::Mapped;
-
 use std::collections::HashMap;
 use dacite::core::{Device, PhysicalDeviceMemoryProperties,
                    PhysicalDeviceProperties,
@@ -115,7 +112,7 @@ impl Memory {
 
     pub fn log_usage(&self) {
         for (_, chunkvec) in &self.chunks {
-            for (i,chunk) in chunkvec.iter().enumerate() {
+            for (i, chunk) in chunkvec.iter().enumerate() {
                 chunk.log_usage(i);
             }
         }
@@ -157,6 +154,16 @@ impl Memory {
         let element_alignment = self.element_alignment(buffer_usage);
 
         _stride(size_one, element_alignment as usize)
+    }
+
+    // This only flushes dirty chunks
+    pub fn flush(&self) -> Result<()> {
+        for (_, chunkvec) in &self.chunks {
+            for (_, chunk) in chunkvec.iter().enumerate() {
+                chunk.flush()?;
+            }
+        }
+        Ok(())
     }
 
     fn find_memory_type_index(

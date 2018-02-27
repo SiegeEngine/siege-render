@@ -1,7 +1,9 @@
 
 use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicBool, Ordering};
 use errors::*;
-use dacite::core::{Device, DeviceMemory, MemoryType, MemoryPropertyFlags};
+use dacite::core::{Device, DeviceMemory, MappedMemory, MemoryType, MemoryPropertyFlags,
+                   OptionalDeviceSize};
 use super::block::Block;
 use super::Lifetime;
 
@@ -40,6 +42,7 @@ impl BlockInfo {
 
 pub struct Chunk {
     pub memory: DeviceMemory,
+    pub mapped_memory: Arc<MappedMemory>,
     pub blocks: Vec<BlockInfo>, // keep these in order
     // List of block offsets which have dropped.
     pub freelist: Arc<RwLock<Vec<u64>>>,
@@ -47,6 +50,7 @@ pub struct Chunk {
     pub memory_type: MemoryType, // for logging
     pub start_of_perm: u64, // top of the free region, beyond which are PERM objects
     pub perm_blocks: Vec<BlockInfo>, // order is from top down, as they come
+    pub dirty: Arc<AtomicBool>,
 }
 
 impl Chunk {
@@ -64,14 +68,20 @@ impl Chunk {
         };
         let memory = device.allocate_memory(&allocate_info, None)?;
 
+        // map the entire thing
+        let mapped_memory = memory.map(0, OptionalDeviceSize::WholeSize,
+                                       Default::default())?;
+
         Ok(Chunk {
             memory: memory,
+            mapped_memory: Arc::new(mapped_memory),
             blocks: Vec::new(),
             freelist: Arc::new(RwLock::new(Vec::new())),
             memory_type_index: memory_type_index,
             memory_type: memory_type,
             start_of_perm: CHUNK_SIZE,
             perm_blocks: Vec::new(),
+            dirty: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -155,17 +165,24 @@ impl Chunk {
     {
         use dacite::core::MemoryPropertyFlags;
 
+        let ptr = unsafe {
+            (self.mapped_memory.as_ptr() as *mut u8).offset(offset as isize)
+        };
+
         let block = Block {
             memory: self.memory.clone(),
+            mapped_memory: self.mapped_memory.clone(),
             offset: offset,
+            ptr: ptr,
+            size: size,
             memory_type_index: self.memory_type_index,
             host_visible: self.memory_type.property_flags.contains(
                 MemoryPropertyFlags::HOST_VISIBLE),
             is_coherent: self.memory_type.property_flags.contains(
                 MemoryPropertyFlags::HOST_COHERENT),
             freelist: self.freelist.clone(),
-            size: size,
-            element_alignment: element_alignment
+            element_alignment: element_alignment,
+            dirty: self.dirty.clone(),
         };
 
         let blockinfo = BlockInfo {
@@ -230,5 +247,23 @@ impl Chunk {
                   (block.size * 100) as f32 / CHUNK_SIZE as f32,
                   block.reason);
         }
+    }
+
+    pub fn flush(&self) -> Result<()>
+    {
+        // Coherent memory does not need explicit flushes
+        if self.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_COHERENT) {
+            return Ok(());
+        }
+
+        // Only flush if dirty
+        if self.dirty.load(Ordering::Relaxed) {
+            self.mapped_memory.flush(&None)?;
+
+            // and reset the dirty bit
+            self.dirty.store(false, Ordering::Relaxed);
+        }
+
+        Ok(())
     }
 }
