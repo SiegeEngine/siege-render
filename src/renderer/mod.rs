@@ -581,7 +581,7 @@ impl Renderer {
         loop {
             let next_image_res = self.swapchain_data.swapchain
                 .acquire_next_image_khr(
-                    Timeout::Some(Duration::from_millis(4000)),
+                    Timeout::Some(Duration::from_millis(4_000)),
                     Some(&self.image_acquired),
                     None)?;
 
