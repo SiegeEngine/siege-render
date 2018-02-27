@@ -88,8 +88,8 @@ impl HostVisibleBuffer {
         self.mapped.as_ptr()
     }
 
-     pub fn as_ptr_at_offset<T>(&self) -> &mut T {
-        self.mapped.as_ptr()
+    pub fn as_ptr_at_offset<T>(&self, offset: usize) -> &mut T {
+        self.mapped.as_ptr_at_offset(offset)
     }
 
     pub fn write<T: Copy>(&self, data: &T, offset: Option<usize>, flush: bool)
