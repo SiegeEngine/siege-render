@@ -348,10 +348,11 @@ impl Renderer {
         self.resource_manager.load_shader(&self.device, name)
     }
 
-    pub fn load_mesh(&mut self, name: &str) -> Result<VulkanMesh>
+    pub fn load_mesh(&mut self, dir: &str, name: &str) -> Result<VulkanMesh>
     {
         self.resource_manager.load_mesh(
-            &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
+            &self.device, &mut self.memory, &self.commander, &self.staging_buffer,
+            dir, name)
     }
 
     pub fn load_texture(&mut self, name: &str) -> Result<ImageWrap>
@@ -458,9 +459,9 @@ impl Renderer {
         self.plugins.push(plugin);
     }
 
-    pub fn set_params(&mut self, params: &Params)
+    pub fn set_params(&mut self, params: &Params) -> Result<()>
     {
-        *(self.params_ubo.as_ptr()) = *params;
+        self.params_ubo.write::<Params>(&params, None)
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.

@@ -83,11 +83,11 @@ impl HostVisibleBuffer {
         self.block.size
     }
 
-    pub fn as_ptr<T>(&self) -> &mut T {
+    pub fn as_ptr<T>(&self) -> Option<&mut T> {
         self.block.as_ptr()
     }
 
-    pub fn as_ptr_at_offset<T>(&self, offset: usize) -> &mut T {
+    pub fn as_ptr_at_offset<T>(&self, offset: usize) -> Option<&mut T> {
         self.block.as_ptr_at_offset(offset)
     }
 
@@ -164,6 +164,10 @@ impl DeviceLocalBuffer {
 
         // Write the data to the staging buffer
         staging_buffer.write_array::<T>(data, None)?;
+
+        // Force a flush (FIXME if block held arc to mapped memory we would not have
+        // to flush every chunk)
+        memory.flush()?;
 
         // Copy the data through
         copy(device, commander,

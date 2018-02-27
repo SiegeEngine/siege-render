@@ -40,7 +40,9 @@ impl ResourceManager {
         }
 
         let mut path = self.asset_path.clone();
-        path.push(format!("shaders/{}.spv", name));
+        path.push("shaders");
+        path.push(format!("{}.spv", name));
+
         let shader_spv_file = File::open(&path)?;
         // FIXME: this just skips bad bytes, rather than erroring
         let bytes: Vec<u8> = shader_spv_file.bytes()
@@ -65,6 +67,7 @@ impl ResourceManager {
                      memory: &mut Memory,
                      commander: &Commander,
                      staging_buffer: &HostVisibleBuffer,
+                     dir: &str, // by type, e.g. 'graybox'
                      name: &str)
                      -> Result<VulkanMesh>
     {
@@ -74,7 +77,10 @@ impl ResourceManager {
         }
 
         let mut path = self.asset_path.clone();
-        path.push(format!("meshes/graybox/{}.mesh", name));
+        path.push("meshes");
+        path.push(dir);
+        path.push(format!("{}.mesh", name));
+
         let (vertex_type, bytes) = ::siege_mesh::load_header(&path)?;
         let vulkan_mesh = {
             // FIXME: this per-vertex-type code is probably not required
@@ -146,7 +152,8 @@ impl ResourceManager {
 
         // All textures under the siege engine are stored in DDS files
         // compressed with Zstd, and named with the ".dds.zst" extension.
-        path.push(format!("textures/{}.dds.zst", name));
+        path.push("textures");
+        path.push(format!("{}.dds.zst", name));
         let f = File::open(path)?;
 
         // Decompress

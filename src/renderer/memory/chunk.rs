@@ -42,7 +42,7 @@ impl BlockInfo {
 
 pub struct Chunk {
     pub memory: DeviceMemory,
-    pub mapped_memory: Arc<MappedMemory>,
+    pub mapped_memory: Option<MappedMemory>,
     pub blocks: Vec<BlockInfo>, // keep these in order
     // List of block offsets which have dropped.
     pub freelist: Arc<RwLock<Vec<u64>>>,
@@ -68,13 +68,17 @@ impl Chunk {
         };
         let memory = device.allocate_memory(&allocate_info, None)?;
 
-        // map the entire thing
-        let mapped_memory = memory.map(0, OptionalDeviceSize::WholeSize,
-                                       Default::default())?;
+        let mapped_memory = if memory_type.property_flags.contains(
+            MemoryPropertyFlags::HOST_VISIBLE)
+        {
+            Some(memory.map(0, OptionalDeviceSize::WholeSize, Default::default())?)
+        } else {
+            None
+        };
 
         Ok(Chunk {
             memory: memory,
-            mapped_memory: Arc::new(mapped_memory),
+            mapped_memory: mapped_memory,
             blocks: Vec::new(),
             freelist: Arc::new(RwLock::new(Vec::new())),
             memory_type_index: memory_type_index,
@@ -165,19 +169,19 @@ impl Chunk {
     {
         use dacite::core::MemoryPropertyFlags;
 
-        let ptr = unsafe {
-            (self.mapped_memory.as_ptr() as *mut u8).offset(offset as isize)
+        let ptr = match self.mapped_memory {
+            None => None,
+            Some(ref mm) => Some( unsafe {
+                (mm.as_ptr() as *mut u8).offset(offset as isize)
+            } )
         };
 
         let block = Block {
             memory: self.memory.clone(),
-            mapped_memory: self.mapped_memory.clone(),
             offset: offset,
             ptr: ptr,
             size: size,
             memory_type_index: self.memory_type_index,
-            host_visible: self.memory_type.property_flags.contains(
-                MemoryPropertyFlags::HOST_VISIBLE),
             is_coherent: self.memory_type.property_flags.contains(
                 MemoryPropertyFlags::HOST_COHERENT),
             freelist: self.freelist.clone(),
@@ -251,19 +255,19 @@ impl Chunk {
 
     pub fn flush(&self) -> Result<()>
     {
-        // Coherent memory does not need explicit flushes
-        if self.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_COHERENT) {
-            return Ok(());
+        // only if something is mapped
+        if let Some(ref mm) = self.mapped_memory {
+            // Coherent memory does not need explicit flushes
+            if ! self.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_COHERENT) {
+                // Only flush if dirty
+                if self.dirty.load(Ordering::Relaxed) {
+                    mm.flush(&None)?;
+
+                    // and reset the dirty bit
+                    self.dirty.store(false, Ordering::Relaxed);
+                }
+            }
         }
-
-        // Only flush if dirty
-        if self.dirty.load(Ordering::Relaxed) {
-            self.mapped_memory.flush(&None)?;
-
-            // and reset the dirty bit
-            self.dirty.store(false, Ordering::Relaxed);
-        }
-
         Ok(())
     }
 }
