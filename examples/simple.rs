@@ -5,6 +5,7 @@ extern crate siege_render;
 extern crate winit;
 
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use winit::EventsLoop;
 
@@ -14,7 +15,7 @@ pub fn main() {
 
     simple_logger::init().unwrap();
 
-    let arc_config = Arc::new(Config {
+    let config = Config {
         major_version: env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap(),
         minor_version: env!("CARGO_PKG_VERSION_MINOR").parse().unwrap(),
         patch_version: env!("CARGO_PKG_VERSION_PATCH").parse().unwrap(),
@@ -22,7 +23,7 @@ pub fn main() {
             "VK_LAYER_LUNARG_standard_validation".to_owned()
         ],
         .. Default::default()
-    });
+    };
 
     let events_loop = EventsLoop::new();
 
@@ -41,6 +42,10 @@ pub fn main() {
         Arc::new(window)
     };
 
-    let renderer = Renderer::new(arc_config.clone(), arc_window.clone())
+    let resized = Arc::new(AtomicBool::new(false));
+    let shutdown = Arc::new(AtomicBool::new(false));
+
+    let renderer = Renderer::new(config, arc_window.clone(),
+                                 resized.clone(), shutdown.clone())
         .unwrap();
 }
