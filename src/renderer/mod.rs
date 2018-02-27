@@ -431,6 +431,11 @@ impl Renderer {
             lifetime, reason)
     }
 
+    pub fn get_stride<T>(&self, usage: BufferUsageFlags) -> usize
+    {
+        self.memory.stride(::std::mem::size_of::<T>(), Some(usage))
+    }
+
     pub fn create_descriptor_set(&mut self, create_info: DescriptorSetLayoutCreateInfo)
                                         -> Result<(DescriptorSetLayout, DescriptorSet)>
     {
