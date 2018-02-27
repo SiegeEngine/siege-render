@@ -105,7 +105,8 @@ pub struct Renderer {
     opaque_pass: OpaquePass,
     early_z_pass: EarlyZPass,
     target_data: TargetData,
-    graphics_fence: Fence,
+    rendered_fence: Fence,
+    acquired_fence: Fence,
     image_rendered: Semaphore,
     image_acquired: Semaphore,
     descriptor_pool: DescriptorPool,
@@ -200,7 +201,8 @@ impl Renderer {
 
         let (image_acquired, image_rendered) = setup::get_semaphores(&device)?;
 
-        let graphics_fence = setup::get_graphics_fence(&device)?;
+        let acquired_fence = setup::get_graphics_fence(&device, false)?;
+        let rendered_fence = setup::get_graphics_fence(&device, false)?;
 
         let target_data = TargetData::create(
             &device, &mut memory, &commander, swapchain_data.extent)?;
@@ -317,7 +319,8 @@ impl Renderer {
             opaque_pass: opaque_pass,
             early_z_pass: early_z_pass,
             target_data: target_data,
-            graphics_fence: graphics_fence,
+            rendered_fence: rendered_fence,
+            acquired_fence: acquired_fence,
             image_rendered: image_rendered,
             image_acquired: image_acquired,
             descriptor_pool: descriptor_pool,
@@ -473,7 +476,6 @@ impl Renderer {
         self.window.show();
         self.record_command_buffers()?;
         self.memory.log_usage();
-        self.graphics_fence.wait_for(Timeout::Infinite)?;
 
         let mut frame_number: u64 = 0;
         let loop_throttle = Duration::new(
@@ -501,9 +503,10 @@ impl Renderer {
                         // Rebuild the swapchain if Vulkan complains that it is out of date.
                         // This is typical on linux.
                         self.rebuild()?;
-                        self.graphics_fence.wait_for(Timeout::Infinite)?;
                         // Now we have rebuilt but we didn't render, so skip the rest of
                         // the loop and try to render again right away
+                        self.acquired_fence.wait_for(Timeout::Infinite)?;
+                        self.rendered_fence.wait_for(Timeout::Infinite)?;
                         continue;
                     } else {
                         return Err(e);
@@ -520,12 +523,20 @@ impl Renderer {
             if self.resized.load(Ordering::Relaxed) {
                 self.rebuild()?;
                 self.resized.store(false, Ordering::Relaxed);
-                self.graphics_fence.wait_for(Timeout::Infinite)?;
+                self.acquired_fence.wait_for(Timeout::Infinite)?;
+                self.rendered_fence.wait_for(Timeout::Infinite)?;
                 continue;
             }
 
-            // Wait until the GPU is idle.
-            self.graphics_fence.wait_for(Timeout::Infinite)?;
+            // Wait until the frame is rendered
+            // FIXME: we might actually be ready to acquire another image
+            // before the previous one gets rendered. So this waiting here
+            // could potentially be a bottleneck. But we do it to get more
+            // accurate timings (for now). FIXME.
+            // Wait on the acquired fence, before trying to acquire another
+            self.acquired_fence.wait_for(Timeout::Infinite)?;
+            self.rendered_fence.wait_for(Timeout::Infinite)?;
+
             render_end = Instant::now();
 
             render_duration = render_end.duration_since(render_start);
@@ -579,11 +590,12 @@ impl Renderer {
         // Get next image
         let next_image;
         loop {
+            self.acquired_fence.reset()?;
             let next_image_res = self.swapchain_data.swapchain
                 .acquire_next_image_khr(
                     Timeout::Some(Duration::from_millis(4_000)),
                     Some(&self.image_acquired),
-                    None)?;
+                    Some(&self.acquired_fence))?;
 
             match next_image_res {
                 AcquireNextImageResultKhr::Index(idx) |
@@ -612,8 +624,9 @@ impl Renderer {
                     chain: None,
                 }
             ];
-            self.graphics_fence.reset()?;
-            self.commander.gfx_queue.submit(Some(&submit_infos), Some(&self.graphics_fence))?;
+
+            self.rendered_fence.reset()?;
+            self.commander.gfx_queue.submit(Some(&submit_infos), Some(&self.rendered_fence))?;
             Instant::now()
         };
 

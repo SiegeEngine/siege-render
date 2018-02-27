@@ -268,11 +268,15 @@ pub fn get_semaphores(device: &Device) -> Result<(Semaphore, Semaphore)>
 }
 
 
-pub fn get_graphics_fence(device: &Device) -> Result<Fence>
+pub fn get_graphics_fence(device: &Device, signalled: bool) -> Result<Fence>
 {
     use dacite::core::{FenceCreateInfo, FenceCreateFlags};
     let create_info = FenceCreateInfo {
-        flags: FenceCreateFlags::SIGNALED, // initially we have nothing to wait on
+        flags: if signalled {
+            FenceCreateFlags::SIGNALED
+        } else {
+            FenceCreateFlags::empty()
+        },
         chain: None
     };
     Ok(device.create_fence(&create_info, None)?)
