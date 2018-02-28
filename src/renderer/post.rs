@@ -237,6 +237,19 @@ layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
 
+float hlg(float inColor) {
+  //r = reference white level (0.5)
+  //a = 0.17883277,
+  //b = 0.28466892,
+  //c = 0.55991073
+
+  if (inColor <= 1) {
+    return min(1.0, 0.5 * sqrt(inColor));
+  } else {
+    return min(1.0, 0.17883277 * log(inColor - 0.28466892) + 0.55991073);
+  }
+}
+
 void main()
 {
   // Load from shadingTex
@@ -247,8 +260,11 @@ void main()
   // vec3 mapped = hdrColor / (hdrColor + vec3(1.0));
   //
   // 2) Exposure tone mapping:
-  const float exposure = 1.0;
-  vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+  // const float exposure = 1.0;
+  // vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+  //
+  // 3) Hybrid Log-Gamma (HLG):
+  vec3 mapped = vec3(hlg(hdrColor.x), hlg(hdrColor.y), hlg(hdrColor.z));
 
   outFragColor = vec4(mapped, 1.0);
 }
