@@ -46,7 +46,7 @@ use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
                    BlurHPass, BlurVPass, PostPass, UiPass};
 use self::post::PostGfx;
 use self::blur::BlurGfx;
-use super::plugin::Plugin;
+use super::plugin::{Plugin, DPlugin};
 use errors::*;
 use config::Config;
 
@@ -89,7 +89,7 @@ pub struct Params {
 }
 
 pub struct Renderer {
-    plugins: Vec<Box<Plugin>>,
+    plugins: Vec<Box<DPlugin>>,
     blur_gfx: BlurGfx,
     post_gfx: PostGfx,
     params_desc_set: DescriptorSet,
@@ -458,7 +458,7 @@ impl Renderer {
         Ok((layout, set))
     }
 
-    pub fn plugin(&mut self, plugin: Box<Plugin>)
+    pub fn plugin(&mut self, plugin: Box<DPlugin>)
     {
         self.plugins.push(plugin);
     }
@@ -492,7 +492,7 @@ impl Renderer {
 
         loop {
             for plugin in &mut self.plugins {
-                plugin.update()?;
+                plugin.borrow().update()?;
             }
             self.memory.flush()?;
 
@@ -702,7 +702,7 @@ impl Renderer {
 
                 for plugin in &self.plugins {
                     // NOTE: Try to draw front to back
-                    plugin.record_earlyz(command_buffer.clone());
+                    plugin.borrow().record_earlyz(command_buffer.clone());
                 }
 
                 self.early_z_pass.record_exit(command_buffer.clone());
@@ -720,7 +720,7 @@ impl Renderer {
                     // except for far-plane items (each overwrites the last)
 
                     // NOTE: Try to draw front to back
-                    plugin.record_opaque(command_buffer.clone());
+                    plugin.borrow().record_opaque(command_buffer.clone());
                 }
 
                 self.opaque_pass.record_exit(command_buffer.clone());
@@ -733,7 +733,7 @@ impl Renderer {
                 self.transparent_pass.record_entry(command_buffer.clone());
 
                 for plugin in &self.plugins {
-                    plugin.record_transparent(command_buffer.clone());
+                    plugin.borrow().record_transparent(command_buffer.clone());
                 }
 
                 self.transparent_pass.record_exit(command_buffer.clone());
@@ -783,7 +783,7 @@ impl Renderer {
                                           present_index);
 
                 for plugin in &self.plugins {
-                    plugin.record_ui(command_buffer.clone());
+                    plugin.borrow().record_ui(command_buffer.clone());
                 }
 
                 self.ui_pass.record_exit(command_buffer.clone());
@@ -854,7 +854,7 @@ impl Renderer {
 
         // Rebuild plugins
         for plugin in &mut self.plugins {
-            plugin.rebuild(self.swapchain_data.extent)?;
+            plugin.borrow().rebuild(self.swapchain_data.extent)?;
         }
 
         // Re-record command buffers (the framebuffer image views are new, so we must)

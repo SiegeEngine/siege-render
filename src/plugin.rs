@@ -1,4 +1,5 @@
 
+use std::borrow::Borrow;
 use dacite::core::{CommandBuffer, Extent2D};
 use errors::*;
 
@@ -10,3 +11,5 @@ pub trait Plugin {
     fn update(&mut self) -> Result<()>;
     fn rebuild(&mut self, extent: Extent2D) -> Result<()>;
 }
+
+pub trait DPlugin: Borrow<Plugin> { }
