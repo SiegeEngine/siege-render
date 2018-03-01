@@ -22,6 +22,7 @@ use renderer::VulkanLogLevel;
 #[inline] fn default_vsync() -> bool { true }
 #[inline] fn default_width() -> u32 { 800 }
 #[inline] fn default_height() -> u32 { 600 }
+#[inline] fn default_display_luminance() -> u32 { 80 }
 #[inline] fn default_gpu_memory_required() -> u64 { 9216000 }
 #[inline] fn default_max_descriptor_sets() -> u32 { 16 }
 #[inline] fn default_max_uniform_buffers() -> u32 { 2 }
@@ -57,6 +58,8 @@ pub struct Config {
     pub width: u32,
     #[serde(default = "default_height")]
     pub height: u32,
+    #[serde(default = "default_display_luminance")]
+    pub display_luminance: u32,
     #[serde(default = "default_gpu_memory_required")]
     pub gpu_memory_required: u64,
     #[serde(default = "default_max_descriptor_sets")]
@@ -90,6 +93,7 @@ impl Default for Config {
             vsync: default_vsync(),
             width: default_width(),
             height: default_height(),
+            display_luminance: default_display_luminance(),
             gpu_memory_required: default_gpu_memory_required(),
             max_descriptor_sets: default_max_descriptor_sets(),
             max_uniform_buffers: default_max_uniform_buffers(),
@@ -122,6 +126,7 @@ impl fmt::Debug for Config {
         writeln!(f, "    vsync: {}", self.vsync)?;
         writeln!(f, "    width: {}", self.width)?;
         writeln!(f, "    height: {}", self.height)?;
+        writeln!(f, "    display luminance (max): {} cd/m²", self.display_luminance)?;
         writeln!(f, "    have a least: {} memory", self.gpu_memory_required)?;
         writeln!(f, "    Allocated desc sets: {}", self.max_descriptor_sets)?;
         writeln!(f, "    Allocated desc for uniform buffers: {}", self.max_uniform_buffers)?;

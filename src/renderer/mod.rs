@@ -295,7 +295,8 @@ impl Renderer {
 
         let post_gfx = PostGfx::new(&device, descriptor_pool.clone(),
                                     &target_data, post_pass.render_pass.clone(),
-                                    viewports[0].clone(), scissors[0].clone())?;
+                                    viewports[0].clone(), scissors[0].clone(),
+                                    config.display_luminance)?;
 
         let blur_gfx = BlurGfx::new(&device, descriptor_pool.clone(),
                                     &target_data,

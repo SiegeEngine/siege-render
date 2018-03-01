@@ -25,7 +25,8 @@ impl PostGfx {
                target_data: &TargetData,
                render_pass: RenderPass,
                viewport: Viewport,
-               scissors: Rect2D)
+               scissors: Rect2D,
+               display_luminance: u32)
               -> Result<PostGfx>
     {
         let sampler = {
@@ -95,7 +96,7 @@ impl PostGfx {
 
         let vertex_shader = vertex_shader(device)?;
 
-        let fragment_shader = fragment_shader(device)?;
+        let fragment_shader = fragment_shader(device, display_luminance)?;
 
         let (pipeline_layout, pipeline) =
             super::pipeline::create(
@@ -223,10 +224,13 @@ void main()
     Ok(device.create_shader_module(&create_info, None)?)
 }
 
-fn fragment_shader(device: &Device) -> Result<ShaderModule>
+fn fragment_shader(device: &Device, _display_luminance: u32) -> Result<ShaderModule>
 {
-    let bytes: &[u8] = glsl_fs!(r#"
-#version 450
+    // FIXME: incorporate display luminance
+    //    GINA FIXME -- SET TRANSFER FUNCTION TO ACCOUNT FOR config.display_luminance
+    //    let white_point = 80.0 / (display_luminance as f32);
+
+    let code: String = r#"#version 450
 
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
@@ -237,42 +241,50 @@ layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
 
-float hlg(float inColor) {
+float hlg(float scene_referred) {
   //r = reference white level (0.5)
   //a = 0.17883277,
   //b = 0.28466892,
   //c = 0.55991073
 
-  if (inColor <= 1) {
-    return min(1.0, 0.5 * sqrt(inColor));
+  if (scene_referred <= 1) {
+    return min(1.0, 0.5 * sqrt(scene_referred));
   } else {
-    return min(1.0, 0.17883277 * log(inColor - 0.28466892) + 0.55991073);
+    return min(1.0, 0.17883277 * log(scene_referred - 0.28466892) + 0.55991073);
   }
 }
 
 void main()
 {
-  // Load from shadingTex
-  vec3 hdrColor = texture(shadingTex, inUV).rgb;
+  // Load scene referred color from shadingTex
+  vec3 scene_referred = texture(shadingTex, inUV).rgb;
 
   // Tone Mapping
   // 1) Reinhard:
-  // vec3 mapped = hdrColor / (hdrColor + vec3(1.0));
+  // vec3 mapped = scene_referred / (scene_referred + vec3(1.0));
   //
   // 2) Exposure tone mapping:
   // const float exposure = 1.0;
-  // vec3 mapped = vec3(1.0) - exp(-hdrColor * exposure);
+  // vec3 mapped = vec3(1.0) - exp(-scene_referred * exposure);
   //
   // 3) Hybrid Log-Gamma (HLG):
-  vec3 mapped = vec3(hlg(hdrColor.x), hlg(hdrColor.y), hlg(hdrColor.z));
+  vec3 mapped = vec3(hlg(scene_referred.x), hlg(scene_referred.y), hlg(scene_referred.z));
 
   outFragColor = vec4(mapped, 1.0);
 }
-"#);
+"#.to_owned();
+
+    use std::fs::File;
+    use std::io::Read;
+
+    let mut output: File =
+        ::glsl_to_spirv::compile(&*code, ::glsl_to_spirv::ShaderType::Fragment)?;
+    let mut bytes: Vec<u8> = Vec::new();
+    output.read_to_end(&mut bytes)?;
 
     let create_info = ShaderModuleCreateInfo {
         flags: ShaderModuleCreateFlags::empty(),
-        code: bytes.to_vec(),
+        code: bytes,
         chain: None,
     };
 
