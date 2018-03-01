@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::fmt;
 use renderer::VulkanLogLevel;
 
+#[inline] fn default_app_name() -> String { "Unspecified".to_owned() }
 #[inline] fn default_major_version() -> u32 { 0 }
 #[inline] fn default_minor_version() -> u32 { 1 }
 #[inline] fn default_patch_version() -> u32 { 0 }
@@ -34,6 +35,8 @@ use renderer::VulkanLogLevel;
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
+    #[serde(default = "default_app_name")]
+    pub app_name: String,
     #[serde(default = "default_major_version")]
     pub major_version: u32,
     #[serde(default = "default_minor_version")]
@@ -81,6 +84,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Config {
         Config {
+            app_name: default_app_name(),
             major_version: default_major_version(),
             minor_version: default_minor_version(),
             patch_version: default_patch_version(),
@@ -108,6 +112,7 @@ impl Default for Config {
 
 impl fmt::Debug for Config {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "    App name: {}", self.app_name)?;
         writeln!(f, "    App version: {}.{}.{}",
                  self.major_version, self.minor_version, self.patch_version)?;
         writeln!(f, "    Renderer version: {}.{}.{}",
