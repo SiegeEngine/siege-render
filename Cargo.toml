@@ -20,6 +20,7 @@ siege-mesh = { path = "../siege-mesh" }
 ddsfile = { path = "../ddsfile" }
 zstd = "0.4"
 chrono = { version="0.4", features = [ "serde" ] }
+glsl-to-spirv = "0.1"
 glsl-to-spirv-macros = "0.1"
 glsl-to-spirv-macros-impl = "0.1"
 

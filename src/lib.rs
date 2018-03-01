@@ -19,6 +19,7 @@ extern crate vks;
 extern crate dacite;
 extern crate dacite_winit;
 extern crate winit;
+extern crate glsl_to_spirv;
 #[macro_use] extern crate glsl_to_spirv_macros;
 #[macro_use] extern crate glsl_to_spirv_macros_impl;
 extern crate siege_mesh;
