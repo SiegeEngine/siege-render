@@ -317,9 +317,9 @@ vec3 samp(vec2 offset) {
 
   // This is Mike's made-up-on-the-spot bright-pass filter.
   const float one_over_pi = 1.0 / 3.14159265359;
-  const float sharpness = 3;
+  const float sharpness = 8;
   float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
-  float mult = 0.5 + atan(sharpness * (lum - 1)) * one_over_pi;
+  float mult = 0.5 + atan(sharpness * (lum - 0.9)) * one_over_pi;
 
   return color * mult;
 }
