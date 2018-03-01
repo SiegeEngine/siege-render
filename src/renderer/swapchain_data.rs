@@ -6,7 +6,6 @@ use errors::*;
 use super::setup::QueueIndices;
 use super::surface_data::SurfaceData;
 use super::image_wrap::{ImageWrap, ImageWrapType};
-use super::setup::requirements::SWAPCHAIN_FORMAT;
 
 pub struct SwapchainData {
     pub images: Vec<ImageWrap>,
@@ -14,8 +13,6 @@ pub struct SwapchainData {
     pub swapchain_queue_family_indices: Vec<u32>,
     pub image_sharing_mode: SharingMode,
     pub extent: Extent2D,
-    pub color_space: ColorSpaceKhr,
-    pub format: Format,
     pub surface_data: SurfaceData
 }
 
@@ -29,10 +26,6 @@ impl SwapchainData {
                   -> Result<SwapchainData>
     {
         let surface_data = SurfaceData::create(physical_device, surface, vsync)?;
-
-        let format = SWAPCHAIN_FORMAT;
-        let color_space = ColorSpaceKhr::SRGBNonLinear;
-        surface_data.require_surface_format(format, color_space)?;
 
         let extent = surface_data.get_surface_extent(preferred_extent);
 
@@ -54,8 +47,8 @@ impl SwapchainData {
                 flags: SwapchainCreateFlagsKhr::empty(),
                 surface: surface.clone(),
                 min_image_count: surface_data.min_image_count,
-                image_format: format,
-                image_color_space: color_space,
+                image_format: surface_data.format(),
+                image_color_space: surface_data.color_space(),
                 image_extent: extent,
                 image_array_layers: 1,
                 image_usage: ImageUsageFlags::COLOR_ATTACHMENT,
@@ -71,8 +64,7 @@ impl SwapchainData {
             device.create_swapchain_khr(&create_info, None)?
         };
 
-        let images = build_images(
-            &swapchain, extent, format)?;
+        let images = build_images(&swapchain, extent, surface_data.format())?;
 
         Ok(SwapchainData {
             images: images,
@@ -80,8 +72,6 @@ impl SwapchainData {
             swapchain_queue_family_indices: swapchain_queue_family_indices,
             image_sharing_mode: image_sharing_mode,
             extent: extent,
-            color_space: color_space,
-            format: format,
             surface_data: surface_data,
         })
     }
@@ -111,8 +101,8 @@ impl SwapchainData {
                 flags: SwapchainCreateFlagsKhr::empty(),
                 surface: surface.clone(),
                 min_image_count: self.surface_data.min_image_count,
-                image_format: self.format,
-                image_color_space: self.color_space,
+                image_format: self.format(),
+                image_color_space: self.color_space(),
                 image_extent: self.extent,
                 image_array_layers: 1,
                 image_usage: ImageUsageFlags::COLOR_ATTACHMENT,
@@ -130,9 +120,21 @@ impl SwapchainData {
 
         // Rebuild images
         self.images = build_images(
-            &self.swapchain, self.extent, self.format)?;
+            &self.swapchain, self.extent, self.format())?;
 
         Ok(())
+    }
+
+    #[inline]
+    pub fn format(&self) -> Format
+    {
+        self.surface_data.format()
+    }
+
+    #[inline]
+    pub fn color_space(&self) -> ColorSpaceKhr
+    {
+        self.surface_data.color_space()
     }
 }
 

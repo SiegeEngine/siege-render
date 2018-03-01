@@ -7,10 +7,11 @@ use dacite::khr_surface::{SurfaceKhr, SurfaceCapabilitiesKhr,
 
 pub struct SurfaceData {
     pub capabilities: SurfaceCapabilitiesKhr,
+    // index into surface_formats for the format we are using
+    pub surface_format_index: usize,
     pub surface_formats: Vec<SurfaceFormatKhr>,
     pub min_image_count: u32,
     pub present_mode: PresentModeKhr,
-
     // TODO: SurfaceTransformFlagsKhr
     // TODO: ImageUsageFlags
 }
@@ -41,8 +42,30 @@ impl SurfaceData {
             get_present_mode(vsync, &present_modes)
         };
 
+        let mut surface_format_index: Option<usize> = None;
+        for i in 0..surface_formats.len() {
+            match surface_formats[i].format {
+                Format::A2B10G10R10_UNorm_Pack32 => {
+                    surface_format_index = Some(i);
+                    break;
+                },
+                Format::B8G8R8A8_UNorm => {
+                    surface_format_index = Some(i);
+                    break;
+                },
+                _ => { }
+            }
+        }
+        let surface_format_index = match surface_format_index {
+            Some(i) => i,
+            None => return Err(ErrorKind::NoSuitableSurfaceFormat.into()),
+        };
+        info!("Surface format: {:?}", surface_formats[surface_format_index].format);
+        info!("Surface color space: {:?}", surface_formats[surface_format_index].color_space);
+
         Ok(SurfaceData {
             capabilities: capabilities,
+            surface_format_index: surface_format_index,
             surface_formats: surface_formats,
             min_image_count: min_image_count,
             present_mode: present_mode,
@@ -57,25 +80,24 @@ impl SurfaceData {
         Ok(())
     }
 
-    pub fn require_surface_format(&self, format: Format, color_space: ColorSpaceKhr)
-                                  -> Result<()>
-    {
-        for surface_format in &self.surface_formats {
-            if surface_format.format == format &&
-                surface_format.color_space == color_space
-            {
-                return Ok(())
-            }
-        }
-        Err(ErrorKind::NoSuitableSurfaceFormat.into())
-    }
-
     pub fn get_surface_extent(&self, preferred_extent: Extent2D) -> Extent2D
     {
         match self.capabilities.current_extent {
             Some(extent) => extent,
             None => preferred_extent
         }
+    }
+
+    #[inline]
+    pub fn format(&self) -> Format
+    {
+        self.surface_formats[self.surface_format_index].format
+    }
+
+    #[inline]
+    pub fn color_space(&self) -> ColorSpaceKhr
+    {
+        self.surface_formats[self.surface_format_index].color_space
     }
 }
 

@@ -13,8 +13,6 @@ pub const MAX_GPU_UPLOAD: u64 = ::renderer::memory::CHUNK_SIZE;
 // floating-point (so reverse z-buffering works).
 pub const DEPTH_FORMAT: Format = Format::D32_SFloat;
 
-pub const SWAPCHAIN_FORMAT: Format = Format::B8G8R8A8_UNorm; // sRGB;
-
 pub const SHADING_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
 
 pub const BLUR_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
@@ -81,7 +79,7 @@ pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
 };
 
 // FIXME: make a const fn once that is stable
-pub fn get_formats_needed() ->  [(Format, FormatProperties); 6] {
+pub fn get_formats_needed() ->  [(Format, FormatProperties); 5] {
     use dacite::core::FormatFeatureFlags;
 
     [
@@ -90,12 +88,6 @@ pub fn get_formats_needed() ->  [(Format, FormatProperties); 6] {
             linear_tiling_features: FormatFeatureFlags::empty(),
             optimal_tiling_features: FormatFeatureFlags::empty(),
             buffer_features: FormatFeatureFlags::VERTEX_BUFFER,
-        }),
-        // Swapchain attachments use this
-        (SWAPCHAIN_FORMAT, FormatProperties {
-            linear_tiling_features: FormatFeatureFlags::empty(),
-            optimal_tiling_features: FormatFeatureFlags::COLOR_ATTACHMENT,
-            buffer_features: FormatFeatureFlags::empty(),
         }),
         // Depth buffer uses this
         (DEPTH_FORMAT, FormatProperties {
