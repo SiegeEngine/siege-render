@@ -224,13 +224,32 @@ void main()
     Ok(device.create_shader_module(&create_info, None)?)
 }
 
-fn fragment_shader(device: &Device, _display_luminance: u32) -> Result<ShaderModule>
+fn fragment_shader(device: &Device, display_luminance: u32) -> Result<ShaderModule>
 {
-    // FIXME: incorporate display luminance
-    //    GINA FIXME -- SET TRANSFER FUNCTION TO ACCOUNT FOR config.display_luminance
-    //    let white_point = 80.0 / (display_luminance as f32);
 
-    let code: String = r#"#version 450
+    // Incorporate display luminance (output function exposure)
+    let output_exposure: f32 = 100.0 / (display_luminance as f32);
+
+    let code = format!("{}{}{}", FS_PREFIX, output_exposure, FS_SUFFIX);
+    use std::fs::File;
+    use std::io::Read;
+
+    let mut output: File =
+        ::glsl_to_spirv::compile(&*code, ::glsl_to_spirv::ShaderType::Fragment)?;
+    let mut bytes: Vec<u8> = Vec::new();
+    output.read_to_end(&mut bytes)?;
+
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes,
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
+}
+
+
+const FS_PREFIX: &'static str = r#"#version 450
 
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
@@ -254,6 +273,17 @@ float hlg(float scene_referred) {
   }
 }
 
+vec3 ACESFilmApprox(vec3 x) {
+  const float A = 2.51;
+  const float B = 0.03;
+  const float C = 2.43;
+  const float D = 0.59;
+  const float E = 0.14;
+  return clamp( (x*(A*x+B)) / (x*(C*x+D)+E), 0.0, 1.0);
+}
+
+// FIXME - we need to take display_luminance into account for HDR displays.
+
 void main()
 {
   // Load scene referred color from shadingTex
@@ -268,26 +298,15 @@ void main()
   // vec3 mapped = vec3(1.0) - exp(-scene_referred * exposure);
   //
   // 3) Hybrid Log-Gamma (HLG):
-  vec3 mapped = vec3(hlg(scene_referred.x), hlg(scene_referred.y), hlg(scene_referred.z));
+  // vec3 mapped = vec3(hlg(scene_referred.x), hlg(scene_referred.y), hlg(scene_referred.z));
+  //
+  // 4) ACES filmic (approx):
+  const float output_exposure = "#;
+
+
+const FS_SUFFIX: &'static str = r#";
+  vec3 mapped = ACESFilmApprox(output_exposure * scene_referred);
 
   outFragColor = vec4(mapped, 1.0);
 }
-"#.to_owned();
-
-    use std::fs::File;
-    use std::io::Read;
-
-    let mut output: File =
-        ::glsl_to_spirv::compile(&*code, ::glsl_to_spirv::ShaderType::Fragment)?;
-    let mut bytes: Vec<u8> = Vec::new();
-    output.read_to_end(&mut bytes)?;
-
-    let create_info = ShaderModuleCreateInfo {
-        flags: ShaderModuleCreateFlags::empty(),
-        code: bytes,
-        chain: None,
-    };
-
-    Ok(device.create_shader_module(&create_info, None)?)
-}
-
+"#;
