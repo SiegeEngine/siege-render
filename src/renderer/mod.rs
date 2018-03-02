@@ -609,7 +609,10 @@ impl Renderer {
                     continue;
                 },
                 AcquireNextImageResultKhr::Timeout => {
-                    return Err(ErrorKind::SwapchainTimeout.into())
+                    error!("Swapchain image acquisition timed out (but we keep trying)");
+                    ::std::thread::sleep(Duration::from_millis(100));
+                    continue;
+                    //return Err(ErrorKind::SwapchainTimeout.into())
                 }
             }
         };
