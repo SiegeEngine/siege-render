@@ -316,10 +316,10 @@ vec3 samp(vec2 offset) {
   vec3 color = texture(samplerColor, inUV + offset).rgb;
 
   // This is Mike's made-up-on-the-spot bright-pass filter.
-  const float one_over_pi = 1.0 / 3.14159265359;
-  const float sharpness = 8;
+  const float sharpness = 8.0;
+  const float knee = 1.0;
   float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
-  float mult = 0.5 + atan(sharpness * (lum - 0.9)) * one_over_pi;
+  float mult = 0.5 + atan(sharpness * (lum - knee)) / 3.14159265359;
 
   return color * mult;
 }

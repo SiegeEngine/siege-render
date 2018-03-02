@@ -274,9 +274,9 @@ float hlg(float scene_referred) {
 }
 
 vec3 ACESFilmApprox(vec3 x) {
-  const float A = 2.51;
+  const float A = 2.49; // 2.51
   const float B = 0.03;
-  const float C = 2.43;
+  const float C = 2.45; // 2.43
   const float D = 0.59;
   const float E = 0.14;
   return clamp( (x*(A*x+B)) / (x*(C*x+D)+E), 0.0, 1.0);
@@ -306,6 +306,7 @@ void main()
 
 const FS_SUFFIX: &'static str = r#";
   vec3 mapped = ACESFilmApprox(output_exposure * scene_referred);
+  //vec3 mapped = scene_referred; //ACESFilmApprox(scene_referred);
 
   outFragColor = vec4(mapped, 1.0);
 }
