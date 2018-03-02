@@ -9,6 +9,14 @@ use errors::*;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
 
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub enum Tonemapper {
+    Reinhard,
+    Exposure,
+    HybridLogGamma,
+    Falsecolor,
+}
+
 pub struct PostGfx {
     pipeline: Pipeline,
     pipeline_layout: PipelineLayout,
@@ -26,7 +34,8 @@ impl PostGfx {
                render_pass: RenderPass,
                viewport: Viewport,
                scissors: Rect2D,
-               display_luminance: u32)
+               display_luminance: u32,
+               tonemapper: Tonemapper)
               -> Result<PostGfx>
     {
         let sampler = {
@@ -96,7 +105,7 @@ impl PostGfx {
 
         let vertex_shader = vertex_shader(device)?;
 
-        let fragment_shader = fragment_shader(device, display_luminance)?;
+        let fragment_shader = fragment_shader(device, display_luminance, tonemapper)?;
 
         let (pipeline_layout, pipeline) =
             super::pipeline::create(
@@ -224,55 +233,23 @@ void main()
     Ok(device.create_shader_module(&create_info, None)?)
 }
 
-fn fragment_shader(device: &Device, _display_luminance: u32) -> Result<ShaderModule>
+fn fragment_shader(device: &Device, _display_luminance: u32,
+                   tonemapper: Tonemapper)
+                   -> Result<ShaderModule>
 {
     // FIXME: incorporate display luminance
     //    GINA FIXME -- SET TRANSFER FUNCTION TO ACCOUNT FOR config.display_luminance
     //    let white_point = 80.0 / (display_luminance as f32);
 
-    let code: String = r#"#version 450
-
-#extension GL_ARB_separate_shader_objects : enable
-#extension GL_ARB_shading_language_420pack : enable
-
-layout (binding = 0) uniform sampler2D shadingTex;
-
-layout (location = 0) in vec2 inUV;
-
-layout (location = 0) out vec4 outFragColor;
-
-float hlg(float scene_referred) {
-  //r = reference white level (0.5)
-  //a = 0.17883277,
-  //b = 0.28466892,
-  //c = 0.55991073
-
-  if (scene_referred <= 1) {
-    return min(1.0, 0.5 * sqrt(scene_referred));
-  } else {
-    return min(1.0, 0.17883277 * log(scene_referred - 0.28466892) + 0.55991073);
-  }
-}
-
-void main()
-{
-  // Load scene referred color from shadingTex
-  vec3 scene_referred = texture(shadingTex, inUV).rgb;
-
-  // Tone Mapping
-  // 1) Reinhard:
-  // vec3 mapped = scene_referred / (scene_referred + vec3(1.0));
-  //
-  // 2) Exposure tone mapping:
-  // const float exposure = 1.0;
-  // vec3 mapped = vec3(1.0) - exp(-scene_referred * exposure);
-  //
-  // 3) Hybrid Log-Gamma (HLG):
-  vec3 mapped = vec3(hlg(scene_referred.x), hlg(scene_referred.y), hlg(scene_referred.z));
-
-  outFragColor = vec4(mapped, 1.0);
-}
-"#.to_owned();
+    let code = format!("{}{}{}",
+                       FS_PREFIX,
+                       match tonemapper {
+                           Tonemapper::Reinhard => FS_TONEMAP_REINHARD,
+                           Tonemapper::Exposure => FS_TONEMAP_EXPOSURE,
+                           Tonemapper::HybridLogGamma => FS_TONEMAP_HLG,
+                           Tonemapper::Falsecolor => FS_TONEMAP_FALSECOLOR,
+                       },
+                       FS_SUFFIX);
 
     use std::fs::File;
     use std::io::Read;
@@ -290,4 +267,76 @@ void main()
 
     Ok(device.create_shader_module(&create_info, None)?)
 }
+
+const FS_PREFIX: &'static str = r#"#version 450
+
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+
+layout (binding = 0) uniform sampler2D shadingTex;
+
+layout (location = 0) in vec2 inUV;
+
+layout (location = 0) out vec4 outFragColor;
+"#;
+
+const FS_TONEMAP_HLG: &'static str = r#"
+float hlg(float scene_referred) {
+  const float r = 0.5; // reference white level
+  const float a = 0.17883277;
+  const float b = 0.28466892;
+  const float c = 0.55991073;
+
+  if (scene_referred <= 1) {
+    return min(1.0, r * sqrt(scene_referred));
+  } else {
+    return min(1.0, a * log(scene_referred - b) + c);
+  }
+}
+
+vec3 tonemap(vec3 scene_referred) {
+  return vec3(hlg(scene_referred.r), hlg(scene_referred.g), hlg(scene_referred.b));
+}
+"#;
+
+const FS_TONEMAP_FALSECOLOR: &'static str = r#"// False Color
+vec3 tonemap(vec3 scene_referred) {
+  vec3 colors[6] = vec3[](
+    vec3(0.0, 0.0, 1.0),
+    vec3(0.0, 1.0, 1.0),
+    vec3(0.0, 1.0, 0.0),
+    vec3(1.0, 1.0, 0.0),
+    vec3(1.0, 0.0, 0.0),
+    vec3(1.0, 0.0, 1.0)
+  );
+
+  float lum = dot(vec3(0.2126729, 0.7151522, 0.0721750), scene_referred);
+  float level = log2(lum/0.18);
+  return colors[int(level) % 6];
+}
+"#;
+
+const FS_TONEMAP_REINHARD: &'static str = r#"
+vec3 tonemap(vec3 scene_referred) {
+  return scene_referred / (scene_referred + vec3(1.0));
+}
+"#;
+
+const FS_TONEMAP_EXPOSURE: &'static str = r#"
+vec3 tonemap(vec3 scene_referred) {
+  const float exposure = 1.0;
+  return vec3(1.0) - exp(-scene_referred * exposure);
+}
+"#;
+
+const FS_SUFFIX: &'static str = r#"
+void main()
+{
+  // Load scene referred color from shadingTex
+  vec3 scene_referred = texture(shadingTex, inUV).rgb;
+
+  // Tone Mapping
+  outFragColor = vec4(tonemap(scene_referred), 1.0);
+}
+"#;
 

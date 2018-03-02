@@ -18,6 +18,7 @@ pub use self::buffer::{HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
 pub use self::mesh::VulkanMesh;
 pub use self::memory::Lifetime;
+pub use self::post::Tonemapper;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -296,7 +297,8 @@ impl Renderer {
         let post_gfx = PostGfx::new(&device, descriptor_pool.clone(),
                                     &target_data, post_pass.render_pass.clone(),
                                     viewports[0].clone(), scissors[0].clone(),
-                                    config.display_luminance)?;
+                                    config.display_luminance,
+                                    config.tonemapper)?;
 
         let blur_gfx = BlurGfx::new(&device, descriptor_pool.clone(),
                                     &target_data,

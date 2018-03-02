@@ -1,7 +1,7 @@
 
 use std::path::PathBuf;
 use std::fmt;
-use renderer::VulkanLogLevel;
+use renderer::{VulkanLogLevel, Tonemapper};
 
 #[inline] fn default_app_name() -> String { "Unspecified".to_owned() }
 #[inline] fn default_major_version() -> u32 { 0 }
@@ -32,6 +32,7 @@ use renderer::VulkanLogLevel;
 #[inline] fn default_max_sampled_images() -> u32 { 2 }
 #[inline] fn default_max_combined_image_samplers() -> u32 { 10 }
 #[inline] fn default_timing_setup() -> bool { false }
+#[inline] fn default_tonemapper() -> Tonemapper { Tonemapper::HybridLogGamma }
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
@@ -79,6 +80,8 @@ pub struct Config {
     pub max_combined_image_samplers: u32,
     #[serde(default = "default_timing_setup")]
     pub timing_setup: bool,
+    #[serde(default = "default_tonemapper")]
+    pub tonemapper: Tonemapper
 }
 
 impl Default for Config {
@@ -106,6 +109,7 @@ impl Default for Config {
             max_sampled_images: default_max_sampled_images(),
             max_combined_image_samplers: default_max_combined_image_samplers(),
             timing_setup: default_timing_setup(),
+            tonemapper: default_tonemapper(),
         }
     }
 }
@@ -139,7 +143,8 @@ impl fmt::Debug for Config {
         writeln!(f, "    Allocated desc for samplers: {}", self.max_samplers)?;
         writeln!(f, "    Allocated desc for sampled images: {}", self.max_sampled_images)?;
         writeln!(f, "    Allocated desc for combined image samplers: {}", self.max_combined_image_samplers)?;
-        writeln!(f, "    Timing Setup?: {}", self.timing_setup)?;
+        writeln!(f, "    Timing Setup: {}", self.timing_setup)?;
+        writeln!(f, "    Tone mapper: {:?}", self.tonemapper)?;
         Ok(())
     }
 }
