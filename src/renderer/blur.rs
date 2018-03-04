@@ -318,9 +318,10 @@ vec3 samp(vec2 offset) {
 
   // This is Mike's made-up-on-the-spot bright-pass filter.
   const float one_over_pi = 1.0 / 3.14159265359;
-  const float sharpness = 8;
+  const float sharpness = 25;
+  const float cutoff_level = 1.0;
   float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
-  float mult = 0.5 + atan(sharpness * (lum - 0.9)) * one_over_pi;
+  float mult = 0.5 + atan(sharpness * (lum - cutoff_level)) * one_over_pi;
 
   return color * mult;
 }
@@ -337,10 +338,10 @@ void main()
   vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
   vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
   for (int i = 1; i < 5; ++i) {
-    result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i] * ubo.bloom_strength;
-    result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i] * ubo.bloom_strength;
+    result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i];
+    result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i];
   }
-  outFragColor = vec4(result, 1.0);
+  outFragColor = vec4(result * ubo.bloom_strength, 1.0);
 }
 "#);
 
@@ -417,10 +418,10 @@ void main()
   vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
   vec3 result = texture(samplerColor, inUV).rgb * weight[0]; // current fragment's contribution
   for (int i = 1; i < 5; ++i) {
-    result += texture(samplerColor, inUV + vec2(0.0, tex_offset.y * i)).rgb * weight[i] * ubo.bloom_strength;
-    result += texture(samplerColor, inUV - vec2(0.0, tex_offset.y * i)).rgb * weight[i] * ubo.bloom_strength;
+    result += texture(samplerColor, inUV + vec2(0.0, tex_offset.y * i)).rgb * weight[i];
+    result += texture(samplerColor, inUV - vec2(0.0, tex_offset.y * i)).rgb * weight[i];
   }
-  outFragColor = vec4(result, 1.0);
+  outFragColor = vec4(result * ubo.bloom_strength, 1.0);
 }
 "#);
 
