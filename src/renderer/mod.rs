@@ -87,6 +87,7 @@ pub struct Params {
     pub bloom_strength: f32, // 0.65
     pub bloom_scale: f32, // 1.1
     pub blur_level: f32, // 0.0
+    pub white_point: f32,
 }
 
 pub struct Renderer {
@@ -235,6 +236,7 @@ impl Renderer {
                 bloom_strength: 0.65,
                 bloom_scale: 1.1,
                 blur_level: 0.0,
+                white_point: 0.1,
             };
             params_ubo.write(&params, None)?;
         }
@@ -494,8 +496,11 @@ impl Renderer {
         const TIMING_NUMFRAMES: u64 = 5000;
 
         loop {
-            for plugin in &mut self.plugins {
-                plugin.update()?;
+            {
+                let params = self.params_ubo.as_ptr::<Params>().unwrap();
+                for plugin in &mut self.plugins {
+                    plugin.update(params)?;
+                }
             }
             self.memory.flush()?;
 
