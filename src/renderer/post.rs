@@ -11,6 +11,7 @@ use super::{DepthHandling, BlendMode};
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub enum Tonemapper {
+    Clamp,
     Reinhard,
     Exposure,
     HybridLogGamma,
@@ -248,6 +249,7 @@ fn fragment_shader(device: &Device, _display_luminance: u32,
     let code = format!("{}{}{}",
                        FS_PREFIX,
                        match tonemapper {
+                           Tonemapper::Clamp => FS_TONEMAP_CLAMP,
                            Tonemapper::Reinhard => FS_TONEMAP_REINHARD,
                            Tonemapper::Exposure => FS_TONEMAP_EXPOSURE,
                            Tonemapper::HybridLogGamma => FS_TONEMAP_HLG,
@@ -331,6 +333,12 @@ vec3 tonemap(vec3 scene_referred) {
 const FS_TONEMAP_REINHARD: &'static str = r#"
 vec3 tonemap(vec3 scene_referred) {
   return scene_referred / (scene_referred + vec3(1.0));
+}
+"#;
+
+const FS_TONEMAP_CLAMP: &'static str = r#"
+vec3 tonemap(vec3 scene_referred) {
+  return clamp(scene_referred, 0.0, 1.0);
 }
 "#;
 
