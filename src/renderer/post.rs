@@ -35,7 +35,8 @@ impl PostGfx {
                viewport: Viewport,
                scissors: Rect2D,
                display_luminance: u32,
-               tonemapper: Tonemapper)
+               tonemapper: Tonemapper,
+               params_layout: DescriptorSetLayout)
               -> Result<PostGfx>
     {
         let sampler = {
@@ -111,7 +112,8 @@ impl PostGfx {
             super::pipeline::create(
                 device, viewport, scissors,
                 true, // reversed depth buffer irrelevant for post
-                render_pass, vec![desc_layout.clone()],
+                render_pass, vec![desc_layout.clone(),
+                                  params_layout],
                 Some(vertex_shader), Some(fragment_shader),
                 None,
                 PrimitiveTopology::TriangleList,
@@ -172,7 +174,8 @@ impl PostGfx {
         );
     }
 
-    pub fn record(&self, command_buffer: CommandBuffer)
+    pub fn record(&self, command_buffer: CommandBuffer,
+                  params_desc_set: DescriptorSet)
     {
         // Bind our pipeline
         command_buffer.bind_pipeline(PipelineBindPoint::Graphics, &self.pipeline);
@@ -182,7 +185,8 @@ impl PostGfx {
             PipelineBindPoint::Graphics,
             &self.pipeline_layout,
             0, // starting with first set
-            &[self.descriptor_set.clone()],
+            &[self.descriptor_set.clone(),
+              params_desc_set],
             None,
         );
 
@@ -274,6 +278,14 @@ const FS_PREFIX: &'static str = r#"#version 450
 #extension GL_ARB_shading_language_420pack : enable
 
 layout (binding = 0) uniform sampler2D shadingTex;
+
+layout (set = 1, binding = 0) uniform UBO
+{
+  float bloom_strength;
+  float bloom_scale;
+  float blur_level;
+  float white_point;
+} ubo;
 
 layout (location = 0) in vec2 inUV;
 

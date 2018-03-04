@@ -301,6 +301,7 @@ layout (set = 1, binding = 0) uniform UBO
   float bloom_strength;
   float bloom_scale;
   float blur_level;
+  float white_point;
 } ubo;
 
 layout (location = 0) in vec2 inUV;

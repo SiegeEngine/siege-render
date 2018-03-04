@@ -92,8 +92,8 @@ pub struct Params {
 
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
-    blur_gfx: BlurGfx,
     post_gfx: PostGfx,
+    blur_gfx: BlurGfx,
     params_desc_set: DescriptorSet,
     #[allow(dead_code)]
     params_desc_layout: DescriptorSetLayout,
@@ -296,12 +296,6 @@ impl Renderer {
             (layout, descriptor_set)
         };
 
-        let post_gfx = PostGfx::new(&device, descriptor_pool.clone(),
-                                    &target_data, post_pass.render_pass.clone(),
-                                    viewports[0].clone(), scissors[0].clone(),
-                                    config.display_luminance,
-                                    config.tonemapper)?;
-
         let blur_gfx = BlurGfx::new(&device, descriptor_pool.clone(),
                                     &target_data,
                                     blur_h_pass.render_pass.clone(),
@@ -309,10 +303,17 @@ impl Renderer {
                                     viewports[0].clone(), scissors[0].clone(),
                                     params_desc_layout.clone())?;
 
+        let post_gfx = PostGfx::new(&device, descriptor_pool.clone(),
+                                    &target_data, post_pass.render_pass.clone(),
+                                    viewports[0].clone(), scissors[0].clone(),
+                                    config.display_luminance,
+                                    config.tonemapper,
+                                    params_desc_layout.clone())?;
+
         Ok(Renderer {
             plugins: Vec::new(),
-            blur_gfx: blur_gfx,
             post_gfx: post_gfx,
+            blur_gfx: blur_gfx,
             params_desc_set: params_desc_set,
             params_desc_layout: params_desc_layout,
             params_ubo: params_ubo,
@@ -781,7 +782,8 @@ impl Renderer {
                 self.post_pass.record_entry(command_buffer.clone(),
                                             present_index);
 
-                self.post_gfx.record(command_buffer.clone());
+                self.post_gfx.record(command_buffer.clone(),
+                                     self.params_desc_set.clone());
 
                 self.post_pass.record_exit(command_buffer.clone());
             }
