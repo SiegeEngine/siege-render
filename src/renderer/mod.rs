@@ -32,7 +32,8 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    PipelineVertexInputStateCreateInfo, PrimitiveTopology,
                    CullModeFlags, FrontFace, ImageView,
                    DescriptorSetAllocateInfo, DescriptorType, ShaderStageFlags,
-                   WriteDescriptorSetElements, DescriptorSetLayoutBinding};
+                   WriteDescriptorSetElements, DescriptorSetLayoutBinding,
+                   PhysicalDeviceFeatures, PhysicalDeviceProperties};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -122,8 +123,8 @@ pub struct Renderer {
     memory: Memory,
     device: Device,
     //queue_indices: QueueIndices,
-    //ph_feats: PhysicalDeviceFeatures,
-    //ph_props: PhysicalDeviceProperties,
+    ph_feats: PhysicalDeviceFeatures,
+    ph_props: PhysicalDeviceProperties,
     ph: PhysicalDevice,
     surface: SurfaceKhr,
     #[allow(dead_code)] // We don't use this directly, FFI uses it
@@ -340,8 +341,8 @@ impl Renderer {
             memory: memory,
             device: device,
             //queue_indices: queue_indices,
-            //ph_feats: physical_device_features,
-            //ph_props: physical_device_properties,
+            ph_feats: physical_device_features,
+            ph_props: physical_device_properties,
             ph: physical_device,
             surface: surface,
             debug_callback: debug_callback,
@@ -378,6 +379,18 @@ impl Renderer {
 
     pub fn get_extent(&self) -> Extent2D {
         self.swapchain_data.extent
+    }
+
+    pub fn has_anisotrophy(&self) -> bool {
+        self.ph_feats.sampler_anisotropy
+    }
+
+    pub fn max_anisotrophy(&self) -> f32 {
+        if self.has_anisotrophy() {
+            self.ph_props.limits.max_sampler_anisotropy
+        } else {
+            1.0
+        }
     }
 
     pub fn create_pipeline(&mut self,
