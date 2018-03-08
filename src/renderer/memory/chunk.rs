@@ -181,6 +181,7 @@ impl Chunk {
             offset_in_chunk: offset,
             ptr: ptr,
             size: size,
+            stdio_write_offset: 0,
             memory_type_index: self.memory_type_index,
             is_coherent: self.memory_type.property_flags.contains(
                 MemoryPropertyFlags::HOST_COHERENT),

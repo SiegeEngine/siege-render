@@ -8,9 +8,14 @@ use errors::*;
 #[derive(Debug, Clone)]
 pub struct Block {
     pub memory: DeviceMemory,
+    // this ptr is already offset into chunk memory
     pub ptr: Option<*mut u8>,
     pub offset_in_chunk: u64,
     pub size: u64,
+    // This is an offset from ptr, and only maintained for ::std::io::Write (which
+    // may write multiple small amounts instead of all at once, and so we need to
+    // keep track of that).
+    pub stdio_write_offset: u64,
     pub memory_type_index: u32, // for deallocation, to find the right chunk vec
     pub is_coherent: bool, // to determine if we need to flush
     pub freelist: Arc<RwLock<Vec<u64>>>,
@@ -116,5 +121,43 @@ impl Block {
         self.dirty.store(true, Ordering::Relaxed);
 
         Ok(())
+    }
+}
+
+impl ::std::io::Write for Block {
+    fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize>
+    {
+        // dont write past the end:
+        let size = (buf.len() as u64).min(self.size - self.stdio_write_offset);
+
+        let ptr = match self.ptr {
+            None => return Err(::std::io::Error::new(
+                ::std::io::ErrorKind::Other,
+                "Cannot write device memory directly.")
+            ),
+            Some(rpu) => rpu
+        };
+
+        let slice: &mut [u8] = unsafe {
+            ::std::slice::from_raw_parts_mut(
+                ptr.offset(self.stdio_write_offset as isize) as *mut u8,
+                size as usize
+            )
+        };
+        slice.copy_from_slice(&buf[0..size as usize]);
+
+        // mark dirty
+        self.dirty.store(true, Ordering::Relaxed);
+
+        self.stdio_write_offset += size;
+
+        Ok(size as usize)
+    }
+
+    fn flush(&mut self) -> ::std::io::Result<()>
+    {
+        // We cannot actually flush, since Block doesn't have direct access
+        // to the mapped memory.  FIXME
+        Err(::std::io::Error::new(::std::io::ErrorKind::Other, "Cannot flush from here."))
     }
 }
