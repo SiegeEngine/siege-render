@@ -91,10 +91,10 @@ impl HostVisibleBuffer {
         self.block.as_ptr_at_offset(offset)
     }
 
-    pub fn write<T: Copy>(&mut self, data: &T, offset: Option<usize>)
+    pub fn write_one<T: Copy>(&mut self, data: &T, offset: Option<usize>)
                           -> Result<()>
     {
-        self.block.write(data, offset)
+        self.block.write_one(data, offset)
     }
 
     pub fn write_array<T: Copy>(&mut self, data: &[T], offset: Option<usize>)
@@ -197,7 +197,7 @@ impl DeviceLocalBuffer {
         assert!(offset + size <= self.size);
 
         // Write the data to the staging buffer
-        staging_buffer.block.write(data, 0)?;
+        staging_buffer.block.write_one(data, 0)?;
 
         // Copy the data through
         staging_buffer.copy_to_buffer(

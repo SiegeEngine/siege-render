@@ -239,7 +239,7 @@ impl Renderer {
                 blur_level: 0.0,
                 white_point: 0.1,
             };
-            params_ubo.write(&params, None)?;
+            params_ubo.write_one(&params, None)?;
         }
 
         let (params_desc_layout, params_desc_set) = {
@@ -485,7 +485,7 @@ impl Renderer {
 
     pub fn set_params(&mut self, params: &Params) -> Result<()>
     {
-        self.params_ubo.write::<Params>(&params, None)
+        self.params_ubo.write_one::<Params>(&params, None)
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.
