@@ -1,0 +1,49 @@
+Shadow Techniques
+=================
+
+Shadow Mapping:
+  Basically:
+    1) For each light, create a depth buffer by rendering all geometry from it's
+       view perspective (using orthographic for directional lights).
+    2) Shade each fragment with reference to that depth buffer, and calculate if
+       it is in shadow of that light or not.
+    3) Use multiple passes, rather than multiple depth buffers, and alpha blend
+       the results. But this means multiple shading per pixel!.
+  * Does not require stencil
+  * Can have a soft edge (happens when sampling depth buffer)
+  * Resolution limitations and FOV limitations (FOV of the light).
+  * Faster then stencil shadowing when there are lots of objects, but often slower
+    with few objects.
+  * Can consider transparency (leaves allowing some light through).
+
+  Cascaded shadow maps (2006):
+    * Developed to combat perspective aliasing.
+    * 2 options for filtering: Percentage Closer Filtering & Variance Shadow Maps.
+
+  Parallel Split Shadow Maps (PSSM 2006/2007):
+    * Combats aliasing (purpose)
+    * Has soft edges (advantage; does not require blur)
+    * https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+      * Split the view frustum into multiple depth regions, and render a shadow map
+        for each region.
+
+Shadow Volumes (Stencil Shadows): popular since ~2010
+  Basically:
+    1) For each light, compute the volume of space that the light can or cannot see, as
+       a geometry.
+    2) Render entire scene in shadow
+    3) Render entire scene once per light:
+       a) Stencil buffer out where the shadow geometries are found to match the depth buffer.
+       b) render where stencil is not, alpha blending the result
+  * Pixel-accurate
+  * Requires stenciling
+  * Closed mesh requirement
+  * Shadows on the back sides of objects have some kind of restriction, not sure what.
+  * Cannot consider transparency.
+
+
+Sascha Willems has examples for:
+  deferredshadows
+  shadowmapping
+  shadowmappingcascade
+  shadowmappingomni

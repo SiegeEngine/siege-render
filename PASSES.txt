@@ -1,0 +1,161 @@
+PLAN:
+-----
+
+Pass 1:  Early Z-Buffer Depth Testing
+-------------------------------------
+
+  Render variable-depth geometry approximately from front to back, using
+  EarlyZ-based shaders, which compute the depth information only:
+	* graybox-earlyz
+        * horizon-earlyz
+
+  TBD: Tile-based light culling  (see Forward+)
+
+  Attachments:
+    * Depth Buffer
+
+Pass 2:  Shading (Opaque)
+-------------------------
+
+  Render all geometry in any order:
+	* graybox
+        * horizon,
+        * galaxy
+        * stars
+        * suns
+  Read depth buffer, but do not write depth buffer.
+  Use "layout(early_fragment_tests) in;" to check depth buffer prior to shading.
+
+  Output levels adjusted against "white_point", however levels above 1.0 should
+  remain above 1.0. Post-processing will tone map to account for this.
+
+  Attachments:
+    Depth Buffer
+    Shading Image (color attachment output)
+
+Pass 3:  (Shading) Transparency
+-------------------------------
+
+  TBD.
+
+  Render transparent objects (back to front):
+  	* ?
+
+  Output levels adjusted against "white_point", however levels above 1.0 should
+  remain above 1.0. Post-processing will tone map to account for this.
+
+  Attachments:
+    Depth Buffer
+    Shading Image (color attachment output)
+
+Pass 4: Bloom copy
+-------------------
+
+  Copy Shading Image into Bright image with a bright-pass filter
+    * ?Only accept  values where the luminance (not per channel, but total) is > 1.0,
+    * Other? Multiply down?
+    (also down-sampling as we go since "Bright" image is half-resolution).
+    * Don't only copy the 'overbright' amount, because the color balance
+      will be off.
+    * Look up 'bright pass filter'
+
+  Attachments:
+    Shading image (texture)
+    Bright Image (color attachment output)
+
+Pass 5: Bloom h-blur
+---------------------
+
+  Gaussian blur from Bright into BlurPong horizontally
+
+  Attachments:
+    Bright Image (texture)
+    BlurPong Image (color attachment output)
+
+Pass 6: Bloom v-blur
+--------------------
+
+  Gaussian blur from BlurPong into Bright vertically
+
+  Attachments:
+    BlurPong Image (texture)
+    Bright Image (color attachment output)
+
+Pass 7:  Post Processing
+------------------------
+
+  Combine Shading Image with Overbright Image
+    * Apply a tonemapping function to the shadping image, so levels greater than
+      1.0 don't wash out. (Reinhard, Exposure, etc).
+    * Add bloom to tonemapped original.  Don't tone-map the bloom???
+    * Try this blending mode: https://en.wikipedia.org/wiki/Blend_modes#Screen
+
+  Attachments:
+    Shading Image (texture)
+    Bright Image (texture)
+    Swapchain Image (color attachment output)
+
+Pass 8:  UI
+------------
+
+  Render the UI onto the swapchain framebuffer with alpha blending
+	* ui
+
+  Attachments:
+    Swapchain Image (color attachment output)
+
+
+=== GENERAL ARCHITECTURES ===============================
+
+Forward Renderer:
+-----------------
+
+* Historic standard
+* PASS1: Opaque -- render all opaque objects from front to back, including shading.
+* PASS2: Transparent -- render all transparent objects from back to front.
+* Draws and shades at it goes.  Shading is per-object.
+* May shade same pixel multiple times.
+* With many dynamic lights and many fragment-reshades, a lot of draw calls and
+  CPU usage was required.
+
+Deferred Renderer:
+------------------
+
+* Modern standard
+* PASS1: Draw geometry data into G-Buffers
+  * Need diffuse, specular, and normals (normalmap and geom normals can be
+    packed into one RGBA8). Position can be reconstructed from z-buffer,
+    gl_FragCoord, and screen resolution.
+    (at full HD 1080p, requires 8.29 MB for each 32-bit g-buffer texture).
+* PASS2: Shading as a post-process pass.
+* Never shades a pixel more than once.
+* Much fewer draw calls, especially with many lights, as it never shades a
+  pixel more than once.
+* Can incorporate shadows at same time.
+* Requires a lot of graphics memory and memory bandwidth for the g-buffers.
+* Has difficulties with transparency and sub-surface scattering.
+* MSAA is not usable (although hacks like FXAA can suffice)
+* Limited to one lighting model (for whole scene)
+
+Early-Z Testing (Forward Renderer):
+-----------------------------------
+
+* PASS1: Early-Z -- render all objects, depth buffer only
+* PASS2: Opaque --  render all opaque objects from front to back, including shading.
+         Do not write to depth-buffer, only read it. Enable "early fragment testing".
+* PASS3: Transparent --  render all transparent objects from back to front, including
+         shading.  DO WRITE TO DEPTH BUFFER, so we can cross over transparent objects.
+* Never shades a pixel more than once.
+* Much less memory requirements than the deferred render.
+* Lighting can still be done in a single-pass per fragment.
+* Shaders are per-object, not one for the whole scene
+* Must draw geometry twice: more CPU requirements.
+* No issues with transparency, MSAA, etc.
+
+Forward+ (tiled forward shading):
+---------------------------------
+
+* Early pass computes on a tile basis how many lights affect that tile.
+* Then forward rendering is used, the lights computed for each fragment
+  are only the ones mentioned in the tile ("light culling").
+* Can handle 5,000-6,000 dynamic lights.
