@@ -1,5 +1,6 @@
 
 use errors::*;
+use std::io::Write;
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
                    BufferCopy};
 use super::memory::{Memory, Block, Lifetime};
@@ -101,6 +102,18 @@ impl HostVisibleBuffer {
                                 -> Result<()>
     {
         self.block.write_array(data, offset)
+    }
+}
+
+impl Write for HostVisibleBuffer {
+    fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize>
+    {
+        self.block.write(buf)
+    }
+
+    fn flush(&mut self) -> ::std::io::Result<()>
+    {
+        self.block.flush()
     }
 }
 
