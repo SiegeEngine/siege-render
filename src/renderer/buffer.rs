@@ -39,7 +39,7 @@ fn _new(
             reason)?
     };
 
-    buffer.bind_memory(block.memory.clone(), block.offset)?;
+    buffer.bind_memory(block.memory.clone(), block.offset_in_chunk)?;
 
     Ok((buffer, block))
 }

@@ -9,7 +9,7 @@ use errors::*;
 pub struct Block {
     pub memory: DeviceMemory,
     pub ptr: Option<*mut u8>,
-    pub offset: u64,
+    pub offset_in_chunk: u64,
     pub size: u64,
     pub memory_type_index: u32, // for deallocation, to find the right chunk vec
     pub is_coherent: bool, // to determine if we need to flush
@@ -22,7 +22,7 @@ impl Drop for Block {
     fn drop(&mut self) {
         // Mark our offset in the freelist before we drop
         let mut freelist = self.freelist.write().unwrap();
-        freelist.push(self.offset);
+        freelist.push(self.offset_in_chunk);
     }
 }
 

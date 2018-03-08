@@ -178,7 +178,7 @@ impl Chunk {
 
         let block = Block {
             memory: self.memory.clone(),
-            offset: offset,
+            offset_in_chunk: offset,
             ptr: ptr,
             size: size,
             memory_type_index: self.memory_type_index,

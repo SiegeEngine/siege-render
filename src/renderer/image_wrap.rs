@@ -95,7 +95,7 @@ impl ImageWrap {
             lifetime,
             reason)?;
 
-        image.bind_memory(block.memory.clone(), block.offset)?;
+        image.bind_memory(block.memory.clone(), block.offset_in_chunk)?;
 
         Ok(ImageWrap {
             image: image,

@@ -87,7 +87,7 @@ impl Memory {
                 lifetime,
                 reason)
             {
-                assert!(block.offset + block.size <= CHUNK_SIZE);
+                assert!(block.offset_in_chunk + block.size <= CHUNK_SIZE);
                 return Ok(block);
             }
         }
@@ -103,7 +103,7 @@ impl Memory {
             reason);
         chunk_vec.push(new_chunk);
         if let Some(block) = block {
-            assert!(block.offset + block.size <= CHUNK_SIZE);
+            assert!(block.offset_in_chunk + block.size <= CHUNK_SIZE);
             Ok(block)
         } else {
             Err(ErrorKind::OutOfGraphicsMemory.into())
