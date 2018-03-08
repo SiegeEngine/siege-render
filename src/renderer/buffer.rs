@@ -91,13 +91,13 @@ impl HostVisibleBuffer {
         self.block.as_ptr_at_offset(offset)
     }
 
-    pub fn write<T: Copy>(&self, data: &T, offset: Option<usize>)
+    pub fn write<T: Copy>(&mut self, data: &T, offset: Option<usize>)
                           -> Result<()>
     {
         self.block.write(data, offset)
     }
 
-    pub fn write_array<T: Copy>(&self, data: &[T], offset: Option<usize>)
+    pub fn write_array<T: Copy>(&mut self, data: &[T], offset: Option<usize>)
                                 -> Result<()>
     {
         self.block.write_array(data, offset)
@@ -147,7 +147,7 @@ impl DeviceLocalBuffer {
         device: &Device,
         memory: &mut Memory,
         commander: &Commander,
-        staging_buffer: &HostVisibleBuffer,
+        staging_buffer: &mut HostVisibleBuffer,
         data: &[T],
         mut usage: BufferUsageFlags,
         lifetime: Lifetime,

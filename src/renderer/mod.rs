@@ -225,7 +225,7 @@ impl Renderer {
         let ui_pass = UiPass::new(
             &device, &swapchain_data)?;
 
-        let params_ubo = HostVisibleBuffer::new::<Params>(
+        let mut params_ubo = HostVisibleBuffer::new::<Params>(
             &device, &mut memory, 1,
             BufferUsageFlags::UNIFORM_BUFFER,
             Lifetime::Permanent,
@@ -362,14 +362,15 @@ impl Renderer {
     pub fn load_mesh(&mut self, dir: &str, name: &str) -> Result<VulkanMesh>
     {
         self.resource_manager.load_mesh(
-            &self.device, &mut self.memory, &self.commander, &self.staging_buffer,
-            dir, name)
+            &self.device, &mut self.memory, &self.commander,
+            &mut self.staging_buffer, dir, name)
     }
 
     pub fn load_texture(&mut self, name: &str) -> Result<ImageWrap>
     {
         self.resource_manager.load_texture(
-            &self.device, &mut self.memory, &self.commander, &self.staging_buffer, name)
+            &self.device, &mut self.memory, &self.commander,
+            &mut self.staging_buffer, name)
     }
 
     pub fn get_image_view(&self, image: &ImageWrap) -> Result<ImageView>
@@ -451,7 +452,7 @@ impl Renderer {
     {
         DeviceLocalBuffer::new_uploaded::<T>(
             &self.device, &mut self.memory, &self.commander,
-            &self.staging_buffer, data, usage,
+            &mut self.staging_buffer, data, usage,
             lifetime, reason)
     }
 

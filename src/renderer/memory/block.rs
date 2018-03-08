@@ -53,7 +53,7 @@ impl Block {
     }
 
     // offset is measured in "count of T's plus alignment padding", not in bytes.
-    pub fn write<T: Copy>(&self, data: &T, offset: Option<usize>)
+    pub fn write<T: Copy>(&mut self, data: &T, offset: Option<usize>)
                           -> Result<()>
     {
         let ptr = match self.ptr {
@@ -78,7 +78,7 @@ impl Block {
     }
 
     // offset is measured in "count of T's plus alignment padding", not in bytes.
-    pub fn write_array<T: Copy>(&self, data: &[T], offset: Option<usize>)
+    pub fn write_array<T: Copy>(&mut self, data: &[T], offset: Option<usize>)
                                 -> Result<()>
     {
         let ptr = match self.ptr {

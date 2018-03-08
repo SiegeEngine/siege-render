@@ -66,7 +66,7 @@ impl ResourceManager {
                      device: &Device,
                      memory: &mut Memory,
                      commander: &Commander,
-                     staging_buffer: &HostVisibleBuffer,
+                     staging_buffer: &mut HostVisibleBuffer,
                      dir: &str, // by type, e.g. 'graybox'
                      name: &str)
                      -> Result<VulkanMesh>
@@ -139,7 +139,7 @@ impl ResourceManager {
         device: &Device,
         memory: &mut Memory,
         commander: &Commander,
-        staging_buffer: &HostVisibleBuffer,
+        staging_buffer: &mut HostVisibleBuffer,
         name: &str)
         -> Result<ImageWrap>
     {

@@ -24,7 +24,7 @@ impl VulkanMesh {
     pub fn new<V: Vertex>(device: &Device,
                           memory: &mut Memory,
                           commander: &Commander,
-                          staging_buffer: &HostVisibleBuffer,
+                          staging_buffer: &mut HostVisibleBuffer,
                           mesh: Mesh<V>,
                           name: &str)
                -> Result<VulkanMesh>
