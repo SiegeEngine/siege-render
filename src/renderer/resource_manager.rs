@@ -4,12 +4,12 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use dacite::core::{Device, ShaderModule};
+use dacite::core::{Device, ShaderModule, BufferUsageFlags};
 
 use siege_mesh::VertexType;
-use super::buffer::HostVisibleBuffer;
+use super::buffer::{HostVisibleBuffer, DeviceLocalBuffer};
 use super::image_wrap::{ImageWrap, ImageWrapType};
-use super::memory::Memory;
+use super::memory::{Memory, Lifetime};
 use super::commander::Commander;
 use super::mesh::VulkanMesh;
 
@@ -18,6 +18,7 @@ pub struct ResourceManager {
     shaders: HashMap<String, ShaderModule>,
     meshes: HashMap<String, VulkanMesh>,
     textures: HashMap<String, ImageWrap>,
+    buffers: HashMap<String, DeviceLocalBuffer>,
 }
 
 impl ResourceManager {
@@ -28,6 +29,7 @@ impl ResourceManager {
             shaders: HashMap::new(),
             meshes: HashMap::new(),
             textures: HashMap::new(),
+            buffers: HashMap::new(),
         }
     }
 
@@ -211,7 +213,6 @@ impl ResourceManager {
         // create image wrap
         use dacite::core::{ImageLayout, ImageTiling, ImageUsageFlags,
                            ComponentMapping};
-        use super::memory::Lifetime;
         let mut image_wrap = ImageWrap::new(
             device, memory, format, component_mapping,
             extent,
@@ -253,5 +254,45 @@ impl ResourceManager {
         self.textures.insert(name.to_owned(), image_wrap.clone());
 
         Ok(image_wrap)
+    }
+
+    pub fn load_buffer(
+        &mut self,
+        device: &Device,
+        memory: &mut Memory,
+        commander: &Commander,
+        staging_buffer: &mut HostVisibleBuffer,
+        usage: BufferUsageFlags,
+        name: &str)
+        -> Result<DeviceLocalBuffer>
+    {
+        // Check if we already have it
+        if let Some(bufref) = self.buffers.get(name) {
+            return Ok(bufref.clone());
+        }
+
+        let mut path = self.asset_path.clone();
+
+        // All textures under the siege engine are stored raw and
+        // compressed with Zstd, and named with the ".raw.zst" extension.
+        path.push("buffers");
+        path.push(format!("{}.raw.zst", name));
+        let f = File::open(path)?;
+
+        // Setup Decompressor
+        use zstd::stream::Decoder;
+        let mut d = Decoder::new(f)?;
+
+        // Decompress into a device buffer
+        let dlb = DeviceLocalBuffer::new_from_reader(
+            device, memory, commander,
+            &mut d, staging_buffer,
+            usage,
+            Lifetime::Temporary,
+            &*format!("buffer {}", name))?;
+
+        self.buffers.insert(name.to_owned(), dlb.clone());
+
+        Ok(dlb)
     }
 }

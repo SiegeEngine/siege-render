@@ -373,6 +373,15 @@ impl Renderer {
             &mut self.staging_buffer, name)
     }
 
+    pub fn load_buffer(&mut self,
+                       usage: BufferUsageFlags,
+                       name: &str) -> Result<DeviceLocalBuffer>
+    {
+        self.resource_manager.load_buffer(
+            &self.device, &mut self.memory, &self.commander,
+            &mut self.staging_buffer, usage, name)
+    }
+
     pub fn get_image_view(&self, image: &ImageWrap) -> Result<ImageView>
     {
         image.get_image_view(&self.device)
