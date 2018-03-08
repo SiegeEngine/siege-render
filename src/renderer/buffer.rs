@@ -1,6 +1,6 @@
 
 use errors::*;
-use std::io::Write;
+use std::io::{Write, Read};
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
                    BufferCopy};
 use super::memory::{Memory, Block, Lifetime};
@@ -183,6 +183,42 @@ impl DeviceLocalBuffer {
         memory.flush()?;
 
         // Copy the data through
+        copy(device, commander,
+             &staging_buffer.buffer,
+             &device_buffer.buffer,
+             &[BufferCopy {
+                 src_offset: 0,
+                 dst_offset: 0,
+                 size: size,
+             }])?;
+
+        Ok(device_buffer)
+    }
+
+    // Warning! this does not align data on the device, it copies byte-for-byte.
+    pub fn new_from_reader<R: Read>(
+        device: &Device,
+        memory: &mut Memory,
+        commander: &Commander,
+        src: &mut R,
+        staging_buffer: &mut HostVisibleBuffer,
+        usage: BufferUsageFlags,
+        lifetime: Lifetime,
+        reason: &str) -> Result<DeviceLocalBuffer>
+    {
+        // Copy data into staging buffer
+        let size: u64 = ::std::io::copy(src, staging_buffer)?;
+
+        // Create device buffer
+        let device_buffer = Self::new::<u8>(
+            device, memory, size as usize, usage | BufferUsageFlags::TRANSFER_DST,
+            lifetime, reason)?;
+
+        // Force a flush (FIXME if block held arc to mapped memory we would not have
+        // to flush every chunk)
+        memory.flush()?;
+
+        // Copy from staging buffer to device buffer
         copy(device, commander,
              &staging_buffer.buffer,
              &device_buffer.buffer,
