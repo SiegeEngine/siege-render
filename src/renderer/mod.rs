@@ -33,7 +33,8 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    CullModeFlags, FrontFace, ImageView,
                    DescriptorSetAllocateInfo, DescriptorType, ShaderStageFlags,
                    WriteDescriptorSetElements, DescriptorSetLayoutBinding,
-                   PhysicalDeviceFeatures, PhysicalDeviceProperties};
+                   PhysicalDeviceFeatures, PhysicalDeviceProperties,
+                   Format, BufferView};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use winit::Window;
@@ -385,6 +386,12 @@ impl Renderer {
     pub fn get_image_view(&self, image: &ImageWrap) -> Result<ImageView>
     {
         image.get_image_view(&self.device)
+    }
+
+    pub fn get_buffer_view(&self, buffer: &DeviceLocalBuffer, format: Format)
+        -> Result<BufferView>
+    {
+        buffer.get_buffer_view(&self.device, format)
     }
 
     pub fn get_extent(&self) -> Extent2D {

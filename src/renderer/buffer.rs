@@ -2,7 +2,8 @@
 use errors::*;
 use std::io::{Write, Read};
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
-                   BufferCopy};
+                   BufferCopy, OptionalDeviceSize, Format, BufferView,
+                   BufferViewCreateInfo};
 use super::memory::{Memory, Block, Lifetime};
 use super::commander::Commander;
 
@@ -262,6 +263,21 @@ impl DeviceLocalBuffer {
         Ok(())
     }
      */
+
+    pub fn get_buffer_view(&self, device: &Device, format: Format) -> Result<BufferView>
+    {
+        Ok(device.create_buffer_view(
+            &BufferViewCreateInfo {
+                flags: Default::default(),
+                buffer: self.buffer.clone(),
+                format: format,
+                offset: 0,
+                range: OptionalDeviceSize::WholeSize,
+                chain: None,
+            },
+            None
+        )?)
+    }
 }
 
 fn copy(
