@@ -229,6 +229,10 @@ pub fn get_descriptor_pool(device: &Device, config: &Config) -> Result<Descripto
                 descriptor_count: config.max_uniform_buffers,
             },
             DescriptorPoolSize {
+                descriptor_type: DescriptorType::UniformTexelBuffer,
+                descriptor_count: config.max_uniform_texel_buffers,
+            },
+            DescriptorPoolSize {
                 descriptor_type: DescriptorType::UniformBufferDynamic,
                 descriptor_count: config.max_dynamic_uniform_buffers,
             },
