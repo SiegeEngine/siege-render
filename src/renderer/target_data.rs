@@ -6,14 +6,33 @@ use errors::*;
 use super::image_wrap::{ImageWrap, ImageWrapType};
 use super::memory::{Memory, Lifetime};
 use super::commander::Commander;
-use super::setup::requirements::{DEPTH_FORMAT, SHADING_IMAGE_FORMAT,
-                                 BLUR_IMAGE_FORMAT};
+use super::setup::requirements::{DEPTH_FORMAT,
+                                 DIFFUSE_FORMAT,
+                                 NORMALS_FORMAT,
+                                 MATERIAL_FORMAT,
+                                 SHADING_FORMAT,
+                                 BLUR_FORMAT};
+
+/*
+Depth:			D32_SFloat
+Diffuse:		A2B10G10R10_UNorm_Pack32
+Normal:			A2B10G10R10_UNorm_Pack32
+Material:		R8G8B8_UNorm
+  r-channel is used for "roughness"
+  g-channel is used for "metallicity"
+  b-channel is used for "ambient occlusion"
+Shading:                R16G16B16A16_SFloat (goes overbright)
+Blur:                   R16G16B16A16_SFloat (goes overbright)
+ */
 
 pub struct TargetData {
     pub blur_image: ImageWrap,
     pub shading_image: ImageWrap,
+    pub material_image: ImageWrap,
+    pub normal_image: ImageWrap,
+    pub diffuse_image: ImageWrap,
     pub depth_image: ImageWrap,
-    pub extent: Extent2D,
+    pub extent: Extent2D
 }
 
 impl TargetData {
@@ -23,12 +42,16 @@ impl TargetData {
                   extent: Extent2D)
                   -> Result<TargetData>
     {
-        let (depth_image, shading_image, blur_image) =
+        let (depth_image, diffuse_image, normal_image, material_image,
+             shading_image, blur_image) =
             build_images(device, memory, commander, extent)?;
 
         Ok(TargetData {
             blur_image: blur_image,
             shading_image: shading_image,
+            material_image: material_image,
+            normal_image: normal_image,
+            diffuse_image: diffuse_image,
             depth_image: depth_image,
             extent: extent
         })
@@ -44,29 +67,109 @@ impl TargetData {
         self.extent = extent;
 
         // Rebuild images
-        let (depth_image, shading_image, blur_image) =
+        let (depth_image, diffuse_image, normal_image, material_image,
+             shading_image, blur_image) =
             build_images(device, memory, commander, extent)?;
         self.depth_image = depth_image;
+        self.diffuse_image = diffuse_image;
+        self.normal_image = normal_image;
+        self.material_image = material_image;
         self.shading_image = shading_image;
         self.blur_image = blur_image;
 
         Ok(())
     }
 
-    pub fn transition_for_earlyz(&mut self, _command_buffer: CommandBuffer)
+    pub fn transition_for_geometry(&mut self, command_buffer: CommandBuffer)
                                    -> Result<()>
     {
-        // write depth: depth never needs transition.
+        // write and read depth: depth never needs transition
+
+        // write diffuse, normal, and material
+        self.diffuse_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
+            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
+            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
+        self.normal_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
+            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
+            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
+        self.material_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
+            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
+            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
 
         Ok(())
     }
 
-    pub fn transition_for_opaque(&mut self, command_buffer: CommandBuffer)
-                                 -> Result<()>
+    pub fn transition_for_shading(&mut self, command_buffer: CommandBuffer)
+                                  -> Result<()>
     {
         // read depth: depth never needs transition.
 
-        // write shading:
+        // read diffuse, normal, and material
+        self.diffuse_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
+            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
+            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
+        self.normal_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
+            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
+            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
+        self.material_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
+            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
+            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
+
+        // write shading
         self.shading_image.transition_layout(
             command_buffer.clone(),
             ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
@@ -80,7 +183,6 @@ impl TargetData {
                 layer_count: OptionalArrayLayers::ArrayLayers(1),
             })?;
 
-        // Nothing to transition, already there.
         Ok(())
     }
 
@@ -198,29 +300,30 @@ fn build_images(
     memory: &mut Memory,
     commander: &Commander,
     extent: Extent2D)
-    -> Result<(ImageWrap, ImageWrap, ImageWrap)>
+    -> Result<(ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap)>
 {
     use dacite::core::{ComponentMapping, ImageUsageFlags, ImageLayout, ImageTiling,
                        AccessFlags, PipelineStageFlags, ImageAspectFlags,
                        OptionalMipLevels, OptionalArrayLayers, Extent3D,
                        ImageSubresourceRange};
 
-    let depth_image = {
-        let mut depth_image_wrap = ImageWrap::new(
-            device,
-            memory,
-            DEPTH_FORMAT,
+    let make = |format,iwtype,usage,name| {
+        ImageWrap::new(
+            device,memory,format,
             ComponentMapping::identity(),
-            Extent3D {
-                width: extent.width,
-                height: extent.height,
-                depth: 1,
-            },
-            ImageWrapType::Depth,
+            Extent3D { width: extent.width, height: extent.height, depth: 1 },
+            iwtype,
             ImageLayout::Undefined,
             ImageTiling::Optimal,
-            ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+            usage,
             Lifetime::Permanent,
+            name)
+    };
+
+    let depth_image = {
+        let mut depth_image_wrap = make(
+            DEPTH_FORMAT, ImageWrapType::Depth,
+            ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
             "Depth Buffer")?;
 
         depth_image_wrap.transition_layout_now(
@@ -250,50 +353,36 @@ fn build_images(
         depth_image_wrap
     };
 
-    let shading_image = {
-        let mut shading_image_wrap = ImageWrap::new(
-            device,
-            memory,
-            SHADING_IMAGE_FORMAT,
-            ComponentMapping::identity(),
-            Extent3D {
-                width: extent.width,
-                height: extent.height,
-                depth: 1,
-            },
-            ImageWrapType::Standard,
-            ImageLayout::Undefined,
-            ImageTiling::Optimal,
-            ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
-                | ImageUsageFlags::SAMPLED,
-            Lifetime::Permanent,
-            "Shading Image")?;
+    let diffuse_image = make(
+        DIFFUSE_FORMAT, ImageWrapType::Standard,
+        ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
+            | ImageUsageFlags::SAMPLED,
+        "Diffuse g-buffer")?;
 
-        shading_image_wrap
-    };
+    let normals_image = make(
+        NORMALS_FORMAT, ImageWrapType::Standard,
+        ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
+            | ImageUsageFlags::SAMPLED,
+        "Normals g-buffer")?;
 
-    let blur_image = {
-        let mut blur_image_wrap = ImageWrap::new(
-            device,
-            memory,
-            BLUR_IMAGE_FORMAT,
-            ComponentMapping::identity(),
-            Extent3D {
-                // FIXME: can we have half dimensions?
-                width: extent.width,
-                height: extent.height,
-                depth: 1,
-            },
-            ImageWrapType::Standard,
-            ImageLayout::Undefined,
-            ImageTiling::Optimal,
-            ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
-                | ImageUsageFlags::SAMPLED,
-            Lifetime::Permanent,
-            "Blur Image")?;
+    let material_image = make(
+        MATERIAL_FORMAT, ImageWrapType::Standard,
+        ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
+            | ImageUsageFlags::SAMPLED,
+        "Materials g-buffer")?;
 
-        blur_image_wrap
-    };
+    let shading_image = make(
+        SHADING_FORMAT, ImageWrapType::Standard,
+        ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
+            | ImageUsageFlags::SAMPLED,
+        "Shading Target")?;
 
-    Ok((depth_image, shading_image, blur_image))
+    let blur_image = make(
+        BLUR_FORMAT, ImageWrapType::Standard,
+        ImageUsageFlags::COLOR_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
+            | ImageUsageFlags::SAMPLED,
+        "Blur Target")?;
+
+    Ok((depth_image, diffuse_image, normals_image, material_image,
+        shading_image, blur_image))
 }
