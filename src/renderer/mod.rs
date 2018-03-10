@@ -45,7 +45,7 @@ use self::swapchain_data::SwapchainData;
 use self::commander::Commander;
 use self::resource_manager::ResourceManager;
 use self::target_data::TargetData;
-use self::passes::{EarlyZPass, OpaquePass, TransparentPass,
+use self::passes::{GeometryPass, ShadingPass, TransparentPass,
                    BlurHPass, BlurVPass, PostPass, UiPass};
 use self::post::PostGfx;
 use self::blur::BlurGfx;
@@ -65,8 +65,7 @@ pub enum VulkanLogLevel {
 
 // Passes that consumers of the library can plug into
 pub enum Pass {
-    EarlyZ,
-    Opaque,
+    Geometry,
     Transparent,
     Ui
 }
@@ -106,8 +105,8 @@ pub struct Renderer {
     blur_v_pass: BlurVPass,
     blur_h_pass: BlurHPass,
     transparent_pass: TransparentPass,
-    opaque_pass: OpaquePass,
-    early_z_pass: EarlyZPass,
+    shading_pass: ShadingPass,
+    geometry_pass: GeometryPass,
     target_data: TargetData,
     rendered_fence: Fence,
     acquired_fence: Fence,
@@ -211,9 +210,11 @@ impl Renderer {
         let target_data = TargetData::create(
             &device, &mut memory, &commander, swapchain_data.extent)?;
 
-        let early_z_pass = EarlyZPass::new(
-            &device, &target_data.depth_image, config.reversed_depth_buffer)?;
-        let opaque_pass = OpaquePass::new(
+        let geometry_pass = GeometryPass::new(
+            &device, &target_data.depth_image, &target_data.diffuse_image,
+            &target_data.normals_image, &target_data.material_image,
+            config.reversed_depth_buffer)?;
+        let shading_pass = ShadingPass::new(
             &device, &target_data.depth_image, &target_data.shading_image)?;
         let transparent_pass = TransparentPass::new(
             &device, &target_data.depth_image, &target_data.shading_image)?;
@@ -324,8 +325,8 @@ impl Renderer {
             blur_v_pass: blur_v_pass,
             blur_h_pass: blur_h_pass,
             transparent_pass: transparent_pass,
-            opaque_pass: opaque_pass,
-            early_z_pass: early_z_pass,
+            shading_pass: shading_pass,
+            geometry_pass: geometry_pass,
             target_data: target_data,
             rendered_fence: rendered_fence,
             acquired_fence: acquired_fence,
@@ -435,8 +436,7 @@ impl Renderer {
             &self.device, self.viewports[0].clone(), self.scissors[0].clone(),
             self.config.reversed_depth_buffer,
             match pass {
-                Pass::EarlyZ => self.early_z_pass.render_pass.clone(),
-                Pass::Opaque => self.opaque_pass.render_pass.clone(),
+                Pass::Geometry => self.geometry_pass.render_pass.clone(),
                 Pass::Transparent => self.transparent_pass.render_pass.clone(),
                 Pass::Ui => self.ui_pass.render_pass.clone(),
             },
@@ -736,36 +736,29 @@ impl Renderer {
             command_buffer.set_viewport(0, &self.viewports);
             command_buffer.set_scissor(0, &self.scissors);
 
-            self.target_data.transition_for_earlyz(command_buffer.clone())?;
+            self.target_data.transition_for_geometry(command_buffer.clone())?;
 
-            // Early Z pass
+            // Geometry pass
             {
-                self.early_z_pass.record_entry(command_buffer.clone());
+                self.geometry_pass.record_entry(command_buffer.clone());
 
                 for plugin in &self.plugins {
                     // NOTE: Try to draw front to back
-                    plugin.record_earlyz(command_buffer.clone());
+                    plugin.record_geometry(command_buffer.clone());
                 }
 
-                self.early_z_pass.record_exit(command_buffer.clone());
+                self.geometry_pass.record_exit(command_buffer.clone());
             }
 
-            self.target_data.transition_for_opaque(command_buffer.clone())?;
+            self.target_data.transition_for_shading(command_buffer.clone())?;
 
-            // Opaque pass
+            // Shading pass
             {
-                self.opaque_pass.record_entry(command_buffer.clone());
+                self.shading_pass.record_entry(command_buffer.clone());
 
-                for plugin in &self.plugins {
-                    // Draw all geometry with opaque pipelines
-                    // Draw in any order - it makes no difference,
-                    // except for far-plane items (each overwrites the last)
+                // FIXME
 
-                    // NOTE: Try to draw front to back
-                    plugin.record_opaque(command_buffer.clone());
-                }
-
-                self.opaque_pass.record_exit(command_buffer.clone());
+                self.shading_pass.record_exit(command_buffer.clone());
             }
 
             self.target_data.transition_for_transparent(command_buffer.clone())?;
@@ -866,9 +859,12 @@ impl Renderer {
                                  self.swapchain_data.extent)?;
 
         // Rebuild the passes
-        self.early_z_pass.rebuild(&self.device,
-                                  &self.target_data.depth_image)?;
-        self.opaque_pass.rebuild(&self.device,
+        self.geometry_pass.rebuild(&self.device,
+                                   &self.target_data.depth_image,
+                                   &self.target_data.diffuse_image,
+                                   &self.target_data.normals_image,
+                                   &self.target_data.material_image)?;
+        self.shading_pass.rebuild(&self.device,
                                  &self.target_data.depth_image,
                                  &self.target_data.shading_image)?;
         self.transparent_pass.rebuild(&self.device,

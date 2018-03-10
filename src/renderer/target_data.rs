@@ -29,7 +29,7 @@ pub struct TargetData {
     pub blur_image: ImageWrap,
     pub shading_image: ImageWrap,
     pub material_image: ImageWrap,
-    pub normal_image: ImageWrap,
+    pub normals_image: ImageWrap,
     pub diffuse_image: ImageWrap,
     pub depth_image: ImageWrap,
     pub extent: Extent2D
@@ -42,7 +42,7 @@ impl TargetData {
                   extent: Extent2D)
                   -> Result<TargetData>
     {
-        let (depth_image, diffuse_image, normal_image, material_image,
+        let (depth_image, diffuse_image, normals_image, material_image,
              shading_image, blur_image) =
             build_images(device, memory, commander, extent)?;
 
@@ -50,7 +50,7 @@ impl TargetData {
             blur_image: blur_image,
             shading_image: shading_image,
             material_image: material_image,
-            normal_image: normal_image,
+            normals_image: normals_image,
             diffuse_image: diffuse_image,
             depth_image: depth_image,
             extent: extent
@@ -67,12 +67,12 @@ impl TargetData {
         self.extent = extent;
 
         // Rebuild images
-        let (depth_image, diffuse_image, normal_image, material_image,
+        let (depth_image, diffuse_image, normals_image, material_image,
              shading_image, blur_image) =
             build_images(device, memory, commander, extent)?;
         self.depth_image = depth_image;
         self.diffuse_image = diffuse_image;
-        self.normal_image = normal_image;
+        self.normals_image = normals_image;
         self.material_image = material_image;
         self.shading_image = shading_image;
         self.blur_image = blur_image;
@@ -98,7 +98,7 @@ impl TargetData {
                 base_array_layer: 0,
                 layer_count: OptionalArrayLayers::ArrayLayers(1),
             })?;
-        self.normal_image.transition_layout(
+        self.normals_image.transition_layout(
             command_buffer.clone(),
             ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
             Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
@@ -144,7 +144,7 @@ impl TargetData {
                 base_array_layer: 0,
                 layer_count: OptionalArrayLayers::ArrayLayers(1),
             })?;
-        self.normal_image.transition_layout(
+        self.normals_image.transition_layout(
             command_buffer.clone(),
             ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
             AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
@@ -307,7 +307,7 @@ fn build_images(
                        OptionalMipLevels, OptionalArrayLayers, Extent3D,
                        ImageSubresourceRange};
 
-    let make = |format,iwtype,usage,name| {
+    let mut make = |format,iwtype,usage,name| {
         ImageWrap::new(
             device,memory,format,
             ComponentMapping::identity(),
