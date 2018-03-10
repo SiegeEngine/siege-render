@@ -11,6 +11,7 @@ mod resource_manager;
 mod target_data;
 mod passes;
 mod pipeline;
+mod shade;
 mod post;
 mod blur;
 
@@ -37,6 +38,7 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    Format, BufferView};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
+use siege_math::Vec3;
 use winit::Window;
 
 use self::setup::Physical;
@@ -47,6 +49,7 @@ use self::resource_manager::ResourceManager;
 use self::target_data::TargetData;
 use self::passes::{GeometryPass, ShadingPass, TransparentPass,
                    BlurHPass, BlurVPass, PostPass, UiPass};
+use self::shade::ShadeGfx;
 use self::post::PostGfx;
 use self::blur::BlurGfx;
 use super::plugin::Plugin;
@@ -95,6 +98,7 @@ pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
     post_gfx: PostGfx,
     blur_gfx: BlurGfx,
+    shade_gfx: ShadeGfx,
     params_desc_set: DescriptorSet,
     #[allow(dead_code)]
     params_desc_layout: DescriptorSetLayout,
@@ -301,6 +305,12 @@ impl Renderer {
             (layout, descriptor_set)
         };
 
+        let shade_gfx = ShadeGfx::new(&device, descriptor_pool.clone(),
+                                      &target_data,
+                                      shading_pass.render_pass.clone(),
+                                      viewports[0].clone(), scissors[0].clone(),
+                                      params_desc_layout.clone())?;
+
         let blur_gfx = BlurGfx::new(&device, descriptor_pool.clone(),
                                     &target_data,
                                     blur_h_pass.render_pass.clone(),
@@ -319,6 +329,7 @@ impl Renderer {
             plugins: Vec::new(),
             post_gfx: post_gfx,
             blur_gfx: blur_gfx,
+            shade_gfx: shade_gfx,
             params_desc_set: params_desc_set,
             params_desc_layout: params_desc_layout,
             params_ubo: params_ubo,
@@ -504,6 +515,23 @@ impl Renderer {
     pub fn set_params(&mut self, params: &Params) -> Result<()>
     {
         self.params_ubo.write_one::<Params>(&params, None)
+    }
+
+    pub fn add_directional_light(&mut self, direction: Vec3<f32>, irradiance: Vec3<f32>)
+                                 -> u32
+    {
+        self.shade_gfx.add_directional_light(direction, irradiance)
+    }
+
+    pub fn change_directional_light(&mut self, token: u32,
+                                    direction: Vec3<f32>, irradiance: Vec3<f32>)
+        -> Result<()>
+    {
+        self.shade_gfx.change_directional_light(token, direction, irradiance)
+    }
+
+    pub fn remove_directional_light(&mut self, token: u32) {
+        self.shade_gfx.remove_directional_light(token);
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.
@@ -758,7 +786,8 @@ impl Renderer {
             {
                 self.shading_pass.record_entry(command_buffer.clone());
 
-                // FIXME
+                self.shade_gfx.record(command_buffer.clone(),
+                                      self.params_desc_set.clone());
 
                 self.shading_pass.record_exit(command_buffer.clone());
             }
@@ -888,6 +917,7 @@ impl Renderer {
                              &self.swapchain_data)?;
 
         // Rebuild post, blur
+        self.shade_gfx.rebuild(&self.device, &self.target_data)?;
         self.post_gfx.rebuild(&self.device, &self.target_data)?;
         self.blur_gfx.rebuild(&self.device, &self.target_data)?;
 
