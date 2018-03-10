@@ -12,10 +12,11 @@ pub const MAX_GPU_UPLOAD: u64 = ::renderer::memory::CHUNK_SIZE;
 // (see http://vulkan.gpuinfo.org) and it is a good resolution, and it is
 // floating-point (so reverse z-buffering works).
 pub const DEPTH_FORMAT: Format = Format::D32_SFloat;
-
-pub const SHADING_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
-
-pub const BLUR_IMAGE_FORMAT: Format = Format::R16G16B16A16_SFloat;
+pub const DIFFUSE_FORMAT: Format = Format::A2B10G10R10_UNorm_Pack32;
+pub const NORMALS_FORMAT: Format = Format::A2B10G10R10_UNorm_Pack32;
+pub const MATERIAL_FORMAT: Format = Format::R8G8B8_UNorm;
+pub const SHADING_FORMAT: Format = Format::R16G16B16A16_SFloat;
+pub const BLUR_FORMAT: Format = Format::R16G16B16A16_SFloat;
 
 pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
     large_points: true,
@@ -79,7 +80,7 @@ pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
 };
 
 // FIXME: make a const fn once that is stable
-pub fn get_formats_needed() ->  [(Format, FormatProperties); 5] {
+pub fn get_formats_needed() ->  [(Format, FormatProperties); 12] {
     use dacite::core::FormatFeatureFlags;
 
     [
@@ -95,25 +96,61 @@ pub fn get_formats_needed() ->  [(Format, FormatProperties); 5] {
             optimal_tiling_features: FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
             buffer_features: FormatFeatureFlags::empty(),
         }),
-        // Shading attachment uses this
-        (SHADING_IMAGE_FORMAT, FormatProperties {
+        // Diffuse buffer uses this
+        (DIFFUSE_FORMAT, FormatProperties {
             linear_tiling_features: FormatFeatureFlags::empty(),
             optimal_tiling_features: FormatFeatureFlags::COLOR_ATTACHMENT,
             buffer_features: FormatFeatureFlags::empty(),
         }),
-        // We will use this for crate_albedo.bc7.dds
+        // Normals buffer uses this
+        (NORMALS_FORMAT, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::COLOR_ATTACHMENT,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
+        // Material buffer uses this
+        (MATERIAL_FORMAT, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::COLOR_ATTACHMENT,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
+        // Shading attachment uses this
+        (SHADING_FORMAT, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::COLOR_ATTACHMENT,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
+        // We will use these formats for assets
+        (Format::BC1_RGB_UNorm_Block, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::SAMPLED_IMAGE,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
+        (Format::BC3_UNorm_Block, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::SAMPLED_IMAGE,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
+        (Format::BC4_UNorm_Block, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::SAMPLED_IMAGE,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
+        (Format::BC5_UNorm_Block, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::SAMPLED_IMAGE,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
+        (Format::BC6H_SFloat_Block, FormatProperties {
+            linear_tiling_features: FormatFeatureFlags::empty(),
+            optimal_tiling_features: FormatFeatureFlags::SAMPLED_IMAGE,
+            buffer_features: FormatFeatureFlags::empty(),
+        }),
         (Format::BC7_UNorm_Block, FormatProperties {
             linear_tiling_features: FormatFeatureFlags::empty(),
             optimal_tiling_features: FormatFeatureFlags::SAMPLED_IMAGE,
             buffer_features: FormatFeatureFlags::empty(),
         }),
-        // We will use this for crate_normal.bc6h.dds
-        (Format::BC6H_UFloat_Block, FormatProperties {
-            linear_tiling_features: FormatFeatureFlags::empty(),
-            optimal_tiling_features: FormatFeatureFlags::SAMPLED_IMAGE,
-            buffer_features: FormatFeatureFlags::empty(),
-        }),
-        // Radeon R7 360 supports: BC1, BC2, BC3, BC4, BC5, BC6H, BC7
     ]
 }
 
