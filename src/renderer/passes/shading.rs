@@ -1,13 +1,15 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
-                   CommandBuffer, ClearValue};
+                   CommandBuffer, ClearValue, ClearColorValue};
 use errors::*;
 use renderer::image_wrap::ImageWrap;
 
 pub struct ShadingPass {
     pub framebuffer: Framebuffer,
-    pub shading_clear_value: ClearValue,
     pub shading_image_view: ImageView,
+    pub material_image_view: ImageView,
+    pub normals_image_view: ImageView,
+    pub diffuse_image_view: ImageView,
     #[allow(dead_code)]
     pub depth_image_view: ImageView, // must survive for Framebuffer usage
     pub extent: Extent2D,
@@ -18,6 +20,9 @@ impl ShadingPass {
     pub fn new(
         device: &Device,
         depth_image: &ImageWrap,
+        diffuse_image: &ImageWrap,
+        normals_image: &ImageWrap,
+        material_image: &ImageWrap,
         shading_image: &ImageWrap)
         -> Result<ShadingPass>
     {
@@ -35,10 +40,42 @@ impl ShadingPass {
                 ImageLayout::DepthStencilAttachmentOptimal,
                 ImageLayout::DepthStencilAttachmentOptimal
             );
-
             let depth_attachment_reference = AttachmentReference {
                 attachment: AttachmentIndex::Index(0),
                 layout: ImageLayout::DepthStencilAttachmentOptimal
+            };
+
+            let diffuse_attachment_description = diffuse_image.get_attachment_description(
+                AttachmentLoadOp::Load,
+                AttachmentStoreOp::DontCare,
+                ImageLayout::ShaderReadOnlyOptimal,
+                ImageLayout::ShaderReadOnlyOptimal,
+            );
+            let diffuse_attachment_reference = AttachmentReference {
+                attachment: AttachmentIndex::Index(1),
+                layout: ImageLayout::ShaderReadOnlyOptimal
+            };
+
+            let normals_attachment_description = normals_image.get_attachment_description(
+                AttachmentLoadOp::Load,
+                AttachmentStoreOp::DontCare,
+                ImageLayout::ShaderReadOnlyOptimal,
+                ImageLayout::ShaderReadOnlyOptimal,
+            );
+            let normals_attachment_reference = AttachmentReference {
+                attachment: AttachmentIndex::Index(2),
+                layout: ImageLayout::ShaderReadOnlyOptimal
+            };
+
+            let material_attachment_description = material_image.get_attachment_description(
+                AttachmentLoadOp::Load,
+                AttachmentStoreOp::DontCare,
+                ImageLayout::ShaderReadOnlyOptimal,
+                ImageLayout::ShaderReadOnlyOptimal,
+            );
+            let material_attachment_reference = AttachmentReference {
+                attachment: AttachmentIndex::Index(3),
+                layout: ImageLayout::ShaderReadOnlyOptimal
             };
 
             let shading_attachment_description = shading_image.get_attachment_description(
@@ -47,16 +84,17 @@ impl ShadingPass {
                 ImageLayout::ColorAttachmentOptimal,
                 ImageLayout::ColorAttachmentOptimal,
             );
-
             let shading_attachment_reference = AttachmentReference {
-                attachment: AttachmentIndex::Index(1),
+                attachment: AttachmentIndex::Index(4),
                 layout: ImageLayout::ColorAttachmentOptimal
             };
 
             let subpass = SubpassDescription {
                 flags: SubpassDescriptionFlags::empty(),
                 pipeline_bind_point: PipelineBindPoint::Graphics,
-                input_attachments: vec![],
+                input_attachments: vec![diffuse_attachment_reference,
+                                        normals_attachment_reference,
+                                        material_attachment_reference],
                 color_attachments: vec![shading_attachment_reference],
                 resolve_attachments: vec![],
                 depth_stencil_attachment: Some(depth_attachment_reference),
@@ -64,7 +102,7 @@ impl ShadingPass {
             };
 
             // We must have written the depth buffer before this RenderPass reads it
-            let geometry_to_shading = SubpassDependency {
+            let geometry_to_shading_1 = SubpassDependency {
                 src_subpass: SubpassIndex::External, // geometry (prior pass)
                 dst_subpass: SubpassIndex::Index(0), // us
                 src_stage_mask: PipelineStageFlags::LATE_FRAGMENT_TESTS,
@@ -73,9 +111,18 @@ impl ShadingPass {
                 dst_access_mask: AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
                 dependency_flags:  DependencyFlags::BY_REGION,
             };
-
+            // We must have written to the g-buffers before this RenderPass reads them
+            let geometry_to_shading_2 = SubpassDependency {
+                src_subpass: SubpassIndex::External, // blur_filter (prior pass)
+                dst_subpass: SubpassIndex::Index(0), // us
+                src_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                dst_stage_mask: PipelineStageFlags::FRAGMENT_SHADER,
+                src_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+                dst_access_mask: AccessFlags::COLOR_ATTACHMENT_READ,
+                dependency_flags:  DependencyFlags::BY_REGION,
+            };
             // We must write the shading buffer before the next RenderPass reads it
-            let shading_to_post = SubpassDependency {
+            let shading_to_transparency = SubpassDependency {
                 src_subpass: SubpassIndex::Index(0), // us
                 dst_subpass: SubpassIndex::External, // post processing
                 src_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
@@ -89,12 +136,16 @@ impl ShadingPass {
                 flags: RenderPassCreateFlags::empty(),
                 attachments: vec![
                     depth_attachment_description,
+                    diffuse_attachment_description,
+                    normals_attachment_description,
+                    material_attachment_description,
                     shading_attachment_description,
                 ],
                 subpasses: vec![subpass],
                 dependencies: vec![
-                    geometry_to_shading,
-                    shading_to_post,
+                    geometry_to_shading_1,
+                    geometry_to_shading_2,
+                    shading_to_transparency,
                 ],
                 chain: None,
             };
@@ -102,13 +153,17 @@ impl ShadingPass {
             device.create_render_pass(&create_info, None)?
         };
 
-        let (depth_image_view, shading_image_view, framebuffer, extent) =
-            build(device, render_pass.clone(), depth_image, shading_image)?;
+        let (depth_image_view, diffuse_image_view, normals_image_view,
+             material_image_view, shading_image_view, framebuffer, extent) =
+            build(device, render_pass.clone(), depth_image, diffuse_image,
+                  normals_image, material_image, shading_image)?;
 
         Ok(ShadingPass {
             framebuffer: framebuffer,
-            shading_clear_value: shading_image.get_clear_value(false),
             shading_image_view: shading_image_view,
+            material_image_view: material_image_view,
+            normals_image_view: normals_image_view,
+            diffuse_image_view: diffuse_image_view,
             depth_image_view: depth_image_view,
             extent: extent,
             render_pass: render_pass,
@@ -117,14 +172,22 @@ impl ShadingPass {
 
     pub fn rebuild(&mut self, device: &Device,
                    depth_image: &ImageWrap,
+                   diffuse_image: &ImageWrap,
+                   normals_image: &ImageWrap,
+                   material_image: &ImageWrap,
                    shading_image: &ImageWrap)
                    -> Result<()>
     {
-        let (depth_image_view, shading_image_view, framebuffer, extent) =
-            build(device, self.render_pass.clone(), depth_image, shading_image)?;
+        let (depth_image_view, diffuse_image_view, normals_image_view,
+             material_image_view, shading_image_view, framebuffer, extent) =
+            build(device, self.render_pass.clone(), depth_image,
+                  diffuse_image, normals_image, material_image, shading_image)?;
 
         self.framebuffer = framebuffer;
         self.depth_image_view = depth_image_view;
+        self.diffuse_image_view = diffuse_image_view;
+        self.normals_image_view = normals_image_view;
+        self.material_image_view = material_image_view;
         self.shading_image_view = shading_image_view;
         self.extent = extent;
 
@@ -135,7 +198,7 @@ impl ShadingPass {
     {
         use dacite::core::{Rect2D, Offset2D,
                            SubpassContents, RenderPassBeginInfo,
-                           ClearValue, ClearDepthStencilValue};
+                           ClearDepthStencilValue};
 
         let begin_info = RenderPassBeginInfo {
             render_pass: self.render_pass.clone(),
@@ -146,7 +209,10 @@ impl ShadingPass {
                     depth: 0.0,
                     stencil: 0,
                 }),
-                self.shading_clear_value,
+                ClearValue::Color(ClearColorValue::Float32([0.0, 0.0, 0.0, 1.0])), // ignored
+                ClearValue::Color(ClearColorValue::Float32([0.0, 0.0, 0.0, 1.0])), // ignored
+                ClearValue::Color(ClearColorValue::Float32([0.0, 0.0, 0.0, 1.0])), // ignored
+                ClearValue::Color(ClearColorValue::Float32([0.0, 0.0, 0.0, 1.0])),
             ],
             chain: None,
         };
@@ -162,11 +228,14 @@ impl ShadingPass {
 }
 
 fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
+         diffuse_image: &ImageWrap, normals_image: &ImageWrap, material_image: &ImageWrap,
          shading_image: &ImageWrap)
-    -> Result<(ImageView, ImageView, Framebuffer, Extent2D)>
+    -> Result<(ImageView, ImageView, ImageView, ImageView, ImageView, Framebuffer, Extent2D)>
 {
     let depth_image_view = depth_image.get_image_view(device)?;
-
+    let diffuse_image_view = diffuse_image.get_image_view(device)?;
+    let normals_image_view = normals_image.get_image_view(device)?;
+    let material_image_view = material_image.get_image_view(device)?;
     let shading_image_view = shading_image.get_image_view(device)?;
 
     let extent = Extent2D {
@@ -182,6 +251,9 @@ fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
             render_pass: render_pass,
             attachments: vec![
                 depth_image_view.clone(),
+                diffuse_image_view.clone(),
+                normals_image_view.clone(),
+                material_image_view.clone(),
                 shading_image_view.clone(),
             ],
             width: extent.width,
@@ -192,5 +264,6 @@ fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
         device.create_framebuffer(&create_info, None)?
     };
 
-    Ok((depth_image_view, shading_image_view, framebuffer, extent))
+    Ok((depth_image_view, diffuse_image_view, normals_image_view, material_image_view,
+        shading_image_view, framebuffer, extent))
 }

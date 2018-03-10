@@ -215,7 +215,9 @@ impl Renderer {
             &target_data.normals_image, &target_data.material_image,
             config.reversed_depth_buffer)?;
         let shading_pass = ShadingPass::new(
-            &device, &target_data.depth_image, &target_data.shading_image)?;
+            &device, &target_data.depth_image, &target_data.diffuse_image,
+            &target_data.normals_image, &target_data.material_image,
+            &target_data.shading_image)?;
         let transparent_pass = TransparentPass::new(
             &device, &target_data.depth_image, &target_data.shading_image)?;
         let blur_h_pass = BlurHPass::new(
@@ -866,6 +868,9 @@ impl Renderer {
                                    &self.target_data.material_image)?;
         self.shading_pass.rebuild(&self.device,
                                  &self.target_data.depth_image,
+                                 &self.target_data.diffuse_image,
+                                 &self.target_data.normals_image,
+                                 &self.target_data.material_image,
                                  &self.target_data.shading_image)?;
         self.transparent_pass.rebuild(&self.device,
                                       &self.target_data.depth_image,

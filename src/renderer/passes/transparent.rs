@@ -63,8 +63,8 @@ impl TransparentPass {
             };
 
             // We must have written the depth buffer before this RenderPass reads it
-            let opaque_to_transparent = SubpassDependency {
-                src_subpass: SubpassIndex::External, // opaque (prior pass)
+            let shading_to_transparent = SubpassDependency {
+                src_subpass: SubpassIndex::External, // shading (prior pass)
                 dst_subpass: SubpassIndex::Index(0), // us
                 src_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
                 dst_stage_mask: PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
@@ -92,7 +92,7 @@ impl TransparentPass {
                 ],
                 subpasses: vec![subpass],
                 dependencies: vec![
-                    opaque_to_transparent,
+                    shading_to_transparent,
                     transparent_to_post,
                 ],
                 chain: None,
