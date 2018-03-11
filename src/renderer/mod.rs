@@ -38,7 +38,7 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    Format, BufferView};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
-use siege_math::Vec4;
+use siege_math::{Vec4, Mat4};
 use winit::Window;
 
 use self::setup::Physical;
@@ -91,6 +91,7 @@ pub struct Params {
     pub bloom_scale: f32, // 1.1
     pub blur_level: f32, // 0.0
     pub white_point: f32,
+    pub inv_projection: Mat4<f32>,
     pub dlight_directions: [Vec4<f32>; 2],
     pub dlight_irradiances: [Vec4<f32>; 2],
 }
@@ -247,14 +248,13 @@ impl Renderer {
                 bloom_scale: 1.1,
                 blur_level: 0.0,
                 white_point: 0.1,
+                inv_projection: Mat4::identity(),
                 dlight_directions: [
-                    Vec4::new(0.0, 1.0, 0.0, 0.0),
-                    Vec4::new(0.0, 1.0, 0.0, 0.0)
-                ],
+                    Default::default(),
+                    Default::default() ],
                 dlight_irradiances: [
-                    Vec4::new(10.0, 10.0, 10.0, 10.0),
-                    Vec4::new(10.0, 10.0, 10.0, 10.0)
-                ],
+                    Default::default(),
+                    Default::default() ],
             };
             params_ubo.write_one(&params, None)?;
         }

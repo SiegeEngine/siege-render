@@ -297,6 +297,7 @@ layout (set = 1, binding = 0) uniform ParamsUBO {
   float bloom_scale;
   float blur_level;
   float white_point;
+  mat4 inv_projection;
   vec4[] dlight_directions[2];
   vec4[] dlight_irradiances[2];
 } params;
