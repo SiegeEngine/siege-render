@@ -1,0 +1,67 @@
+Model Space:
+  Origin is some point relative to your model.
+  Model matrix puts it into world space.
+
+World Space:
+  Origin is some point relative to the world.
+  View matrix puts it into view space.
+
+View Space = Camera Space = Eye Space
+  Origin is the viewer's eye
+  Projection is NOT applied yet.
+  Far plane and Near plane are defined in this space.
+  Projection matrix puts it into clip space.
+
+Clip Space:
+  This is the gl_Position that WE provide via our vertex shaders.
+  The projection matrix sets up 'w' so that far points have a high 'w' and look
+  closer to the center of the screen.
+
+    X:  -Wc to Wc
+    Y:  -Wc to Wc
+    Z:  0.0 to Wc
+
+NDC space:
+  After dividing by w (perspective divide)
+  For vulkan this is a box going from:
+    X:  -1.0 to 1.0                = Xc / Wc
+    Y:  -1.0 to 1.0                = Yc / Wc
+    Z:  0.0 to 1.0                 = Zc / Wc
+    w: (opaque here, but preserved internally)
+
+Window space:
+    X:  0.0 to width
+    Y:  0.0 to height
+    z:  mindepth to maxdepth
+    w:  inverse of clip-space w, so we can go backwards!
+    gl_FragCoord (is in pixels, not normalized)
+
+----------------------------------------------------------
+
+To convert depth buffer value to view space:
+(OpenGL: see https://www.khronos.org/opengl/wiki/Compute_eye_space_from_window_space)
+
+    (provide viewport.xy and viewport.zw)
+    (provide invPersMatrix)
+
+    vec4 ndcPos;
+    ndcPos.xy = ((2.0 * gl_FragCoord.xy) - (2.0 * viewport.xy)) / (viewport.zw) - 1;
+    ndcPos.z = (2.0 * gl_FragCoord.z - gl_DepthRange.near - gl_DepthRange.far) /
+        (gl_DepthRange.far - gl_DepthRange.near);
+    ndcPos.w = 1.0;
+
+    vec4 clipPos = ndcPos / gl_FragCoord.w;
+    vec4 eyePos = invPersMatrix * clipPos;
+
+To convert depth buffer value to view space:
+(vulkan, simplified as viewport isn't strange for us)
+
+    (provide invPersMatrix)
+
+    vec4 ndcPos;
+    ndcPos.xy = (2.0 * gl_FragCoord.xy) - 1;
+    ndcPos.z = (gl_FragCoord.z - gl_DepthRange.near) /
+        (gl_DepthRange.far - gl_DepthRange.near);
+    ndcPos.w = 1.0;
+    vec4 clipPos = ndcPos / gl_FragCoord.w;
+    vec4 eyePos = invPersMatrix * clipPos;
