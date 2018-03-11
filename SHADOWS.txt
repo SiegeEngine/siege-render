@@ -1,6 +1,9 @@
 Shadow Techniques
 =================
 
+SUMMARY:
+  Shadow mapping is easier, faster, and extendable (into CSM or PSSM) later on.
+
 Shadow Mapping:
   Basically:
     1) For each light, create a depth buffer by rendering all geometry from it's
@@ -19,10 +22,11 @@ Shadow Mapping:
   Cascaded shadow maps (2006):
     * Developed to combat perspective aliasing.
     * 2 options for filtering: Percentage Closer Filtering & Variance Shadow Maps.
+      * Requires multiple samples from the shadow map and blending.
 
   Parallel Split Shadow Maps (PSSM 2006/2007):
     * Combats aliasing (purpose)
-    * Has soft edges (advantage; does not require blur)
+    * Has soft edges without requiring multiply sampling the shadow map!
     * https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
       * Split the view frustum into multiple depth regions, and render a shadow map
         for each region.
