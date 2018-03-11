@@ -14,7 +14,7 @@ pub const MAX_GPU_UPLOAD: u64 = ::renderer::memory::CHUNK_SIZE;
 pub const DEPTH_FORMAT: Format = Format::D32_SFloat;
 pub const DIFFUSE_FORMAT: Format = Format::A2B10G10R10_UNorm_Pack32;
 pub const NORMALS_FORMAT: Format = Format::A2B10G10R10_UNorm_Pack32;
-pub const MATERIAL_FORMAT: Format = Format::R8G8B8_UNorm;
+pub const MATERIAL_FORMAT: Format = Format::R8G8B8A8_UNorm;
 pub const SHADING_FORMAT: Format = Format::R16G16B16A16_SFloat;
 pub const BLUR_FORMAT: Format = Format::R16G16B16A16_SFloat;
 

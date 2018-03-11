@@ -309,7 +309,8 @@ impl Renderer {
                                       &target_data,
                                       shading_pass.render_pass.clone(),
                                       viewports[0].clone(), scissors[0].clone(),
-                                      params_desc_layout.clone())?;
+                                      params_desc_layout.clone(),
+                                      config.reversed_depth_buffer)?;
 
         let blur_gfx = BlurGfx::new(&device, descriptor_pool.clone(),
                                     &target_data,

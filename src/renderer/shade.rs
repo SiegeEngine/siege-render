@@ -37,7 +37,8 @@ impl ShadeGfx {
                render_pass: RenderPass,
                viewport: Viewport,
                scissors: Rect2D,
-               params_layout: DescriptorSetLayout)
+               params_layout: DescriptorSetLayout,
+               reversed_depth_buffer: bool)
                -> Result<ShadeGfx>
     {
         let sampler = {
@@ -127,14 +128,14 @@ impl ShadeGfx {
         let (pipeline_layout, pipeline) =
             super::pipeline::create(
                 device, viewport, scissors,
-                true, // reversed depth buffer irrelevant for post
+                reversed_depth_buffer,
                 render_pass, vec![desc_layout.clone(),
                                   params_layout],
                 Some(vertex_shader), Some(fragment_shader),
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
-                DepthHandling::None,
+                DepthHandling::Some(true, false), // test, dont write
                 BlendMode::Off)?;
 
         let mut shade_gfx = ShadeGfx {
