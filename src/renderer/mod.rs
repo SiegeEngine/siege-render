@@ -38,7 +38,7 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    Format, BufferView};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
-use siege_math::Vec3;
+use siege_math::Vec4;
 use winit::Window;
 
 use self::setup::Physical;
@@ -91,6 +91,8 @@ pub struct Params {
     pub bloom_scale: f32, // 1.1
     pub blur_level: f32, // 0.0
     pub white_point: f32,
+    pub dlight_directions: [Vec4<f32>; 2],
+    pub dlight_irradiances: [Vec4<f32>; 2],
 }
 
 pub struct Renderer {
@@ -245,6 +247,14 @@ impl Renderer {
                 bloom_scale: 1.1,
                 blur_level: 0.0,
                 white_point: 0.1,
+                dlight_directions: [
+                    Vec4::new(0.0, 1.0, 0.0, 0.0),
+                    Vec4::new(0.0, 1.0, 0.0, 0.0)
+                ],
+                dlight_irradiances: [
+                    Vec4::new(10.0, 10.0, 10.0, 10.0),
+                    Vec4::new(10.0, 10.0, 10.0, 10.0)
+                ],
             };
             params_ubo.write_one(&params, None)?;
         }
@@ -515,23 +525,6 @@ impl Renderer {
     pub fn set_params(&mut self, params: &Params) -> Result<()>
     {
         self.params_ubo.write_one::<Params>(&params, None)
-    }
-
-    pub fn add_directional_light(&mut self, direction: Vec3<f32>, irradiance: Vec3<f32>)
-                                 -> u32
-    {
-        self.shade_gfx.add_directional_light(direction, irradiance)
-    }
-
-    pub fn change_directional_light(&mut self, token: u32,
-                                    direction: Vec3<f32>, irradiance: Vec3<f32>)
-        -> Result<()>
-    {
-        self.shade_gfx.change_directional_light(token, direction, irradiance)
-    }
-
-    pub fn remove_directional_light(&mut self, token: u32) {
-        self.shade_gfx.remove_directional_light(token);
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.

@@ -1,20 +1,13 @@
 
-use std::collections::HashMap;
 use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    DescriptorSetLayoutBinding, Sampler, ImageView, ImageLayout,
                    DescriptorType, CommandBuffer, RenderPass, Viewport, Rect2D,
                    PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
                    CullModeFlags, FrontFace, ShaderModuleCreateFlags,
                    ShaderModuleCreateInfo, ShaderModule};
-use siege_math::Vec3;
 use errors::*;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
-
-pub struct DLight {
-    pub direction: Vec3<f32>,
-    pub irradiance: Vec3<f32>,
-}
 
 pub struct ShadeGfx {
     pipeline: Pipeline,
@@ -26,8 +19,6 @@ pub struct ShadeGfx {
     normals_image_view: ImageView,
     diffuse_image_view: ImageView,
     sampler: Sampler,
-    directional_lights: HashMap<u32, DLight>,
-    next_dlight_token: u32,
 }
 
 impl ShadeGfx {
@@ -147,8 +138,6 @@ impl ShadeGfx {
             normals_image_view: normals_image_view,
             diffuse_image_view: diffuse_image_view,
             sampler: sampler,
-            directional_lights: HashMap::new(),
-            next_dlight_token: 0,
         };
 
         shade_gfx.write();
@@ -250,38 +239,6 @@ impl ShadeGfx {
 
         command_buffer.draw(3, 1, 0, 0);
     }
-
-    pub fn add_directional_light(&mut self, direction: Vec3<f32>, irradiance: Vec3<f32>)
-                                 -> u32
-    {
-        let token: u32 = self.next_dlight_token;
-        self.next_dlight_token += 1;
-
-        self.directional_lights.insert(token, DLight {
-            direction: direction,
-            irradiance: irradiance
-        });
-
-        token
-    }
-
-    pub fn change_directional_light(&mut self, token: u32,
-                                    direction: Vec3<f32>, irradiance: Vec3<f32>)
-        -> Result<()>
-    {
-        if let Some(dl) = self.directional_lights.get_mut(&token) {
-            dl.direction = direction;
-            dl.irradiance = irradiance;
-        } else {
-            return Err(ErrorKind::General("No such light.".to_owned()).into());
-        }
-        Ok(())
-    }
-
-    pub fn remove_directional_light(&mut self, token: u32)
-    {
-        self.directional_lights.remove(&token);
-    }
 }
 
 fn vertex_shader(device: &Device) -> Result<ShaderModule>
@@ -335,21 +292,18 @@ fn fragment_shader(device: &Device)
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
-layout (set = 0, binding = 0) uniform ParamsUBO {
+layout (set = 1, binding = 0) uniform ParamsUBO {
   float bloom_strength;
   float bloom_scale;
   float blur_level;
   float white_point;
+  vec4[] dlight_directions[2];
+  vec4[] dlight_irradiances[2];
 } params;
 
-layout (set = 1, binding = 0) uniform DLightsUBO {
-  vec4 directions[];
-  vec4 irradiances[];
-} dlights;
-
-layout (binding = 0) uniform sampler2D diffusemap;  // A2B10G10R10_UNorm_Pack32
-layout (binding = 1) uniform sampler2D normalsmap;  // A2B10G10R10_UNorm_Pack32
-layout (binding = 2) uniform sampler2D materialmap; // R8G8B8_UNorm
+layout (set = 0, binding = 0) uniform sampler2D diffusemap;  // A2B10G10R10_UNorm_Pack32
+layout (set = 0, binding = 1) uniform sampler2D normalsmap;  // A2B10G10R10_UNorm_Pack32
+layout (set = 0, binding = 2) uniform sampler2D materialmap; // R8G8B8_UNorm
 //GINA FIXME WE NEED DEPTH BUFFER READS
 
 layout(location = 0) in vec2 uv;
