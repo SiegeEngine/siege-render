@@ -136,7 +136,7 @@ impl ShadeGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::Some(true, false), // test, dont write
-                BlendMode::Off)?;
+                vec![BlendMode::Off])?;
 
         let mut shade_gfx = ShadeGfx {
             pipeline: pipeline,

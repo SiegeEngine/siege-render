@@ -79,7 +79,6 @@ pub enum DepthHandling {
 }
 
 pub enum BlendMode {
-    None,
     Off,
     Alpha,
     Add
@@ -434,7 +433,7 @@ impl Renderer {
                            cull_mode: CullModeFlags,
                            front_face: FrontFace,
                            depth_handling: DepthHandling,
-                           blend: BlendMode,
+                           blend: Vec<BlendMode>,
                            pass: Pass)
                            -> Result<(PipelineLayout, Pipeline)>
     {

@@ -43,7 +43,8 @@ pub fn create(
     cull_mode: CullModeFlags,
     front_face: FrontFace,
     depth_handling: DepthHandling,
-    blend: BlendMode) -> Result<(PipelineLayout, Pipeline)>
+    blend: Vec<BlendMode>)
+    -> Result<(PipelineLayout, Pipeline)>
 {
     let layout = device.create_pipeline_layout(
         &PipelineLayoutCreateInfo {
@@ -53,31 +54,34 @@ pub fn create(
             chain: None,
         }, None)?;
 
-    let blend_create = match blend {
-        BlendMode::None => None,
-        _ => Some(PipelineColorBlendStateCreateInfo {
+    let blend_create = if blend.len() == 0 {
+        None
+    } else {
+        Some(PipelineColorBlendStateCreateInfo {
             flags: PipelineColorBlendStateCreateFlags::empty(),
             logic_op_enable: false,
             logic_op: LogicOp::Copy,
-            attachments: vec![PipelineColorBlendAttachmentState {
-                blend_enable: match blend {
-                    BlendMode::Off => false,
-                    _ => true,
-                },
-                src_color_blend_factor: match blend {
-                    BlendMode::Add => BlendFactor::One,
-                    _ => BlendFactor::SrcAlpha,
-                },
-                dst_color_blend_factor: match blend {
-                    BlendMode::Add => BlendFactor::One,
-                    _ => BlendFactor::OneMinusSrcAlpha,
-                },
-                color_blend_op: BlendOp::Add,
-                src_alpha_blend_factor: BlendFactor::One,
-                dst_alpha_blend_factor: BlendFactor::Zero,
-                alpha_blend_op: BlendOp::Add,
-                color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
-            }],
+            attachments: blend.iter().map(
+                |bm|
+                PipelineColorBlendAttachmentState {
+                    blend_enable: match bm {
+                        &BlendMode::Off => false,
+                        _ => true,
+                    },
+                    src_color_blend_factor: match bm {
+                        &BlendMode::Add => BlendFactor::One,
+                        _ => BlendFactor::SrcAlpha,
+                    },
+                    dst_color_blend_factor: match bm {
+                        &BlendMode::Add => BlendFactor::One,
+                        _ => BlendFactor::OneMinusSrcAlpha,
+                    },
+                    color_blend_op: BlendOp::Add,
+                    src_alpha_blend_factor: BlendFactor::One,
+                    dst_alpha_blend_factor: BlendFactor::Zero,
+                    alpha_blend_op: BlendOp::Add,
+                    color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
+                }).collect(),
             blend_constants: [0.0, 0.0, 0.0, 0.0],
             chain: None,
         })

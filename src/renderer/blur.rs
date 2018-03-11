@@ -124,7 +124,7 @@ impl BlurGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                BlendMode::Off)?;
+                vec![BlendMode::Off])?;
 
         let vertex_shader_v = vertex_shader_v(device)?;
         let fragment_shader_v = fragment_shader_v(device)?;
@@ -141,7 +141,7 @@ impl BlurGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                BlendMode::Add)?;
+                vec![BlendMode::Add])?;
 
         let mut blur_gfx = BlurGfx {
             pipeline_v: pipeline_v,
