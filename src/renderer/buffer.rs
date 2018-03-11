@@ -211,9 +211,16 @@ impl DeviceLocalBuffer {
         let size: u64 = ::std::io::copy(src, staging_buffer)?;
 
         // Create device buffer
-        let device_buffer = Self::new::<u8>(
-            device, memory, size as usize, usage | BufferUsageFlags::TRANSFER_DST,
-            lifetime, reason)?;
+        let device_buffer = {
+            let (buffer, block) = _new(
+                device, memory, size,
+                usage | BufferUsageFlags::TRANSFER_DST,
+                lifetime, reason, MemoryPropertyFlags::DEVICE_LOCAL)?;
+            DeviceLocalBuffer {
+                buffer: buffer,
+                block: block
+            }
+        };
 
         // Force a flush (FIXME if block held arc to mapped memory we would not have
         // to flush every chunk)
