@@ -463,7 +463,7 @@ impl Renderer {
                 Pass::Transparent => self.transparent_pass.render_pass.clone(),
                 Pass::Ui => self.ui_pass.render_pass.clone(),
             },
-            desc_set_layouts, vs, fs,
+            desc_set_layouts, vs, None, fs, None,
             vertex_type, topology, cull_mode, front_face, depth_handling, blend)
     }
 

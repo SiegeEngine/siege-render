@@ -115,7 +115,7 @@ impl PostGfx {
                 true, // reversed depth buffer irrelevant for post
                 render_pass, vec![desc_layout.clone(),
                                   params_layout],
-                Some(vertex_shader), Some(fragment_shader),
+                Some(vertex_shader), None, Some(fragment_shader), None,
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,

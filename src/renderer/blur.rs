@@ -119,7 +119,7 @@ impl BlurGfx {
                     desc_layout.clone(),
                     params_layout.clone(),
                 ],
-                Some(vertex_shader_h), Some(fragment_shader_h),
+                Some(vertex_shader_h), None, Some(fragment_shader_h), None,
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
@@ -136,7 +136,7 @@ impl BlurGfx {
                 blurv_render_pass, vec![
                     desc_layout.clone(),
                     params_layout.clone()],
-                Some(vertex_shader_v), Some(fragment_shader_v),
+                Some(vertex_shader_v), None, Some(fragment_shader_v), None,
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,

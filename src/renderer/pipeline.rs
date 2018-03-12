@@ -25,7 +25,8 @@ use dacite::core::{Device, Viewport, Rect2D, RenderPass, ShaderModule,
                    CompareOp, StencilOp, StencilOpState,
                    PipelineDepthStencilStateCreateInfo,
                    PipelineDynamicStateCreateInfo, DynamicState,
-                   PipelineLayoutCreateFlags};
+                   PipelineLayoutCreateFlags,
+                   SpecializationInfo};
 use errors::*;
 use super::{DepthHandling, BlendMode};
 
@@ -37,7 +38,9 @@ pub fn create(
     render_pass: RenderPass,
     desc_set_layouts: Vec<DescriptorSetLayout>,
     vertex_shader: Option<ShaderModule>,
+    vertex_spec_info: Option<SpecializationInfo>,
     fragment_shader: Option<ShaderModule>,
+    fragment_spec_info: Option<SpecializationInfo>,
     vertex_type: Option<PipelineVertexInputStateCreateInfo>,
     topology: PrimitiveTopology,
     cull_mode: CullModeFlags,
@@ -193,7 +196,7 @@ pub fn create(
                 stage: ShaderStageFlagBits::Vertex,
                 module: vs,
                 name: "main".to_owned(),
-                specialization_info: None,
+                specialization_info: vertex_spec_info,
                 chain: None,
             }
         );
@@ -206,7 +209,7 @@ pub fn create(
                 stage: ShaderStageFlagBits::Fragment,
                 module: fs,
                 name: "main".to_owned(),
-                specialization_info: None,
+                specialization_info: fragment_spec_info,
                 chain: None,
             }
         );
