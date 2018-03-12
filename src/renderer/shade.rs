@@ -366,6 +366,30 @@ layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 out_color; // can be >1.0, post will handle it.
 
+float level(float irrad, float white_point) {
+  if ( (white_point < 1.0) && (irrad >= 65504 * white_point) ) {
+    return 65504; // max fp16 value (don't wrap negative!)
+  }
+  return irrad / white_point;
+}
+
+vec3 level3(vec3 irrad, float white_point) {
+  return vec3(
+    level(irrad.r, white_point),
+    level(irrad.g, white_point),
+    level(irrad.b, white_point));
+}
+
+vec3 improved_blinn_phong(
+  vec3 normal, vec3 lightdir, vec3 light_irradiance,
+  vec3 kdiff, vec3 kspec, float shininess)
+{
+  float cos = max(dot(normal, lightdir), 0);
+  vec3 halfdir = normalize(lightdir + vec3(0.0, 1.0, 0.0));
+  float coshalf = max(dot(normal, halfdir), 0);
+  return (kdiff + kspec * pow(coshalf, shininess)) * light_irradiance * cos;
+}
+
 void main() {
   // Reconstruct view-space position of the fragment
   float fragdepth = texture(depthbuffer, uv).r;
@@ -375,8 +399,31 @@ void main() {
   clipPos.w = 1.0;
   vec4 position = params.inv_projection * clipPos;
 
+  vec4 diffuse_sample = texture(diffusemap, uv);
+  vec4 normals_sample = texture(normalsmap, uv);
+  vec4 materials_sample = texture(materialmap, uv);
+  float roughness = materials_sample.r;
+  float metallicity = materials_sample.g;
+  float ao = materials_sample.b;
+
+  // Ambient point is scaled off of the white_point, since we presume the white_point
+  // was scaled from true scene brightness (FIXME: once we have true scene brightness,
+  // use that instead)
+  float ambient_point = params.white_point / 50.0;
+  vec4 ambient = vec4(ambient_point, ambient_point, ambient_point, 1.0);
+
+  // Output starts with ambient value
+  out_color = diffuse_sample * ambient * ao;
+
+/*
+     improved_blinn_phong(
+    texture(normalsmap, uv).xyz,
+    params.dlight_directions[0].xyz,
+    params.dlight_irradiances[0].xyz
+
   // FIXME
   out_color = texture(diffusemap, uv);
+*/
 }
 "#);
 
