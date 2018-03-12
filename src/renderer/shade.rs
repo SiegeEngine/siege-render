@@ -391,6 +391,10 @@ vec3 improved_blinn_phong(
   return (kdiff + kspec * pow(coshalf, shininess)) * light_irradiance * cos;
 }
 
+vec4 decode_normal(vec4 n) {
+  return vec4((n.xyz - 0.5) * 2, 0.0);
+}
+
 void main() {
   // Reconstruct view-space position of the fragment
   float fragdepth = texture(depthbuffer, uv).r;
@@ -401,7 +405,7 @@ void main() {
   vec4 position = params.inv_projection * clipPos;
 
   vec4 diffuse_sample = texture(diffusemap, uv);
-  vec4 normals_sample = texture(normalsmap, uv);
+  vec4 normals_sample = decode_normal(texture(normalsmap, uv));
   vec4 materials_sample = texture(materialmap, uv);
   float roughness = materials_sample.r;
   float metallicity = materials_sample.g;
