@@ -353,8 +353,8 @@ layout (set = 1, binding = 0) uniform ParamsUBO {
   float blur_level;
   float white_point;
   mat4 inv_projection;
-  vec4[] dlight_directions[2];
-  vec4[] dlight_irradiances[2];
+  vec4 dlight_directions[2];
+  vec4 dlight_irradiances[2];
 } params;
 
 layout (set = 0, binding = 0) uniform sampler2D depthbuffer; // D32_SFloat
@@ -373,11 +373,12 @@ float level(float irrad, float white_point) {
   return irrad / white_point;
 }
 
-vec3 level3(vec3 irrad, float white_point) {
-  return vec3(
+vec4 level3(vec4 irrad, float white_point) {
+  return vec4(
     level(irrad.r, white_point),
     level(irrad.g, white_point),
-    level(irrad.b, white_point));
+    level(irrad.b, white_point),
+    irrad.a);
 }
 
 vec3 improved_blinn_phong(
@@ -412,18 +413,26 @@ void main() {
   float ambient_point = params.white_point / 50.0;
   vec4 ambient = vec4(ambient_point, ambient_point, ambient_point, 1.0);
 
+  vec3 kdiff = diffuse_sample.xyz / 3.14159265359;
+  vec3 kspec = params.dlight_irradiances[0].xyz
+      * (metallicity + 8) / (8 * 3.14159265359); // FIXME use PBR not blinn-phong
+
   // Output starts with ambient value
   out_color = diffuse_sample * ambient * ao;
 
-/*
-     improved_blinn_phong(
-    texture(normalsmap, uv).xyz,
-    params.dlight_directions[0].xyz,
-    params.dlight_irradiances[0].xyz
+  // Add each lights contribution
+  for (int i=0; i<=1; i++) {
+    vec3 value = improved_blinn_phong(
+      normals_sample.xyz,
+      params.dlight_directions[i].xyz,
+      params.dlight_irradiances[i].xyz,
+      kdiff, kspec,
+      1.0 - roughness);
+    out_color = out_color + vec4(value, 0.0);
+  }
 
-  // FIXME
-  out_color = texture(diffusemap, uv);
-*/
+  // Level the output (still allows >1.0 but sets base exposure/whitepoint)
+  out_color = level3(out_color, params.white_point);
 }
 "#);
 
