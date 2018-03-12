@@ -4,7 +4,8 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    DescriptorType, CommandBuffer, RenderPass, Viewport, Rect2D,
                    PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
                    CullModeFlags, FrontFace, ShaderModuleCreateFlags,
-                   ShaderModuleCreateInfo, ShaderModule};
+                   ShaderModuleCreateInfo, ShaderModule,
+                   SpecializationInfo, SpecializationMapEntry};
 use errors::*;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
@@ -125,13 +126,36 @@ impl ShadeGfx {
 
         let fragment_shader = fragment_shader(device)?;
 
+        let fragment_spec = SpecializationInfo {
+            map_entries: vec![
+                SpecializationMapEntry { // near depth
+                    constant_id: 0,
+                    offset: 0,
+                    size: 4,
+                },
+                SpecializationMapEntry { // far depth
+                    constant_id: 0,
+                    offset: 4,
+                    size: 4,
+                },
+            ],
+            // near than far
+            data: if reversed_depth_buffer {
+                vec![ 0x00, 0x00, 0x80, 0x3f, // 1.0 (0x3f800000) in LSB
+                      0x00, 0x00, 0x00, 0x00 ]
+            } else {
+                vec![ 0x00, 0x00, 0x00, 0x00,
+                      0x00, 0x00, 0x80, 0x3f ] // 1.0 (0x3f800000) in LSB
+            }
+        };
+
         let (pipeline_layout, pipeline) =
             super::pipeline::create(
                 device, viewport, scissors,
                 reversed_depth_buffer,
                 render_pass, vec![desc_layout.clone(),
                                   params_layout],
-                Some(vertex_shader), None, Some(fragment_shader), None,
+                Some(vertex_shader), None, Some(fragment_shader), Some(fragment_spec),
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
@@ -319,6 +343,9 @@ fn fragment_shader(device: &Device)
 
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+
+layout(constant_id = 0) const float depth_near = 0.0;
+layout(constant_id = 1) const float depth_far = 1.0;
 
 layout (set = 1, binding = 0) uniform ParamsUBO {
   float bloom_strength;
