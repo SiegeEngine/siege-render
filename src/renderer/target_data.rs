@@ -130,7 +130,21 @@ impl TargetData {
     pub fn transition_for_shading(&mut self, command_buffer: CommandBuffer)
                                   -> Result<()>
     {
-        // read depth: depth never needs transition.
+        // Transition depth buffer for shader reads
+        self.depth_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::DepthStencilAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
+            AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            AccessFlags::SHADER_READ,
+            PipelineStageFlags::EARLY_FRAGMENT_TESTS, PipelineStageFlags::FRAGMENT_SHADER,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::DEPTH,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
 
         // read diffuse, normal, and material
         self.diffuse_image.transition_layout(
@@ -187,10 +201,27 @@ impl TargetData {
         Ok(())
     }
 
-    pub fn transition_for_transparent(&mut self, _command_buffer: CommandBuffer)
+    pub fn transition_for_transparent(&mut self, command_buffer: CommandBuffer)
                                    -> Result<()>
     {
-        // read depth: depth never needs transition.
+        // Reinstate the depth buffer
+        self.depth_image.transition_layout(
+            command_buffer.clone(),
+            ImageLayout::ShaderReadOnlyOptimal,
+            ImageLayout::DepthStencilAttachmentOptimal,
+            AccessFlags::SHADER_READ,
+            AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            PipelineStageFlags::FRAGMENT_SHADER,
+            PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::DEPTH,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            })?;
+
 
         // write shading: already there.
 
@@ -324,14 +355,16 @@ fn build_images(
     let depth_image = {
         let mut depth_image_wrap = make(
             DEPTH_FORMAT, ImageWrapType::Depth,
-            ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+            ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | ImageUsageFlags::INPUT_ATTACHMENT
+                | ImageUsageFlags::SAMPLED,
             "Depth Buffer")?;
 
         depth_image_wrap.transition_layout_now(
             device,
             ImageLayout::Undefined, ImageLayout::DepthStencilAttachmentOptimal,
             Default::default(),
-            AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             PipelineStageFlags::TOP_OF_PIPE,
             PipelineStageFlags::EARLY_FRAGMENT_TESTS,
             ImageSubresourceRange {

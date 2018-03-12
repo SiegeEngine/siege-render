@@ -37,12 +37,12 @@ impl ShadingPass {
             let depth_attachment_description = depth_image.get_attachment_description(
                 AttachmentLoadOp::Load,
                 AttachmentStoreOp::Store,
-                ImageLayout::DepthStencilAttachmentOptimal,
-                ImageLayout::DepthStencilAttachmentOptimal
+                ImageLayout::ShaderReadOnlyOptimal,
+                ImageLayout::ShaderReadOnlyOptimal,
             );
             let depth_attachment_reference = AttachmentReference {
                 attachment: AttachmentIndex::Index(0),
-                layout: ImageLayout::DepthStencilAttachmentOptimal
+                layout: ImageLayout::ShaderReadOnlyOptimal,
             };
 
             let diffuse_attachment_description = diffuse_image.get_attachment_description(
@@ -92,12 +92,13 @@ impl ShadingPass {
             let subpass = SubpassDescription {
                 flags: SubpassDescriptionFlags::empty(),
                 pipeline_bind_point: PipelineBindPoint::Graphics,
-                input_attachments: vec![diffuse_attachment_reference,
+                input_attachments: vec![depth_attachment_reference,
+                                        diffuse_attachment_reference,
                                         normals_attachment_reference,
                                         material_attachment_reference],
                 color_attachments: vec![shading_attachment_reference],
                 resolve_attachments: vec![],
-                depth_stencil_attachment: Some(depth_attachment_reference),
+                depth_stencil_attachment: None,
                 preserve_attachments: vec![],
             };
 
@@ -106,9 +107,9 @@ impl ShadingPass {
                 src_subpass: SubpassIndex::External, // geometry (prior pass)
                 dst_subpass: SubpassIndex::Index(0), // us
                 src_stage_mask: PipelineStageFlags::LATE_FRAGMENT_TESTS,
-                dst_stage_mask: PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+                dst_stage_mask: PipelineStageFlags::FRAGMENT_SHADER,
                 src_access_mask: AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-                dst_access_mask: AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ,
+                dst_access_mask: AccessFlags::COLOR_ATTACHMENT_READ,
                 dependency_flags:  DependencyFlags::BY_REGION,
             };
             // We must have written to the g-buffers before this RenderPass reads them

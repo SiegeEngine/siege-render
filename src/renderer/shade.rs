@@ -18,6 +18,7 @@ pub struct ShadeGfx {
     material_image_view: ImageView,
     normals_image_view: ImageView,
     diffuse_image_view: ImageView,
+    depth_image_view: ImageView,
     sampler: Sampler,
 }
 
@@ -57,6 +58,7 @@ impl ShadeGfx {
             }, None)?
         };
 
+        let depth_image_view = target_data.depth_image.get_image_view(device)?;
         let diffuse_image_view = target_data.diffuse_image.get_image_view(device)?;
         let normals_image_view = target_data.normals_image.get_image_view(device)?;
         let material_image_view = target_data.material_image.get_image_view(device)?;
@@ -85,6 +87,13 @@ impl ShadeGfx {
                     stage_flags: ShaderStageFlags::FRAGMENT,
                     immutable_samplers: vec![],
                 },
+                DescriptorSetLayoutBinding {
+                    binding: 3,
+                    descriptor_type: DescriptorType::CombinedImageSampler,
+                    descriptor_count: 1,
+                    stage_flags: ShaderStageFlags::FRAGMENT,
+                    immutable_samplers: vec![],
+                },
             ]
         };
 
@@ -104,7 +113,7 @@ impl ShadeGfx {
 
             let alloc_info = DescriptorSetAllocateInfo {
                 descriptor_pool: descriptor_pool.clone(),
-                set_layouts: vec![desc_layout.clone(),],
+                set_layouts: vec![desc_layout.clone()],
                 chain: None,
             };
 
@@ -126,7 +135,7 @@ impl ShadeGfx {
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
-                DepthHandling::Some(true, false), // test, dont write
+                DepthHandling::None, // no depth attachment (we use as input herein)
                 vec![BlendMode::Off])?;
 
         let mut shade_gfx = ShadeGfx {
@@ -137,6 +146,7 @@ impl ShadeGfx {
             material_image_view: material_image_view,
             normals_image_view: normals_image_view,
             diffuse_image_view: diffuse_image_view,
+            depth_image_view: depth_image_view,
             sampler: sampler,
         };
 
@@ -149,6 +159,8 @@ impl ShadeGfx {
     pub fn rebuild(&mut self, device: &Device, target_data: &TargetData)
         -> Result<()>
     {
+        self.depth_image_view = target_data.depth_image.
+            get_image_view(device)?;
         self.diffuse_image_view = target_data.diffuse_image.
             get_image_view(device)?;
         self.normals_image_view = target_data.normals_image.
@@ -177,7 +189,7 @@ impl ShadeGfx {
                         vec![
                             DescriptorImageInfo {
                                 sampler: Some(self.sampler.clone()),
-                                image_view: Some(self.diffuse_image_view.clone()),
+                                image_view: Some(self.depth_image_view.clone()),
                                 image_layout: ImageLayout::ShaderReadOnlyOptimal,
                             }
                         ]
@@ -193,7 +205,7 @@ impl ShadeGfx {
                         vec![
                             DescriptorImageInfo {
                                 sampler: Some(self.sampler.clone()),
-                                image_view: Some(self.normals_image_view.clone()),
+                                image_view: Some(self.diffuse_image_view.clone()),
                                 image_layout: ImageLayout::ShaderReadOnlyOptimal,
                             }
                         ]
@@ -203,6 +215,22 @@ impl ShadeGfx {
                 WriteDescriptorSet {
                     dst_set: self.descriptor_set.clone(),
                     dst_binding: 2,
+                    dst_array_element: 0, // only have 1 element
+                    descriptor_type: DescriptorType::CombinedImageSampler,
+                    elements: WriteDescriptorSetElements::ImageInfo(
+                        vec![
+                            DescriptorImageInfo {
+                                sampler: Some(self.sampler.clone()),
+                                image_view: Some(self.normals_image_view.clone()),
+                                image_layout: ImageLayout::ShaderReadOnlyOptimal,
+                            }
+                        ]
+                    ),
+                    chain: None,
+                },
+                WriteDescriptorSet {
+                    dst_set: self.descriptor_set.clone(),
+                    dst_binding: 3,
                     dst_array_element: 0, // only have 1 element
                     descriptor_type: DescriptorType::CombinedImageSampler,
                     elements: WriteDescriptorSetElements::ImageInfo(
@@ -302,10 +330,10 @@ layout (set = 1, binding = 0) uniform ParamsUBO {
   vec4[] dlight_irradiances[2];
 } params;
 
-layout (set = 0, binding = 0) uniform sampler2D diffusemap;  // A2B10G10R10_UNorm_Pack32
-layout (set = 0, binding = 1) uniform sampler2D normalsmap;  // A2B10G10R10_UNorm_Pack32
-layout (set = 0, binding = 2) uniform sampler2D materialmap; // R8G8B8_UNorm
-//GINA FIXME WE NEED DEPTH BUFFER READS
+layout (set = 0, binding = 0) uniform sampler2D depthbuffer; // D32_SFloat
+layout (set = 0, binding = 1) uniform sampler2D diffusemap;  // A2B10G10R10_UNorm_Pack32
+layout (set = 0, binding = 2) uniform sampler2D normalsmap;  // A2B10G10R10_UNorm_Pack32
+layout (set = 0, binding = 3) uniform sampler2D materialmap; // R8G8B8_UNorm
 
 layout(location = 0) in vec2 uv;
 
