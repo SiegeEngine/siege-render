@@ -320,9 +320,9 @@ void main()
   // (0, 2)
   outUV = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
 
-  // (-1.p, -1.0, 0.0, 1.0)
-  // ( 1.0,  3.0, 0.0, 1.0)
-  // ( 3.0,  1.0, 0.0, 1.0)
+  // (-1.0, -1.0, 0.0, 1.0)
+  // ( 3.0, -1.0, 0.0, 1.0)
+  // (-1.0,  3.0, 0.0, 1.0)
   gl_Position = vec4(outUV * 2.0f - 1.0f, 0.0f, 1.0f);
 }
 "#);
@@ -367,6 +367,14 @@ layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 out_color; // can be >1.0, post will handle it.
 
 void main() {
+  // Reconstruct view-space position of the fragment
+  float fragdepth = texture(depthbuffer, uv).r;
+  vec4 clipPos;
+  clipPos.xy = (2.0 * uv) - 1;
+  clipPos.z = (fragdepth - depth_near) / (depth_far - depth_near);
+  clipPos.w = 1.0;
+  vec4 position = params.inv_projection * clipPos;
+
   // FIXME
   out_color = texture(diffusemap, uv);
 }
