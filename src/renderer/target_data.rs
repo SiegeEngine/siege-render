@@ -16,7 +16,7 @@ use super::setup::requirements::{DEPTH_FORMAT,
 /*
 Depth:			D32_SFloat
 Diffuse:		A2B10G10R10_UNorm_Pack32
-Normal:			A2B10G10R10_UNorm_Pack32
+Normal:			A2B10G10R10_UNorm_Pack32  in view space (eye space)
 Material:		R8G8B8A8_UNorm
   r-channel is used for "roughness"
   g-channel is used for "metallicity"
