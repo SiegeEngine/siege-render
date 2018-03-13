@@ -232,23 +232,22 @@ impl Chunk {
                 propstring.push_str("Lazy ");
             }
 
-            info!("T{}, heap{}, {} {}: ",
+            info!("type{} heap{}: {} ({})",
                   self.memory_type_index,
                   self.memory_type.heap_index,
-                  linearity,
-                  propstring);
+                  propstring,
+                  linearity);
         }
 
-        for block in &self.perm_blocks {
-            info!("  C{} PERM size={:9} ({:2.0}%): {}",
-                  chunk_number,
+        info!("  Chunk {} ({})", chunk_number, CHUNK_SIZE);
+        for block in &self.blocks {
+            info!("     size={:9}      ({:2.0}%): {}",
                   block.size,
                   (block.size * 100) as f32 / CHUNK_SIZE as f32,
                   block.reason);
         }
-        for block in &self.blocks {
-            info!("  C{} TEMP size={:9} ({:2.0}%): {}",
-                  chunk_number,
+        for block in &self.perm_blocks {
+            info!("     size={:9} Perm ({:2.0}%): {}",
                   block.size,
                   (block.size * 100) as f32 / CHUNK_SIZE as f32,
                   block.reason);
