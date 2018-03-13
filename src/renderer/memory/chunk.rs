@@ -7,16 +7,16 @@ use dacite::core::{Device, DeviceMemory, MappedMemory, MemoryType, MemoryPropert
 use super::block::Block;
 use super::{Lifetime, Linearity};
 
-// We aim to target graphics cards with only 256 MB (which is only 244.14 MiB).
-// So we can't go too crazy with the chunk size.
+// Full 4K screen (3840x2160) at 64bpp is 66355200.0  (e.g. R16G16B16A16_SFloat which
+// is used for shading and blur targets).
 //
-// Full 4K screen (3840x2160) at 64bpp is 66355200.0
-// For 4K support, we need this for the shading image attachment. So memory chunk
-// cannot be smaller than this.
+// Memory chunk must be at least this size.  However, since shading and blur targets must
+// be in optimal format, and graphics cards require MORE memory for that, we expect that
+// we will blow out beyond 64 MB.
 //
-// This is just slightly smaller than a true 64 MB, so we use 64 MB chunks.
+// It seems logical to allocate chunks at around 96 MB or 128 MB.
 //
-pub const CHUNK_SIZE: u64 = 64 * 1048576; // 64 MB.
+pub const CHUNK_SIZE: u64 = 96 * 1048576; // 96 MB.
 
 #[inline]
 pub fn align_up(offset: u64, alignment: u64) -> u64 {
