@@ -215,6 +215,7 @@ impl ResourceManager {
                            ComponentMapping};
         let mut image_wrap = ImageWrap::new(
             device, memory, format, component_mapping,
+            dds.get_num_mipmap_levels(),
             extent,
             image_wrap_type,
             ImageLayout::Undefined,
@@ -228,7 +229,10 @@ impl ResourceManager {
         image_wrap.copy_in_from_buffer(
             device,
             &commander,
-            &staging_buffer.inner())?;
+            &staging_buffer.inner(),
+            dds.get_main_texture_size().unwrap(),
+            dds.get_min_mipmap_size_in_bytes()
+        )?;
 
         // transfer layout to ImageLayout::ShaderReadOnlyOptimal
         use dacite::core::{AccessFlags, ImageAspectFlags, OptionalMipLevels,

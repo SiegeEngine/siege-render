@@ -29,6 +29,7 @@ pub struct ImageWrap {
     pub image: Image,
     pub format: Format,
     pub extent: Extent3D,
+    pub mip_levels: u32,
     pub image_wrap_type: ImageWrapType,
     pub tiling: ImageTiling,
     pub usage: ImageUsageFlags,
@@ -43,6 +44,7 @@ impl ImageWrap {
         memory: &mut Memory,
         format: Format,
         swizzle: ComponentMapping,
+        mip_levels: u32,
         extent: Extent3D,
         image_wrap_type: ImageWrapType,
         initial_layout: ImageLayout,
@@ -70,7 +72,7 @@ impl ImageWrap {
                 image_type: ImageType::Type2D,
                 format: format,
                 extent: extent,
-                mip_levels: 1, // no LOD
+                mip_levels: mip_levels,
                 array_layers: match image_wrap_type {
                     ImageWrapType::Cubemap => 6,
                     _ => 1,
@@ -101,6 +103,7 @@ impl ImageWrap {
             image: image,
             format: format,
             extent: extent,
+            mip_levels: mip_levels,
             image_wrap_type: image_wrap_type,
             tiling: tiling,
             usage: usage,
@@ -132,7 +135,7 @@ impl ImageWrap {
                     ImageAspectFlags::COLOR
                 },
                 base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
+                level_count: OptionalMipLevels::MipLevels(self.mip_levels),
                 base_array_layer: 0,
                 layer_count: match self.image_wrap_type {
                     ImageWrapType::Cubemap => OptionalArrayLayers::ArrayLayers(6),
@@ -239,7 +242,9 @@ impl ImageWrap {
         &mut self,
         device: &Device,
         commander: &Commander,
-        buffer: &Buffer)
+        buffer: &Buffer,
+        main_texture_size: u32,
+        min_mipmap_size: u32)
         -> Result<()>
     {
         use dacite::core::{CommandBufferBeginInfo, CommandBufferUsageFlags,
@@ -275,7 +280,7 @@ impl ImageWrap {
                     ImageAspectFlags::COLOR
                 },
                 base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
+                level_count: OptionalMipLevels::MipLevels(self.mip_levels),
                 base_array_layer: 0,
                 layer_count: match self.image_wrap_type {
                     ImageWrapType::Cubemap => OptionalArrayLayers::ArrayLayers(6),
@@ -292,35 +297,52 @@ impl ImageWrap {
             None,
             Some(&[image_barrier]));
 
-        let buffer_copy_regions = BufferImageCopy {
-            buffer_offset: 0,
-            buffer_row_length: 0, // 0 means 'tightly packed' according to image_extent,
-            buffer_image_height: 0, // 0 means 'tightly packed' according to image_extent,
-            image_subresource: ImageSubresourceLayers {
-                aspect_mask: if self.image_wrap_type == ImageWrapType::Depth {
-                    ImageAspectFlags::DEPTH
-                } else {
-                    ImageAspectFlags::COLOR
+        let mut buffer_copy_regions = Vec::new();
+        let mut buffer_offset: u32 = 0;
+        let mut thissize = main_texture_size;
+        let mut image_extent = self.extent;
+        for mip in 0..self.mip_levels {
+            buffer_copy_regions.push( BufferImageCopy {
+                buffer_offset: buffer_offset as u64,
+                // 0 means 'tightly packed' according to image_extent,
+                buffer_row_length: 0,
+                // 0 means 'tightly packed' according to image_extent,
+                buffer_image_height: 0,
+                image_subresource: ImageSubresourceLayers {
+                    aspect_mask: if self.image_wrap_type == ImageWrapType::Depth {
+                        ImageAspectFlags::DEPTH
+                    } else {
+                        ImageAspectFlags::COLOR
+                    },
+                    mip_level: mip,
+                    base_array_layer: 0,
+                    layer_count: match self.image_wrap_type {
+                        ImageWrapType::Cubemap => 6,
+                        _ => 1,
+                    },
                 },
-                mip_level: 0,
-                base_array_layer: 0,
-                layer_count: match self.image_wrap_type {
-                    ImageWrapType::Cubemap => 6,
-                    _ => 1,
+                image_offset: Offset3D {
+                    x: 0,
+                    y: 0,
+                    z: 0
                 },
-            },
-            image_offset: Offset3D {
-                x: 0,
-                y: 0,
-                z: 0
-            },
-            image_extent: self.extent,
-        };
+                image_extent: image_extent,
+            });
+
+            buffer_offset += thissize;
+            thissize /= 4;
+            if thissize < min_mipmap_size {
+                thissize = min_mipmap_size;
+            }
+            image_extent.width /= 2;
+            image_extent.height /= 2;
+        }
+
         commander.xfr_command_buffer.copy_buffer_to_image(
             buffer, //src_buffer
             &self.image, // dst_image
             ImageLayout::TransferDstOptimal, // dst_image_layout
-            &[buffer_copy_regions], // regions
+            &*buffer_copy_regions, // regions
         );
 
         commander.xfr_command_buffer.end()?;

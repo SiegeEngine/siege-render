@@ -343,6 +343,7 @@ fn build_images(
         ImageWrap::new(
             device,memory,format,
             ComponentMapping::identity(),
+            1, // just one mip (the main image)
             Extent3D { width: extent.width, height: extent.height, depth: 1 },
             iwtype,
             ImageLayout::Undefined,

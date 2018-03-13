@@ -159,6 +159,7 @@ fn build_images(
                     height: extent.height,
                     depth: 1
                 },
+                mip_levels: 1,
                 image_wrap_type: ImageWrapType::Swapchain,
                 tiling: ImageTiling::Optimal,
                 usage: ImageUsageFlags::COLOR_ATTACHMENT,
