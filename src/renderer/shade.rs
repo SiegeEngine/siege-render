@@ -366,19 +366,8 @@ layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 out_color; // can be >1.0, post will handle it.
 
-float level(float irrad, float white_point) {
-  if ( (white_point < 1.0) && (irrad >= 65504 * white_point) ) {
-    return 65504; // max fp16 value (don't wrap negative!)
-  }
-  return irrad / white_point;
-}
-
-vec4 level3(vec4 irrad, float white_point) {
-  return vec4(
-    level(irrad.r, white_point),
-    level(irrad.g, white_point),
-    level(irrad.b, white_point),
-    irrad.a);
+vec4 level(vec4 irrad) {
+  return vec4(irrad.xyz / params.white_point, irrad.a);
 }
 
 vec3 improved_blinn_phong(
@@ -436,7 +425,7 @@ void main() {
   }
 
   // Level the output (still allows >1.0 but sets base exposure/whitepoint)
-  out_color = level3(out_color, params.white_point);
+  out_color = level(out_color);
 }
 "#);
 
