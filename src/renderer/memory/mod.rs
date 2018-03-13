@@ -6,6 +6,7 @@ mod block;
 pub use self::block::Block;
 
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 use dacite::core::{Device, PhysicalDeviceMemoryProperties,
                    PhysicalDeviceProperties,
                    MemoryRequirements, MemoryPropertyFlags,
@@ -20,9 +21,24 @@ pub enum Lifetime {
     Temporary
 }
 
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub enum Linearity {
+    Linear = 0,
+    Nonlinear = 1,
+}
+impl Display for Linearity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+        match *self {
+            Linearity::Linear => write!(f, "Linear"),
+            Linearity::Nonlinear => write!(f, "Nonlinear"),
+        }
+    }
+}
+
 pub struct Memory {
     // This maps from heap_index to the chunk set
-    chunks: HashMap<u32, Vec<Chunk>>,
+    chunks: [HashMap<u32, Vec<Chunk>>; 2],
     memory_properties: PhysicalDeviceMemoryProperties,
     properties: PhysicalDeviceProperties
 }
@@ -33,7 +49,7 @@ impl Memory {
     {
         info!("Max allocations: {}", properties.limits.max_memory_allocation_count);
         Memory {
-            chunks: HashMap::new(),
+            chunks: [HashMap::new(), HashMap::new()],
             memory_properties: memory_properties,
             properties: properties
         }
@@ -45,10 +61,13 @@ impl Memory {
         memory_requirements: &MemoryRequirements,
         memory_property_flags: MemoryPropertyFlags,
         buffer_usage: Option<BufferUsageFlags>,
+        linearity: Linearity,
         lifetime: Lifetime,
         reason: &str)
         -> Result<Block>
     {
+        let l = linearity as usize;
+
         // If the required memory is higher than the chunk size, abandon all hope
         if memory_requirements.size > CHUNK_SIZE {
             panic!("Memory requested is greater than chunk size: {} > {}",
@@ -66,8 +85,8 @@ impl Memory {
 
         // If we have not allocated this type of memory before, we have to setup
         // a new Chunk vector for it:
-        if ! self.chunks.contains_key(&memory_type_index) {
-            self.chunks.insert(
+        if ! self.chunks[l].contains_key(&memory_type_index) {
+            self.chunks[l].insert(
                 memory_type_index,
                 vec![Chunk::new( &device, memory_type_index, memory_type )? ]
             );
@@ -76,7 +95,7 @@ impl Memory {
         let element_alignment = self.element_alignment(buffer_usage);
 
         // Get the chunk vector for the memory_type we care about
-        let chunk_vec = self.chunks.get_mut(&memory_type_index).unwrap();
+        let chunk_vec = self.chunks[l].get_mut(&memory_type_index).unwrap();
 
         // Try to allocate from each chunk in turn
         for chunk in chunk_vec.iter_mut() {
@@ -111,9 +130,14 @@ impl Memory {
     }
 
     pub fn log_usage(&self) {
-        for (_, chunkvec) in &self.chunks {
+        for (_, chunkvec) in &self.chunks[0] {
             for (i, chunk) in chunkvec.iter().enumerate() {
-                chunk.log_usage(i);
+                chunk.log_usage(i, Linearity::Linear);
+            }
+        }
+        for (_, chunkvec) in &self.chunks[1] {
+            for (i, chunk) in chunkvec.iter().enumerate() {
+                chunk.log_usage(i, Linearity::Nonlinear);
             }
         }
     }
@@ -158,7 +182,12 @@ impl Memory {
 
     // This only flushes dirty chunks
     pub fn flush(&self) -> Result<()> {
-        for (_, chunkvec) in &self.chunks {
+        for (_, chunkvec) in &self.chunks[0] {
+            for (_, chunk) in chunkvec.iter().enumerate() {
+                chunk.flush()?;
+            }
+        }
+        for (_, chunkvec) in &self.chunks[1] {
             for (_, chunk) in chunkvec.iter().enumerate() {
                 chunk.flush()?;
             }

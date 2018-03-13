@@ -5,7 +5,7 @@ use errors::*;
 use dacite::core::{Device, DeviceMemory, MappedMemory, MemoryType, MemoryPropertyFlags,
                    OptionalDeviceSize};
 use super::block::Block;
-use super::Lifetime;
+use super::{Lifetime, Linearity};
 
 // We aim to target graphics cards with only 256 MB (which is only 244.14 MiB).
 // So we can't go too crazy with the chunk size.
@@ -210,7 +210,7 @@ impl Chunk {
     }
 
     /// Log info messages about memory usage
-    pub fn log_usage(&self, chunk_number: usize) {
+    pub fn log_usage(&self, chunk_number: usize, linearity: Linearity) {
 
         if chunk_number == 0 {
             // New type of chunk, log details about the memory type
@@ -232,9 +232,10 @@ impl Chunk {
                 propstring.push_str("Lazy ");
             }
 
-            info!("T{}, heap{}, {}: ",
+            info!("T{}, heap{}, {} {}: ",
                   self.memory_type_index,
                   self.memory_type.heap_index,
+                  linearity,
                   propstring);
         }
 

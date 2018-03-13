@@ -4,7 +4,7 @@ use std::io::{Write, Read};
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
                    BufferCopy, OptionalDeviceSize, Format, BufferView,
                    BufferViewCreateInfo};
-use super::memory::{Memory, Block, Lifetime};
+use super::memory::{Memory, Block, Lifetime, Linearity};
 use super::commander::Commander;
 
 fn _new(
@@ -37,6 +37,7 @@ fn _new(
             &memory_requirements,
             flags,
             Some(usage),
+            Linearity::Linear,
             lifetime,
             reason)?
     };

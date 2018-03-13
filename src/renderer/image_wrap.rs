@@ -6,7 +6,7 @@ use dacite::core::{Image, Format, ImageUsageFlags, Device, ImageView,
                    ComponentMapping, AttachmentDescription,
                    AttachmentLoadOp, AttachmentStoreOp, ClearValue,
                    CommandBuffer};
-use super::memory::{Memory, Block, Lifetime};
+use super::memory::{Memory, Block, Lifetime, Linearity};
 use super::commander::Commander;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -94,6 +94,10 @@ impl ImageWrap {
             &memory_requirements,
             MemoryPropertyFlags::DEVICE_LOCAL,
             None,
+            match tiling {
+                ImageTiling::Optimal => Linearity::Nonlinear,
+                _ => Linearity::Linear
+            },
             lifetime,
             reason)?;
 
