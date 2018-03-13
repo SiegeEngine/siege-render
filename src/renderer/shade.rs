@@ -348,13 +348,13 @@ layout(constant_id = 0) const float depth_near = 0.0;
 layout(constant_id = 1) const float depth_far = 1.0;
 
 layout (set = 1, binding = 0) uniform ParamsUBO {
+  mat4 inv_projection;
+  vec4 dlight_directions[2];
+  vec4 dlight_irradiances[2];
   float bloom_strength;
   float bloom_scale;
   float blur_level;
   float white_point;
-  mat4 inv_projection;
-  vec4 dlight_directions[2];
-  vec4 dlight_irradiances[2];
 } params;
 
 layout (set = 0, binding = 0) uniform sampler2D depthbuffer; // D32_SFloat
