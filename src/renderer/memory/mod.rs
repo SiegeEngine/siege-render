@@ -181,26 +181,29 @@ impl Memory {
     }
 
     pub fn log_usage(&self) {
-        for solo in &self.solos {
-            let mut propstring: String = String::new();
-            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::DEVICE_LOCAL) {
-                propstring.push_str("Device ");
+        for (i,solo) in self.solos.iter().enumerate() {
+            if i==0 {
+                let mut propstring: String = String::new();
+                if solo.memory_type.property_flags.contains(MemoryPropertyFlags::DEVICE_LOCAL) {
+                    propstring.push_str("Device ");
+                }
+                if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_VISIBLE) {
+                    propstring.push_str("Host ");
+                }
+                if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_COHERENT) {
+                    propstring.push_str("HCoherent ");
+                }
+                if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_CACHED) {
+                    propstring.push_str("HCached ");
+                }
+                if solo.memory_type.property_flags.contains(MemoryPropertyFlags::LAZILY_ALLOCATED) {
+                    propstring.push_str("Lazy ");
+                }
+                info!("type{} heap{}: {}",
+                      solo.memory_type_index, solo.memory_type.heap_index, propstring);
             }
-            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_VISIBLE) {
-                propstring.push_str("Host ");
-            }
-            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_COHERENT) {
-                propstring.push_str("HCoherent ");
-            }
-            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_CACHED) {
-                propstring.push_str("HCached ");
-            }
-            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::LAZILY_ALLOCATED) {
-                propstring.push_str("Lazy ");
-            }
-            info!("type{} heap{}: {}",
-                  solo.memory_type_index, solo.memory_type.heap_index, propstring);
-            info!("  Solo  ({:>12}) Perm: {}", solo.size.separated_string(), solo.reason);
+            info!("  Solo    ({:>11})            {}",
+                  solo.size.separated_string(), solo.reason);
         }
         for (_, chunkvec) in &self.chunks[0] {
             for (i, chunk) in chunkvec.iter().enumerate() {

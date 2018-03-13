@@ -242,13 +242,13 @@ impl Chunk {
 
         info!("  Chunk {} ({})", chunk_number, CHUNK_SIZE.separated_string());
         for block in &self.blocks {
-            info!("     size={:>11}      ({:2.0}%): {}",
+            info!("     size={:>12}      ({:2.0}%): {}",
                   block.size.separated_string(),
                   (block.size * 100) as f32 / CHUNK_SIZE as f32,
                   block.reason);
         }
         for block in &self.perm_blocks {
-            info!("     size={:>11} Perm ({:2.0}%): {}",
+            info!("     size={:>12} Perm ({:2.0}%): {}",
                   block.size.separated_string(),
                   (block.size * 100) as f32 / CHUNK_SIZE as f32,
                   block.reason);
