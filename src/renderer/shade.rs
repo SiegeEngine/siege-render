@@ -375,7 +375,7 @@ vec3 improved_blinn_phong(
   vec3 kdiff, vec3 kspec, float shininess)
 {
   float cos = max(dot(normal, lightdir), 0);
-  vec3 halfdir = normalize(lightdir + vec3(0.0, 1.0, 0.0));
+  vec3 halfdir = normalize(lightdir + vec3(0.0, 0.0, -1.0)); // eye is -Z
   float coshalf = max(dot(normal, halfdir), 0);
   return (kdiff + kspec * pow(coshalf, shininess)) * light_irradiance * cos;
 }
