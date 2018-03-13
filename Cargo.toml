@@ -1,6 +1,6 @@
 [package]
 name = "siege-render"
-version = "0.2.0"
+version = "0.3.0-unstable"
 authors = ["Mike Dilger <mike@optcomp.nz>"]
 description = "Siege Game Engine Rendering Component"
 readme = "README.md"
