@@ -409,21 +409,20 @@ void main() {
 
   vec3 kdiff = diffuse_sample.xyz / 3.14159265359;
   vec3 kspec = params.dlight_irradiances[0].xyz
-      * (metallicity + 8) / (8 * 3.14159265359); // FIXME use PBR not blinn-phong
+      * (1-roughness + 8) / (8 * 3.14159265359); // FIXME use PBR not blinn-phong
 
   // Output starts with ambient value
   out_color = diffuse_sample * ambient * ao;
 
   // Add each lights contribution
   for (int i=0; i<=1; i++) {
-    vec3 value = improved_blinn_phong(
+    vec3 this_lights_contribution = improved_blinn_phong(
       eye,
       normals_sample.xyz,
       params.dlight_directions[i].xyz,
       params.dlight_irradiances[i].xyz,
-      kdiff, kspec,
-      1.0 - roughness);
-    out_color = out_color + vec4(value, 0.0);
+      kdiff, kspec, metallicity*64);
+    out_color = out_color + vec4(this_lights_contribution, 0.0);
   }
 
   // Level the output (still allows >1.0 but sets base exposure/whitepoint)
