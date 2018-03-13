@@ -371,11 +371,11 @@ vec4 level(vec4 irrad) {
 }
 
 vec3 improved_blinn_phong(
-  vec3 normal, vec3 lightdir, vec3 light_irradiance,
+  vec4 eye, vec3 normal, vec3 lightdir, vec3 light_irradiance,
   vec3 kdiff, vec3 kspec, float shininess)
 {
   float cos = max(dot(normal, lightdir), 0);
-  vec3 halfdir = normalize(lightdir + vec3(0.0, 0.0, -1.0)); // eye is -Z
+  vec3 halfdir = normalize(lightdir + eye.xyz);
   float coshalf = max(dot(normal, halfdir), 0);
   return (kdiff + kspec * pow(coshalf, shininess)) * light_irradiance * cos;
 }
@@ -392,6 +392,7 @@ void main() {
   clipPos.z = (fragdepth - depth_near) / (depth_far - depth_near);
   clipPos.w = 1.0;
   vec4 position = params.inv_projection * clipPos;
+  vec4 eye = -position;
 
   vec4 diffuse_sample = texture(diffusemap, uv);
   vec4 normals_sample = decode_normal(texture(normalsmap, uv));
@@ -416,6 +417,7 @@ void main() {
   // Add each lights contribution
   for (int i=0; i<=1; i++) {
     vec3 value = improved_blinn_phong(
+      eye,
       normals_sample.xyz,
       params.dlight_directions[i].xyz,
       params.dlight_irradiances[i].xyz,
