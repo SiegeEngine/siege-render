@@ -13,16 +13,16 @@ error-chain = "0.11"
 log = "0.4"
 vks = "0.21"
 winit = "0.10"
-dacite = { git = "https://gitlab.com/mikedilger/dacite.git" }
-dacite-winit = { git = "https://gitlab.com/mikedilger/dacite.git" }
-siege-math = { path = "../siege-math" }
-siege-mesh = { path = "../siege-mesh" }
-ddsfile = { path = "../ddsfile" }
 zstd = "0.4"
 chrono = { version="0.4", features = [ "serde" ] }
 glsl-to-spirv = "0.1"
 glsl-to-spirv-macros = "0.1"
 glsl-to-spirv-macros-impl = "0.1"
+dacite = { git = "https://gitlab.com/mikedilger/dacite.git" }
+dacite-winit = { git = "https://gitlab.com/mikedilger/dacite.git" }
+ddsfile = "0.2.2"
+siege-math = { git = "ssh://mike@git.gnomonicgames.com/data/git/siege-math.git", branch="0.3" }
+siege-mesh = { git = "ssh://mike@git.gnomonicgames.com/data/git/siege-mesh.git", branch="0.3" }
 
 [target.'cfg(windows)'.dependencies]
 user32-sys = "0.2"
