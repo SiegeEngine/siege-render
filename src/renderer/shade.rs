@@ -381,7 +381,7 @@ vec3 improved_blinn_phong(
 }
 
 vec4 decode_normal(vec4 n) {
-  return vec4((n.xyz - 0.5) * 2, 0.0);
+  return normalize(vec4((n.xyz - 0.5) * 2, 0.0));
 }
 
 void main() {
