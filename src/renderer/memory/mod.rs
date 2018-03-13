@@ -7,10 +7,11 @@ pub use self::block::Block;
 
 use std::collections::HashMap;
 use std::fmt::{self, Display};
+use separator::Separatable;
 use dacite::core::{Device, PhysicalDeviceMemoryProperties,
                    PhysicalDeviceProperties,
                    MemoryRequirements, MemoryPropertyFlags,
-                   BufferUsageFlags};
+                   BufferUsageFlags, MemoryType, DeviceMemory};
 
 use errors::*;
 use self::chunk::Chunk;
@@ -36,11 +37,23 @@ impl Display for Linearity {
     }
 }
 
+// A Solo allocation stands alone. Some restrictions apply:
+//  * It is never freed
+//  * It is only for device memory; not mappable
+//  * Intended for large render targets, but not limited as such
+pub struct SoloInfo {
+    pub memory_type_index: u32,
+    pub memory_type: MemoryType, // for logging
+    pub size: u64,
+    pub reason: String,
+}
+
 pub struct Memory {
     // This maps from heap_index to the chunk set
     chunks: [HashMap<u32, Vec<Chunk>>; 2],
     memory_properties: PhysicalDeviceMemoryProperties,
-    properties: PhysicalDeviceProperties
+    properties: PhysicalDeviceProperties,
+    solos: Vec<SoloInfo>,
 }
 
 impl Memory {
@@ -51,8 +64,46 @@ impl Memory {
         Memory {
             chunks: [HashMap::new(), HashMap::new()],
             memory_properties: memory_properties,
-            properties: properties
+            properties: properties,
+            solos: Vec::new(),
         }
+    }
+
+    pub fn allocate_solo_device_memory(
+        &mut self,
+        device: &Device,
+        memory_requirements: &MemoryRequirements,
+        memory_property_flags: MemoryPropertyFlags,
+        reason: &str)
+        -> Result<DeviceMemory>
+    {
+        use dacite::core::MemoryAllocateInfo;
+
+        // Determine the memory_type we need, getting its index
+        let memory_type_index = self.find_memory_type_index(
+            memory_requirements.memory_type_bits, memory_property_flags);
+        let memory_type_index = match memory_type_index {
+            None => return Err(ErrorKind::OutOfGraphicsMemory.into()),
+            Some(i) => i,
+        };
+        let memory_type = self.memory_properties.memory_types[memory_type_index as usize];
+
+        let allocate_info = MemoryAllocateInfo {
+            allocation_size: memory_requirements.size,
+            memory_type_index: memory_type_index,
+            chain: None,
+        };
+        let memory = device.allocate_memory(&allocate_info, None)?;
+
+        let info = SoloInfo {
+            memory_type_index: memory_type_index,
+            memory_type: memory_type,
+            size: memory_requirements.size,
+            reason: reason.to_owned()
+        };
+        self.solos.push(info);
+
+        Ok(memory)
     }
 
     pub fn allocate_device_memory(
@@ -130,6 +181,27 @@ impl Memory {
     }
 
     pub fn log_usage(&self) {
+        for solo in &self.solos {
+            let mut propstring: String = String::new();
+            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::DEVICE_LOCAL) {
+                propstring.push_str("Device ");
+            }
+            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_VISIBLE) {
+                propstring.push_str("Host ");
+            }
+            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_COHERENT) {
+                propstring.push_str("HCoherent ");
+            }
+            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::HOST_CACHED) {
+                propstring.push_str("HCached ");
+            }
+            if solo.memory_type.property_flags.contains(MemoryPropertyFlags::LAZILY_ALLOCATED) {
+                propstring.push_str("Lazy ");
+            }
+            info!("type{} heap{}: {}",
+                  solo.memory_type_index, solo.memory_type.heap_index, propstring);
+            info!("  Solo  ({:>12}) Perm: {}", solo.size.separated_string(), solo.reason);
+        }
         for (_, chunkvec) in &self.chunks[0] {
             for (i, chunk) in chunkvec.iter().enumerate() {
                 chunk.log_usage(i, Linearity::Linear);
