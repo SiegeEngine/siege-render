@@ -1,9 +1,9 @@
 
-pub mod earlyz;
-pub use self::earlyz::EarlyZPass;
+pub mod geometry;
+pub use self::geometry::GeometryPass;
 
-pub mod opaque;
-pub use self::opaque::OpaquePass;
+pub mod shading;
+pub use self::shading::ShadingPass;
 
 pub mod transparent;
 pub use self::transparent::TransparentPass;

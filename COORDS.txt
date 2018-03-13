@@ -1,0 +1,104 @@
+Model Space:
+  Origin is some point relative to your model.
+  Model matrix puts it into world space.
+
+World Space:
+  Origin is some point relative to the world.
+  View matrix puts it into view space.
+
+View Space = Camera Space = Eye Space
+  Origin is the viewer's eye
+  Projection is NOT applied yet.
+  Far plane and Near plane are defined in this space.
+  Projection matrix puts it into clip space.
+
+   X:  anywhere, but we can only see a range around 0, that range getting wider as it gets deeper
+   Y:  anywhere, but we can only see a range around 0, that range getting taller as it gets deeper
+   Z:  anywhere, but we can only see from near to far.
+   W:  irrelevant
+
+  Projection transformation:
+    * The projection matrix sets up 'w' so that far points have a high 'w' and look
+      closer to the center of the screen.  It does this by copying Z into W.  This
+      happens to also preserve Z as w itself does not get perspective divided away.
+
+Clip Space ('c' for clip)
+  This is the gl_Position that WE provide via our vertex shaders.
+
+
+    X:  -Wc to Wc
+    Y:  -Wc to Wc
+    Z:  0.0 to Wc
+
+    * See vulkan spec 23.2
+
+  Transformation to NDC space:
+      xc, yc, zc: clip-space coordinates
+      xd, yd, zd: NDC (device) coordinates
+
+      xd = xc / wc
+      yd = yc / wc
+      zd = zc / wc
+
+    * See vulkan spec 23.4
+
+NDC space ('d' for device)
+  After dividing by w (perspective divide)
+  For vulkan this is a box going from:
+    X:  -1.0 to 1.0
+    Y:  -1.0 to 1.0
+    Z:  0.0 to 1.0
+    w: (opaque here, but preserved internally)
+
+  Viewport transformation (into window space)
+       px,py: viewport width and height, in pixels
+          pz: depth range (depthmax-depthmin)
+       ox,oy: viewport offset, in pixels
+          oz: depth range bias
+    xd,yd,zd: NDC coordinates (d=device)
+    xf,yf,zf: Windows space coordinates (f=framebuffer)
+
+    xf = (px/2)*xd + ox
+    yf = (py/2)*yd + oy
+    zf = (pz)*zd + oz
+
+    * See vulkan spec 23.5
+
+Window space ('f' for framebuffer)
+    X:  0.0 to width
+    Y:  0.0 to height
+    z:  mindepth to maxdepth
+    w:  inverse of clip-space w, so we can go backwards!  (1/w)
+    gl_FragCoord (is in pixels, not normalized)
+
+    * See vulkan spec 14.6
+
+----------------------------------------------------------
+
+To convert depth buffer value to view space:
+(OpenGL: see https://www.khronos.org/opengl/wiki/Compute_eye_space_from_window_space)
+
+    (provide viewport.xy and viewport.zw)
+    (provide invPersMatrix)
+
+    vec4 ndcPos;
+    ndcPos.xy = ((2.0 * gl_FragCoord.xy) - (2.0 * viewport.xy)) / (viewport.zw) - 1;
+    ndcPos.z = (2.0 * gl_FragCoord.z - gl_DepthRange.near - gl_DepthRange.far) /
+        (gl_DepthRange.far - gl_DepthRange.near);
+    ndcPos.w = 1.0;
+
+    vec4 clipPos = ndcPos / gl_FragCoord.w;
+    vec4 eyePos = invPersMatrix * clipPos;
+
+To convert depth buffer value to view space:
+(vulkan, simplified as viewport isn't strange for us)
+
+    (provide invPersMatrix)
+
+    vec4 ndcPos;
+    ndcPos.xy = (2.0 * gl_FragCoord.xy) - 1;
+    ndcPos.z = (gl_FragCoord.z - gl_DepthRange.near) /
+        (gl_DepthRange.far - gl_DepthRange.near);
+    ndcPos.w = 1.0;
+    vec4 clipPos = ndcPos / gl_FragCoord.w;
+    vec4 eyePos = invPersMatrix * clipPos;

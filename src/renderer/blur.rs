@@ -119,12 +119,12 @@ impl BlurGfx {
                     desc_layout.clone(),
                     params_layout.clone(),
                 ],
-                Some(vertex_shader_h), Some(fragment_shader_h),
+                Some(vertex_shader_h), None, Some(fragment_shader_h), None,
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                BlendMode::Off)?;
+                vec![BlendMode::Off])?;
 
         let vertex_shader_v = vertex_shader_v(device)?;
         let fragment_shader_v = fragment_shader_v(device)?;
@@ -136,12 +136,12 @@ impl BlurGfx {
                 blurv_render_pass, vec![
                     desc_layout.clone(),
                     params_layout.clone()],
-                Some(vertex_shader_v), Some(fragment_shader_v),
+                Some(vertex_shader_v), None, Some(fragment_shader_v), None,
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                BlendMode::Add)?;
+                vec![BlendMode::Add])?;
 
         let mut blur_gfx = BlurGfx {
             pipeline_v: pipeline_v,

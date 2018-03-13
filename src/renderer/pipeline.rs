@@ -25,7 +25,8 @@ use dacite::core::{Device, Viewport, Rect2D, RenderPass, ShaderModule,
                    CompareOp, StencilOp, StencilOpState,
                    PipelineDepthStencilStateCreateInfo,
                    PipelineDynamicStateCreateInfo, DynamicState,
-                   PipelineLayoutCreateFlags};
+                   PipelineLayoutCreateFlags,
+                   SpecializationInfo};
 use errors::*;
 use super::{DepthHandling, BlendMode};
 
@@ -37,13 +38,16 @@ pub fn create(
     render_pass: RenderPass,
     desc_set_layouts: Vec<DescriptorSetLayout>,
     vertex_shader: Option<ShaderModule>,
+    vertex_spec_info: Option<SpecializationInfo>,
     fragment_shader: Option<ShaderModule>,
+    fragment_spec_info: Option<SpecializationInfo>,
     vertex_type: Option<PipelineVertexInputStateCreateInfo>,
     topology: PrimitiveTopology,
     cull_mode: CullModeFlags,
     front_face: FrontFace,
     depth_handling: DepthHandling,
-    blend: BlendMode) -> Result<(PipelineLayout, Pipeline)>
+    blend: Vec<BlendMode>)
+    -> Result<(PipelineLayout, Pipeline)>
 {
     let layout = device.create_pipeline_layout(
         &PipelineLayoutCreateInfo {
@@ -53,31 +57,34 @@ pub fn create(
             chain: None,
         }, None)?;
 
-    let blend_create = match blend {
-        BlendMode::None => None,
-        _ => Some(PipelineColorBlendStateCreateInfo {
+    let blend_create = if blend.len() == 0 {
+        None
+    } else {
+        Some(PipelineColorBlendStateCreateInfo {
             flags: PipelineColorBlendStateCreateFlags::empty(),
             logic_op_enable: false,
             logic_op: LogicOp::Copy,
-            attachments: vec![PipelineColorBlendAttachmentState {
-                blend_enable: match blend {
-                    BlendMode::Off => false,
-                    _ => true,
-                },
-                src_color_blend_factor: match blend {
-                    BlendMode::Add => BlendFactor::One,
-                    _ => BlendFactor::SrcAlpha,
-                },
-                dst_color_blend_factor: match blend {
-                    BlendMode::Add => BlendFactor::One,
-                    _ => BlendFactor::OneMinusSrcAlpha,
-                },
-                color_blend_op: BlendOp::Add,
-                src_alpha_blend_factor: BlendFactor::One,
-                dst_alpha_blend_factor: BlendFactor::Zero,
-                alpha_blend_op: BlendOp::Add,
-                color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
-            }],
+            attachments: blend.iter().map(
+                |bm|
+                PipelineColorBlendAttachmentState {
+                    blend_enable: match bm {
+                        &BlendMode::Off => false,
+                        _ => true,
+                    },
+                    src_color_blend_factor: match bm {
+                        &BlendMode::Add => BlendFactor::One,
+                        _ => BlendFactor::SrcAlpha,
+                    },
+                    dst_color_blend_factor: match bm {
+                        &BlendMode::Add => BlendFactor::One,
+                        _ => BlendFactor::OneMinusSrcAlpha,
+                    },
+                    color_blend_op: BlendOp::Add,
+                    src_alpha_blend_factor: BlendFactor::One,
+                    dst_alpha_blend_factor: BlendFactor::Zero,
+                    alpha_blend_op: BlendOp::Add,
+                    color_write_mask: ColorComponentFlags::R | ColorComponentFlags::G | ColorComponentFlags::B
+                }).collect(),
             blend_constants: [0.0, 0.0, 0.0, 0.0],
             chain: None,
         })
@@ -189,7 +196,7 @@ pub fn create(
                 stage: ShaderStageFlagBits::Vertex,
                 module: vs,
                 name: "main".to_owned(),
-                specialization_info: None,
+                specialization_info: vertex_spec_info,
                 chain: None,
             }
         );
@@ -202,7 +209,7 @@ pub fn create(
                 stage: ShaderStageFlagBits::Fragment,
                 module: fs,
                 name: "main".to_owned(),
-                specialization_info: None,
+                specialization_info: fragment_spec_info,
                 chain: None,
             }
         );
