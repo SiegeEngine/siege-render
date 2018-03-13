@@ -8,16 +8,7 @@ use dacite::core::{Device, DeviceMemory, MappedMemory, MemoryType, MemoryPropert
 use super::block::Block;
 use super::{Lifetime, Linearity};
 
-// Full 4K screen (3840x2160) at 64bpp is 66355200.0  (e.g. R16G16B16A16_SFloat which
-// is used for shading and blur targets).
-//
-// Memory chunk must be at least this size.  However, since shading and blur targets must
-// be in optimal format, and graphics cards require MORE memory for that, we expect that
-// we will blow out beyond 64 MB.
-//
-// It seems logical to allocate chunks at around 96 MB or 128 MB.
-//
-pub const CHUNK_SIZE: u64 = 96 * 1048576; // 96 MB.
+pub const CHUNK_SIZE: u64 = 32 * 1048576; // 32 MB.
 
 #[inline]
 pub fn align_up(offset: u64, alignment: u64) -> u64 {
