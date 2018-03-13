@@ -26,7 +26,7 @@ siege-mesh = { git = "ssh://mike@git.gnomonicgames.com/data/git/siege-mesh.git" 
 
 [target.'cfg(windows)'.dependencies]
 user32-sys = "0.2"
-winapi = "0.2"
+winapi = "0.3"
 
 [dev-dependencies]
 simple_logger = "*"
