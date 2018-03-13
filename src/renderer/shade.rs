@@ -415,7 +415,11 @@ void main() {
 
   // Add each lights contribution
   for (int i=0; i<=1; i++) {
-    vec3 kspec = kspec_partial * normalize(params.dlight_irradiances[i].xyz);
+    if (params.dlight_irradiances[i].xyz == vec3(0.0, 0.0, 0.0)) {
+      continue; // Do not process lights that are off.
+    }
+    vec3 specular_color = normalize(params.dlight_irradiances[i].xyz);
+    vec3 kspec = kspec_partial * specular_color;
     vec3 this_lights_contribution = improved_blinn_phong(
       eye,
       normals_sample.xyz,
