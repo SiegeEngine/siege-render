@@ -408,14 +408,14 @@ void main() {
   vec4 ambient = vec4(ambient_point, ambient_point, ambient_point, 1.0);
 
   vec3 kdiff = diffuse_sample.xyz / 3.14159265359;
-  vec3 kspec = params.dlight_irradiances[0].xyz
-      * (1-roughness + 8) / (8 * 3.14159265359); // FIXME use PBR not blinn-phong
+  float kspec_partial = (1-roughness + 8) / (8 * 3.14159265359); // FIXME use PBR not blinn-phong
 
   // Output starts with ambient value
   out_color = diffuse_sample * ambient * ao;
 
   // Add each lights contribution
   for (int i=0; i<=1; i++) {
+    vec3 kspec = kspec_partial * normalize(params.dlight_irradiances[i].xyz);
     vec3 this_lights_contribution = improved_blinn_phong(
       eye,
       normals_sample.xyz,
