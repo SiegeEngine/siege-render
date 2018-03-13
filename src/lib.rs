@@ -13,6 +13,7 @@ extern crate error_chain;
 // logging
 #[macro_use]
 extern crate log;
+extern crate separator;
 
 // graphics
 extern crate vks;

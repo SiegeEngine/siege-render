@@ -1,6 +1,7 @@
 
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use separator::Separatable;
 use errors::*;
 use dacite::core::{Device, DeviceMemory, MappedMemory, MemoryType, MemoryPropertyFlags,
                    OptionalDeviceSize};
@@ -239,16 +240,16 @@ impl Chunk {
                   linearity);
         }
 
-        info!("  Chunk {} ({})", chunk_number, CHUNK_SIZE);
+        info!("  Chunk {} ({})", chunk_number, CHUNK_SIZE.separated_string());
         for block in &self.blocks {
-            info!("     size={:9}      ({:2.0}%): {}",
-                  block.size,
+            info!("     size={:>11}      ({:2.0}%): {}",
+                  block.size.separated_string(),
                   (block.size * 100) as f32 / CHUNK_SIZE as f32,
                   block.reason);
         }
         for block in &self.perm_blocks {
-            info!("     size={:9} Perm ({:2.0}%): {}",
-                  block.size,
+            info!("     size={:>11} Perm ({:2.0}%): {}",
+                  block.size.separated_string(),
                   (block.size * 100) as f32 / CHUNK_SIZE as f32,
                   block.reason);
         }
