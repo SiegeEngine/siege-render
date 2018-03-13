@@ -5,7 +5,7 @@ use dacite::core::{Image, Format, ImageUsageFlags, Device, ImageView,
                    ImageSubresourceRange, Buffer, PipelineStageFlags,
                    ComponentMapping, AttachmentDescription,
                    AttachmentLoadOp, AttachmentStoreOp, ClearValue,
-                   CommandBuffer};
+                   CommandBuffer, DeviceMemory};
 use super::memory::{Memory, Block, Lifetime, Linearity};
 use super::commander::Commander;
 
@@ -35,6 +35,7 @@ pub struct ImageWrap {
     pub usage: ImageUsageFlags,
     pub size: u64,
     pub block: Option<Block>,
+    pub solo: Option<DeviceMemory>,
     pub swizzle: ComponentMapping,
 }
 
@@ -51,6 +52,7 @@ impl ImageWrap {
         mut tiling: ImageTiling,
         mut usage: ImageUsageFlags,
         lifetime: Lifetime,
+        solo: bool,
         reason: &str)
         -> Result<ImageWrap>
     {
@@ -89,19 +91,36 @@ impl ImageWrap {
         };
 
         let memory_requirements = image.get_memory_requirements();
-        let block = memory.allocate_device_memory(
-            device,
-            &memory_requirements,
-            MemoryPropertyFlags::DEVICE_LOCAL,
-            None,
-            match tiling {
-                ImageTiling::Optimal => Linearity::Nonlinear,
-                _ => Linearity::Linear
-            },
-            lifetime,
-            reason)?;
 
-        image.bind_memory(block.memory.clone(), block.offset_in_chunk)?;
+        let block = if !solo {
+            let block = memory.allocate_device_memory(
+                device,
+                &memory_requirements,
+                MemoryPropertyFlags::DEVICE_LOCAL,
+                None,
+                match tiling {
+                    ImageTiling::Optimal => Linearity::Nonlinear,
+                    _ => Linearity::Linear
+                },
+                lifetime,
+                reason)?;
+            image.bind_memory(block.memory.clone(), block.offset_in_chunk)?;
+            Some(block)
+        } else {
+            None
+        };
+
+        let solo = if solo {
+            let solo = memory.allocate_solo_device_memory(
+                device,
+                &memory_requirements,
+                MemoryPropertyFlags::DEVICE_LOCAL,
+                reason)?;
+            image.bind_memory(solo.clone(), 0)?;
+            Some(solo)
+        } else {
+            None
+        };
 
         Ok(ImageWrap {
             image: image,
@@ -112,7 +131,8 @@ impl ImageWrap {
             tiling: tiling,
             usage: usage,
             size: memory_requirements.size,
-            block: Some(block),
+            block: block,
+            solo: solo,
             swizzle: swizzle
         })
     }

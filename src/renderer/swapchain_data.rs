@@ -165,6 +165,7 @@ fn build_images(
                 usage: ImageUsageFlags::COLOR_ATTACHMENT,
                 size: 0,
                 block: None,
+                solo: None,
                 swizzle: ComponentMapping::identity(),
             }
         }).collect();

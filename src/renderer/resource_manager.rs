@@ -222,6 +222,7 @@ impl ResourceManager {
             ImageTiling::Optimal,
             ImageUsageFlags::TRANSFER_DST | ImageUsageFlags::SAMPLED,
             Lifetime::Temporary,
+            false, // not solo
             &*format!("texture {}", name))?;
 
         // copy_in_from_buffer

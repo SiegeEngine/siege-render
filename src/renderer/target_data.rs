@@ -350,6 +350,7 @@ fn build_images(
             ImageTiling::Optimal,
             usage,
             Lifetime::Permanent,
+            true, // yes, make it solo
             name)
     };
 
