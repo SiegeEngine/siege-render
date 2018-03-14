@@ -377,7 +377,7 @@ vec3 improved_blinn_phong(
   float cos = max(dot(normal, lightdir), 0);
   vec3 halfdir = normalize(lightdir + eye.xyz);
   float coshalf = max(dot(normal, halfdir), 0);
-  return (kdiff + kspec * pow(coshalf, shininess)) * light_irradiance * cos;
+  return (kdiff + kspec * pow(coshalf, max(shininess,1.0))) * light_irradiance * cos;
 }
 
 vec4 decode_normal(vec4 n) {
