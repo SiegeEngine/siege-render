@@ -74,12 +74,15 @@ impl SurfaceData {
         info!("Surface format: {:?}", surface_formats[surface_format_index].format);
         info!("Surface color space: {:?}", surface_formats[surface_format_index].color_space);
 
-        let needs_gamma = match surface_formats[surface_format_index].format {
-            Format::A2B10G10R10_UNorm_Pack32 => true,
-            Format::B8G8R8A8_sRGB => false,
-            Format::B8G8R8A8_UNorm => true,
-            _ => true
-        };
+        let needs_gamma =
+            surface_formats[surface_format_index].color_space == ColorSpaceKhr::SRGBNonLinear
+            &&
+            match surface_formats[surface_format_index].format {
+                Format::A2B10G10R10_UNorm_Pack32 => true,
+                Format::B8G8R8A8_sRGB => false,
+                Format::B8G8R8A8_UNorm => true,
+                _ => true
+            };
 
         Ok(SurfaceData {
             capabilities: capabilities,
