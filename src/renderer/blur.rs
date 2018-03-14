@@ -298,6 +298,9 @@ layout (binding = 0) uniform sampler2D samplerColor;
 
 layout (set = 1, binding = 0) uniform UBO
 {
+  mat4 inv_projection;
+  vec4 dlight_directions[2];
+  vec4 dlight_irradiances[2];
   float bloom_strength;
   float bloom_scale;
   float blur_level;
@@ -397,9 +400,13 @@ layout (set = 0, binding = 0) uniform sampler2D samplerColor;
 
 layout (set = 1, binding = 0) uniform UBO
 {
+  mat4 inv_projection;
+  vec4 dlight_directions[2];
+  vec4 dlight_irradiances[2];
   float bloom_strength;
   float bloom_scale;
   float blur_level;
+  float white_point;
 } ubo;
 
 layout (location = 0) in vec2 inUV;
