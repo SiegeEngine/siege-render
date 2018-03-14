@@ -318,7 +318,6 @@ layout (location = 0) out vec4 outFragColor;
 // Bright pass filter sampling
 vec3 samp(vec2 offset) {
 
-  // This is Mike's made-up-on-the-spot bright-pass filter.
   // 1. Get the texture irradiance value
   vec3 color = texture(samplerColor, inUV + offset).rgb;
 
@@ -330,22 +329,21 @@ vec3 samp(vec2 offset) {
   const float one_over_pi = 1.0 / 3.14159265359;
   const float sharpness = 50;
   const float knee = 1.1;
-  float mult = 0.5 + atan(sharpness * (lum - knee)) * one_over_pi;
+  float mult = clamp(0.45 + 1.1 * atan(sharpness * (lum - knee)) * one_over_pi, 0.0, 1.0);
 
-  // 4. Scale down the max multiplier (which currently ranges approximately [0,1])
+  // 4. Scale down the max multiplier (which currently ranges [0,1])
   // so we have a sharp decrease at the first pixel out
   const float scale = 0.5;
   mult *= scale;
 
-  // 5. Apply the multiplier to the color, but clamp the levels so we dont get
-  // "bloom squares"
-  const float limit = 0.2;
-  vec3 bloomcolor = clamp(color * mult, 0.0, limit);
+  // 5. We want bloom to be of the same shade as the color, but not the same
+  //    brightness. We normalize (never normalize zero!). And we apply the
+  //    multiplier.
+  if (color == vec3(0.0, 0.0, 0.0)) { return color; }
+  vec3 bloomcolor = normalize(color) * mult;
 
-  // 6. Add in blur
-  bloomcolor = bloomcolor + color * ubo.blur_level;
-
-  return bloomcolor;
+  // 6. Multiply by bloom strength, and add blur level (times original color)
+  return bloomcolor * ubo.bloom_strength + color * ubo.blur_level;
 }
 
 void main()
@@ -364,7 +362,7 @@ void main()
     result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i];
     result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i];
   }
-  outFragColor = vec4(result * ubo.bloom_strength, 1.0);
+  outFragColor = vec4(result, 1.0);
 }
 "#);
 
@@ -453,7 +451,7 @@ void main()
     result += samp(vec2(0.0, tex_offset.y * i)) * weight[i];
     result += samp(vec2(0.0, -tex_offset.y * i)) * weight[i];
   }
-  outFragColor = vec4(result * ubo.bloom_strength, 1.0);
+  outFragColor = vec4(result, 1.0);
 }
 "#);
 
