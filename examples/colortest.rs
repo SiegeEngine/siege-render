@@ -25,9 +25,7 @@ pub fn main() {
         major_version: env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap(),
         minor_version: env!("CARGO_PKG_VERSION_MINOR").parse().unwrap(),
         patch_version: env!("CARGO_PKG_VERSION_PATCH").parse().unwrap(),
-        vulkan_layers: vec![
-            "VK_LAYER_LUNARG_standard_validation".to_owned()
-        ],
+        vulkan_layers: vec![],
         asset_path: From::from("./examples"),
         tonemapper: Tonemapper::Clamp,
         .. Default::default()
