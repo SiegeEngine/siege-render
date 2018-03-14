@@ -186,6 +186,7 @@ impl ResourceManager {
                 }
             }
         };
+        println!("{} format is {:?}", name, format);
 
         use ddsfile::Caps2;
         let image_wrap_type = if dds.header.caps2.contains(Caps2::CUBEMAP) {
