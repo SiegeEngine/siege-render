@@ -323,10 +323,19 @@ float hlg(float scene_referred) {
   const float b = 0.28466892;
   const float c = 0.55991073;
 
+  float in_hlg;
   if (scene_referred <= 1) {
-    return min(1.0, r * sqrt(scene_referred));
+    in_hlg = r * sqrt(scene_referred);
   } else {
-    return min(1.0, a * log(scene_referred - b) + c);
+    in_hlg = min(1.0, a * log(scene_referred - b) + c);
+  }
+
+  // Because HLG does gamma, we need to do the inverse of srgb's gamma,
+  // which is going to get applied subsequently (sometimes by vulkan and not us)
+  if (in_hlg < 0.04045) {
+    return in_hlg / 12.92;
+  } else {
+    return pow((in_hlg + 0.055) / (1 + 0.055), 2.4);
   }
 }
 
