@@ -394,12 +394,13 @@ void main() {
   vec4 position = params.inv_projection * clipPos;
   vec4 eye = -position;
 
-  vec4 diffuse_sample = texture(diffusemap, uv);
-  vec4 normals_sample = decode_normal(texture(normalsmap, uv));
   vec4 materials_sample = texture(materialmap, uv);
   float roughness = materials_sample.r;
   float metallicity = materials_sample.g;
   float ao = materials_sample.b;
+  float cavity = materials_sample.a;
+  vec4 diffuse_sample = texture(diffusemap, uv);
+  vec4 normals_sample = decode_normal(texture(normalsmap, uv));
 
   // Ambient point is scaled off of the white_point, since we presume the white_point
   // was scaled from true scene brightness (FIXME: once we have true scene brightness,
@@ -407,11 +408,14 @@ void main() {
   float ambient_point = 0.15 * params.white_point - 0.000008;
   vec4 ambient = vec4(ambient_point, ambient_point, ambient_point, 1.0);
 
-  vec3 kdiff = diffuse_sample.xyz / 3.14159265359;
-  float kspec_partial = (1-roughness + 8) / (8 * 3.14159265359); // FIXME use PBR not blinn-phong
+  vec4 diffuseao = diffuse_sample * ao;
+
+  vec3 kdiff = diffuseao.xyz / 3.14159265359;
+  // FIXME use PBR not blinn-phong
+  float kspec_partial = cavity * (1-roughness + 8) / (8 * 3.14159265359);
 
   // Output starts with ambient value
-  out_color = diffuse_sample * ambient * ao;
+  out_color = diffuseao * ambient;
 
   // Add each lights contribution
   for (int i=0; i<=1; i++) {

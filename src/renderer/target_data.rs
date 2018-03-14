@@ -21,7 +21,7 @@ Material:		R8G8B8A8_UNorm
   r-channel is used for "roughness"
   g-channel is used for "metallicity"
   b-channel is used for "ambient occlusion"
-  a-channel unused
+  a-channel is used for "cavity"
 Shading:                R16G16B16A16_SFloat (goes overbright)
 Blur:                   R16G16B16A16_SFloat (goes overbright)
  */

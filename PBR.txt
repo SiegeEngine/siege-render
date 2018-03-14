@@ -1,0 +1,54 @@
+We use a typical "metalness" workflow.
+
+Albedo map:
+  Base color. Used for both diffuse and specular.
+
+AO:
+  Ambient occlusion. Critical! (Albedo * AO) = traditional diffuse map.
+  Multiply by AO for ambient component *AND* diffuse component of lighting.
+  (but not specular component).
+  (black = occluded)
+
+Cavity:
+  Specular light occlusion. Critical if it exists! (Albedo * Cavity) is for specular
+  portion.
+  (black = occluded)
+
+Specular/Reflectivity
+  [we do not use this -- this is for a 'specular' workflow]
+
+Gloss/Smoothness -or- Roughness
+  These maps are inverses of each other.
+  This dictates the sharpness/intensity of specular reflections.
+  From megascans, this is matched to a GGX BRDF.
+
+Normal (tangent-space)
+  Represents normal directions at each pixel.
+  Red=x, Green=y, Blue=z.
+
+Displacement
+  Encodes a heightmap for the texture.
+  White = 10cm, Gray = 0cm, Black = -10cm
+
+Bump
+  [we do not use this -- like displacement, but used in offline contexts]
+  Resolution is finer (+/- 0.25 cm)
+
+NormalBump
+  [we do not use this -- used in offline contexts]
+
+Opacity
+  Represents transparency of a material.
+  White=opaque, black=transparent
+
+Translucency
+  Represents sub-surface scattering when lit from behind
+  bright color = translucent, dark color = opaque
+
+Fuzz
+  Represents a mask for a rough fuzzy surface such as moss.
+  Gives extra diffusion to a surface.
+  bright = fuzzy, dark = clear
+
+--
+https://megascans.zendesk.com/hc/en-us/articles/115000612165-What-maps-are-included-and-how-do-I-use-them-
