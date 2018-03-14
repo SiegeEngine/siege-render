@@ -351,36 +351,12 @@ vec3 tonemap(vec3 scene_referred) {
 
 const FS_SUFFIX: &'static str = r#"
 
-vec3 srgb_gamma_correct(vec3 linear_color) {
-  // Gamma Correction for sRGB:
-  float a = 0.055;
-  vec3 srgb;
-  if (linear_color.r < 0.0031308) {
-    srgb.r = 12.92 * linear_color.r;
-  } else {
-    srgb.r = (1.0 + a) * pow(linear_color.r, 1.0/2.4) - a;
-  }
-  if (linear_color.g < 0.0031308) {
-    srgb.g = 12.92 * linear_color.g;
-  } else {
-    srgb.g = (1.0 + a) * pow(linear_color.g, 1.0/2.4) - a;
-  }
-  if (linear_color.b< 0.0031308) {
-    srgb.b = 12.92 * linear_color.b;
-  } else {
-    srgb.b = (1.0 + a) * pow(linear_color.b, 1.0/2.4) - a;
-  }
-  return srgb;
-}
-
 void main()
 {
   // Load scene referred color from shadingTex
   vec3 scene_referred = texture(shadingTex, inUV).rgb;
 
-  // Tone Mapping
-  vec3 preGamma = tonemap(scene_referred);
-  outFragColor = vec4(srgb_gamma_correct(preGamma), 1.0);
+  outFragColor = vec4(tonemap(scene_referred), 1.0);
 }
 "#;
 
