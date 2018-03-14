@@ -1,4 +1,21 @@
 
+Try extending the depthbuffer (D32_SFloat) to put the far plane at 0 and
+  the near plane at a large float (instead of 1). Then adjust our projection
+  matrix to compensate accordingly.  This gives even MORE depth buffer
+  precision.
+  * NOTE that large float still needs to be divided by (f-n) then mujltipled by n and f,
+    and that cannot overrun the max float.  And even that value gets mutiplied by Z
+    (which goes up to the far plane), so that cant overrun either.
+
+Try using an internal color format of YCbCr stored in R8B8G8A8 as follows:
+  Cb is stored in B8
+  Cr is stored in R8
+  Y is stored in G8 and A8  (G8 + 256 * A8)
+  This allows plenty of over-brightness, without resorting to R16B16G16A16 wastefulness.
+  Also, luminance is separate and MUCH easier to work with.
+  * NOTE there is no vulkan supported format for this. But it can still be done in the
+    format mentioned above, manually.
+
 Try adjusting Params (bloom/blur), see how it works.  I believe blur_level is not yet
   honored, so fix that.
 
