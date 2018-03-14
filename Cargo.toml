@@ -21,7 +21,7 @@ glsl-to-spirv-macros-impl = "0.1"
 separator = "0.3"
 dacite = { git = "https://gitlab.com/mikedilger/dacite.git" }
 dacite-winit = { git = "https://gitlab.com/mikedilger/dacite.git" }
-ddsfile = "0.2.2"
+ddsfile = "0.2.3"
 siege-math = { git = "ssh://mike@git.gnomonicgames.com/data/git/siege-math.git" }
 siege-mesh = { git = "ssh://mike@git.gnomonicgames.com/data/git/siege-mesh.git" }
 
