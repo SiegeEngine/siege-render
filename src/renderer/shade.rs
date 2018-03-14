@@ -404,7 +404,7 @@ void main() {
   // Ambient point is scaled off of the white_point, since we presume the white_point
   // was scaled from true scene brightness (FIXME: once we have true scene brightness,
   // use that instead)
-  float ambient_point = 0.15 * params.white_point - 0.0000005;
+  float ambient_point = 0.15 * params.white_point - 0.000008;
   vec4 ambient = vec4(ambient_point, ambient_point, ambient_point, 1.0);
 
   vec3 kdiff = diffuse_sample.xyz / 3.14159265359;
