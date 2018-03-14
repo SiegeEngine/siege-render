@@ -321,26 +321,35 @@ vec3 samp(vec2 offset) {
 
   // This is Mike's made-up-on-the-spot bright-pass filter.
   const float one_over_pi = 1.0 / 3.14159265359;
-  const float sharpness = 25;
-  const float cutoff_level = 1.0;
+  const float sharpness = 50;
+  const float cutoff_level = 1.1;
   float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
   float mult = 0.5 + atan(sharpness * (lum - cutoff_level)) * one_over_pi;
+  // we limit to avoid "bloom squares"
+  const float limit = 0.2;
+  // we scale down so the 'weight' table doesn't go all the way to full bright
+  const float scale = 0.6;
+  vec3 bloomcolor = clamp(color * mult, 0.0, limit) * scale;
 
-  return color * mult;
+  // For blur, we don't do this clamping
+  vec3 blurcolor = color * ubo.blur_level;
+
+  return bloomcolor + blurcolor;
 }
 
 void main()
 {
-  float weight[5];
-  weight[0] = 0.227027;
-  weight[1] = 0.1945946;
-  weight[2] = 0.1216216;
-  weight[3] = 0.054054;
-  weight[4] = 0.016216;
+  float weight[6];
+  weight[0] = 1.0;
+  weight[1] = 0.8225776;
+  weight[2] = 0.45783338;
+  weight[3] = 0.17242163;
+  weight[4] = 0.04393694;
+  weight[5] = 0.0075756805;
 
   vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
   vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
-  for (int i = 1; i < 5; ++i) {
+  for (int i = 1; i < 6; ++i) {
     result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i];
     result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i];
   }
@@ -413,20 +422,25 @@ layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
 
+vec3 samp(vec2 offset) {
+  return texture(samplerColor, inUV + offset).rgb;
+}
+
 void main()
 {
-  float weight[5];
-  weight[0] = 0.227027;
-  weight[1] = 0.1945946;
-  weight[2] = 0.1216216;
-  weight[3] = 0.054054;
-  weight[4] = 0.016216;
+  float weight[6];
+  weight[0] = 1.0;
+  weight[1] = 0.8225776;
+  weight[2] = 0.45783338;
+  weight[3] = 0.17242163;
+  weight[4] = 0.04393694;
+  weight[5] = 0.0075756805;
 
   vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
-  vec3 result = texture(samplerColor, inUV).rgb * weight[0]; // current fragment's contribution
-  for (int i = 1; i < 5; ++i) {
-    result += texture(samplerColor, inUV + vec2(0.0, tex_offset.y * i)).rgb * weight[i];
-    result += texture(samplerColor, inUV - vec2(0.0, tex_offset.y * i)).rgb * weight[i];
+  vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
+  for (int i = 1; i < 6; ++i) {
+    result += samp(vec2(0.0, tex_offset.y * i)) * weight[i];
+    result += samp(vec2(0.0, -tex_offset.y * i)) * weight[i];
   }
   outFragColor = vec4(result * ubo.bloom_strength, 1.0);
 }
