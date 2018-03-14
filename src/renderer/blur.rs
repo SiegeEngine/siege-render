@@ -317,24 +317,35 @@ layout (location = 0) out vec4 outFragColor;
 
 // Bright pass filter sampling
 vec3 samp(vec2 offset) {
-  vec3 color = texture(samplerColor, inUV + offset).rgb;
 
   // This is Mike's made-up-on-the-spot bright-pass filter.
+  // 1. Get the texture irradiance value
+  vec3 color = texture(samplerColor, inUV + offset).rgb;
+
+  // 2. Get average luminance based on Y
+  float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+
+  // 3. Take values greater than about 1, but with a softer knee than that.
+  //    This function yields a value from 0..1 (approx) so we multiply by it.
   const float one_over_pi = 1.0 / 3.14159265359;
   const float sharpness = 50;
-  const float cutoff_level = 1.1;
-  float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
-  float mult = 0.5 + atan(sharpness * (lum - cutoff_level)) * one_over_pi;
-  // we limit to avoid "bloom squares"
+  const float knee = 1.1;
+  float mult = 0.5 + atan(sharpness * (lum - knee)) * one_over_pi;
+
+  // 4. Scale down the max multiplier (which currently ranges approximately [0,1])
+  // so we have a sharp decrease at the first pixel out
+  const float scale = 0.5;
+  mult *= scale;
+
+  // 5. Apply the multiplier to the color, but clamp the levels so we dont get
+  // "bloom squares"
   const float limit = 0.2;
-  // we scale down so the 'weight' table doesn't go all the way to full bright
-  const float scale = 0.6;
-  vec3 bloomcolor = clamp(color * mult, 0.0, limit) * scale;
+  vec3 bloomcolor = clamp(color * mult, 0.0, limit);
 
-  // For blur, we don't do this clamping
-  vec3 blurcolor = color * ubo.blur_level;
+  // 6. Add in blur
+  bloomcolor = bloomcolor + color * ubo.blur_level;
 
-  return bloomcolor + blurcolor;
+  return bloomcolor;
 }
 
 void main()
