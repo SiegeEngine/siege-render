@@ -1,4 +1,7 @@
 
+UI layering needs sRGB gamma function applied (if that is applicable), but not
+  tonemapping, so we need 1 more pass.
+
 Try extending the depthbuffer (D32_SFloat) to put the far plane at 0 and
   the near plane at a large float (instead of 1). Then adjust our projection
   matrix to compensate accordingly.  This gives even MORE depth buffer
