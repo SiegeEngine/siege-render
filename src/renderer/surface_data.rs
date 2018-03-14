@@ -12,6 +12,7 @@ pub struct SurfaceData {
     pub surface_formats: Vec<SurfaceFormatKhr>,
     pub min_image_count: u32,
     pub present_mode: PresentModeKhr,
+    pub needs_gamma: bool,
     // TODO: SurfaceTransformFlagsKhr
     // TODO: ImageUsageFlags
 }
@@ -42,18 +43,28 @@ impl SurfaceData {
             get_present_mode(vsync, &present_modes)
         };
 
+        // Choose the best surface format available
+        let ranking = |f: Format| -> u32 {
+            match f {
+                Format::A2B10G10R10_UNorm_Pack32 => 3, // best due to color depth
+                Format::B8G8R8A8_sRGB => 2, // good due to auto-srgb conversion
+                Format::B8G8R8A8_UNorm => 1, // accepable
+                _ => 0,
+            }
+        };
         let mut surface_format_index: Option<usize> = None;
         for i in 0..surface_formats.len() {
-            match surface_formats[i].format {
-                Format::A2B10G10R10_UNorm_Pack32 => {
+            println!("Offered: {:?}", surface_formats[i].format);
+            if let Some(sfi) = surface_format_index {
+                if ranking(surface_formats[i].format) >
+                    ranking(surface_formats[sfi].format)
+                {
                     surface_format_index = Some(i);
-                    break;
-                },
-                Format::B8G8R8A8_UNorm => {
+                }
+            } else {
+                if ranking(surface_formats[i].format) > 0 {
                     surface_format_index = Some(i);
-                    break;
-                },
-                _ => { }
+                }
             }
         }
         let surface_format_index = match surface_format_index {
@@ -63,12 +74,20 @@ impl SurfaceData {
         info!("Surface format: {:?}", surface_formats[surface_format_index].format);
         info!("Surface color space: {:?}", surface_formats[surface_format_index].color_space);
 
+        let needs_gamma = match surface_formats[surface_format_index].format {
+            Format::A2B10G10R10_UNorm_Pack32 => true,
+            Format::B8G8R8A8_sRGB => false,
+            Format::B8G8R8A8_UNorm => true,
+            _ => true
+        };
+
         Ok(SurfaceData {
             capabilities: capabilities,
             surface_format_index: surface_format_index,
             surface_formats: surface_formats,
             min_image_count: min_image_count,
             present_mode: present_mode,
+            needs_gamma: needs_gamma,
         })
     }
 

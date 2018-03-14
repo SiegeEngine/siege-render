@@ -4,7 +4,8 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    DescriptorType, CommandBuffer, RenderPass, Viewport, Rect2D,
                    PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
                    CullModeFlags, FrontFace, ShaderModuleCreateFlags,
-                   ShaderModuleCreateInfo, ShaderModule};
+                   ShaderModuleCreateInfo, ShaderModule,
+                   SpecializationInfo, SpecializationMapEntry};
 use errors::*;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
@@ -37,7 +38,8 @@ impl PostGfx {
                scissors: Rect2D,
                display_luminance: u32,
                tonemapper: Tonemapper,
-               params_layout: DescriptorSetLayout)
+               params_layout: DescriptorSetLayout,
+               surface_needs_gamma: bool)
               -> Result<PostGfx>
     {
         let sampler = {
@@ -109,13 +111,28 @@ impl PostGfx {
 
         let fragment_shader = fragment_shader(device, display_luminance, tonemapper)?;
 
+        let fragment_spec = SpecializationInfo {
+            map_entries: vec![
+                SpecializationMapEntry { // near depth
+                    constant_id: 0,
+                    offset: 0,
+                    size: 4,
+                },
+            ],
+            data: if surface_needs_gamma {
+                vec![ 0x01, 0x00, 0x00, 0x00 ]
+            } else {
+                vec![ 0x00, 0x00, 0x00, 0x00 ]
+            }
+        };
+
         let (pipeline_layout, pipeline) =
             super::pipeline::create(
                 device, viewport, scissors,
                 true, // reversed depth buffer irrelevant for post
                 render_pass, vec![desc_layout.clone(),
                                   params_layout],
-                Some(vertex_shader), None, Some(fragment_shader), None,
+                Some(vertex_shader), None, Some(fragment_shader), Some(fragment_spec),
                 None,
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
@@ -279,6 +296,8 @@ const FS_PREFIX: &'static str = r#"#version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
+layout(constant_id = 0) const int surface_needs_gamma = 0;
+
 layout (binding = 0) uniform sampler2D shadingTex;
 
 layout (set = 1, binding = 0) uniform UBO
@@ -354,12 +373,29 @@ vec3 tonemap(vec3 scene_referred) {
 
 const FS_SUFFIX: &'static str = r#"
 
+float srgb_gamma(float linear) {
+  if (linear <= 0.0031308) {
+    return 12.92 * linear;
+  } else {
+    return (1 + 0.055) * pow(linear, 1/2.4) - 0.055;
+  }
+}
+
 void main()
 {
   // Load scene referred color from shadingTex
   vec3 scene_referred = texture(shadingTex, inUV).rgb;
 
-  outFragColor = vec4(tonemap(scene_referred), 1.0);
+  vec3 tonemapped = tonemap(scene_referred);
+
+  if (surface_needs_gamma != 0) {
+    outFragColor = vec4(srgb_gamma(tonemapped.r),
+                        srgb_gamma(tonemapped.g),
+                        srgb_gamma(tonemapped.b),
+                        1.0);
+  } else {
+    outFragColor = vec4(tonemapped, 1.0);
+  }
 }
 "#;
 

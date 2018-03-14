@@ -84,6 +84,11 @@ pub enum BlendMode {
     Add
 }
 
+// FIXME: Some settings the renderer is trying to pass to its shaders (and different ones
+//          to different shaders).
+//        Some settings clients are trying to adjust in the renderer
+//        At some point we had a value the renderer was communicating back to the client
+//        These are not all the same set.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct Params {
@@ -333,7 +338,8 @@ impl Renderer {
                                     viewports[0].clone(), scissors[0].clone(),
                                     config.display_luminance,
                                     config.tonemapper,
-                                    params_desc_layout.clone())?;
+                                    params_desc_layout.clone(),
+                                    swapchain_data.surface_data.needs_gamma)?;
 
         Ok(Renderer {
             plugins: Vec::new(),
