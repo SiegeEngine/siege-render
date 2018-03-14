@@ -283,6 +283,9 @@ layout (binding = 0) uniform sampler2D shadingTex;
 
 layout (set = 1, binding = 0) uniform UBO
 {
+  mat4 inv_projection;
+  vec4 dlight_directions[2];
+  vec4 dlight_irradiances[2];
   float bloom_strength;
   float bloom_scale;
   float blur_level;
