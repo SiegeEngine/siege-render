@@ -52,3 +52,11 @@ Fuzz
 
 --
 https://megascans.zendesk.com/hc/en-us/articles/115000612165-What-maps-are-included-and-how-do-I-use-them-
+
+-----------------------------------------
+
+PBR BRDF:
+
+https://graphicrants.blogspot.co.nz/2013/08/specular-brdf-reference.html
+https://stackoverflow.com/questions/40207519/pbr-ggx-specular-desaturated-color
+http://filmicworlds.com/blog/optimizing-ggx-shaders-with-dotlh/

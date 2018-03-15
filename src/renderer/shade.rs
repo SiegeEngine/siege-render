@@ -339,7 +339,8 @@ void main()
 fn fragment_shader(device: &Device)
                    -> Result<ShaderModule>
 {
-    let bytes: &[u8] = glsl_fs!(r#"#version 450
+    let bytes: &[u8] = glsl_fs!(r#"
+#version 450
 
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
@@ -366,18 +367,34 @@ layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 out_color; // can be >1.0, post will handle it.
 
+const float pi = 3.14159265359;
+
 vec4 level(vec4 irrad) {
   return vec4(irrad.xyz / params.white_point, irrad.a);
 }
 
-vec3 improved_blinn_phong(
-  vec4 eye, vec3 normal, vec3 lightdir, vec3 light_irradiance,
-  vec3 kdiff, vec3 kspec, float shininess)
+vec3 shadingSpecularGGX(vec3 N, vec3 V, vec3 L, float roughness, vec3 F0)
 {
-  float cos = max(dot(normal, lightdir), 0);
-  vec3 halfdir = normalize(lightdir + eye.xyz);
-  float coshalf = max(dot(normal, halfdir), 0);
-  return (kdiff + kspec * pow(coshalf, max(shininess,1.0))) * light_irradiance * cos;
+    vec3 H = normalize(V + L);
+    float dotLH = max(dot(L, H), 0.0);
+    float dotNH = max(dot(N, H), 0.0);
+    float dotNL = max(dot(N, L), 0.0);
+    float dotNV = max(dot(N, V), 0.0);
+    float alpha = roughness * roughness;
+
+    // D (GGX normal distribution, Trowbridge-Reitz)
+    float alphaSqr = alpha * alpha;
+    float denom = dotNH * dotNH * (alphaSqr - 1.0) + 1.0;
+    float D = alphaSqr / (pi * denom * denom);
+    // F (Fresnel term)
+    float F_a = 1.0;
+    float F_b = pow(1.0 - dotLH, 5); // manually?
+    vec3 F = mix(vec3(F_b), vec3(F_a), F0);
+    // G (remapped hotness, see Unreal Shading)
+    float k = (alpha + 2 * roughness + 1) / 8.0;
+    float G = dotNL / (mix(dotNL, 1, k) * mix(dotNV, 1, k));
+
+    return D * F * G / 4.0;
 }
 
 vec4 decode_normal(vec4 n) {
@@ -392,49 +409,51 @@ void main() {
   clipPos.z = (fragdepth - depth_near) / (depth_far - depth_near);
   clipPos.w = 1.0;
   vec4 position = params.inv_projection * clipPos;
-  vec4 eye = -position;
+  vec3 V = -position.xyz;
 
+  // Sample the textures
   vec4 materials_sample = texture(materialmap, uv);
   float roughness = materials_sample.r;
   float metallicity = materials_sample.g;
   float ao = materials_sample.b;
   float cavity = materials_sample.a;
-  vec4 diffuse_sample = texture(diffusemap, uv);
-  vec4 normals_sample = decode_normal(texture(normalsmap, uv));
+  vec3 albedo = texture(diffusemap, uv).rgb;
+  vec3 N = decode_normal(texture(normalsmap, uv)).rgb;
 
   // Ambient point is scaled off of the white_point, since we presume the white_point
   // was scaled from true scene brightness (FIXME: once we have true scene brightness,
-  // use that instead)
+  // use that instead). This formula makes night darker (white/ambient is smaller).
   float ambient_point = 0.15 * params.white_point - 0.000008;
-  vec4 ambient = vec4(ambient_point, ambient_point, ambient_point, 1.0);
+  vec3 ambient_level = vec3(ambient_point, ambient_point, ambient_point);
 
-  vec4 diffuseao = diffuse_sample * ao;
+  // Prepare terms we re-use
+  vec3 diffuse = albedo * (1 - metallicity) * ao;
 
-  vec3 kdiff = diffuseao.xyz / 3.14159265359;
-  // FIXME use PBR not blinn-phong
-  float kspec_partial = cavity * (1-roughness + 8) / (8 * 3.14159265359);
-
-  // Output starts with ambient value
-  out_color = diffuseao * ambient;
+  // Start with ambient component
+  vec3 color = ambient_level * diffuse;
 
   // Add each lights contribution
   for (int i=0; i<=1; i++) {
     if (params.dlight_irradiances[i].xyz == vec3(0.0, 0.0, 0.0)) {
       continue; // Do not process lights that are off.
     }
-    vec3 specular_color = normalize(params.dlight_irradiances[i].xyz);
-    vec3 kspec = kspec_partial * specular_color;
-    vec3 this_lights_contribution = improved_blinn_phong(
-      eye,
-      normals_sample.xyz,
-      params.dlight_directions[i].xyz,
-      params.dlight_irradiances[i].xyz,
-      kdiff, kspec, metallicity*64);
-    out_color = out_color + vec4(this_lights_contribution, 0.0);
+    vec3 light = params.dlight_irradiances[i].xyz;
+    vec3 light_color = normalize(params.dlight_irradiances[i].xyz);
+    float light_intensity = (params.dlight_irradiances[i].x +
+      params.dlight_irradiances[i].y + params.dlight_irradiances[i].z) / 3.0;
+    vec3 L = params.dlight_directions[i].xyz;
+    float lambert = max(0.0, dot(L, N));
+
+    // Add diffuse part
+    color += diffuse * lambert * light;
+
+    // Add specular part
+    vec3 specular = mix(vec3(0.04), albedo, metallicity) * cavity * light_color;
+    color += shadingSpecularGGX(N, V, L, roughness, specular) * light_intensity;
   }
 
   // Level the output (still allows >1.0 but sets base exposure/whitepoint)
-  out_color = level(out_color);
+  out_color = level(vec4(color, 1.0));
 }
 "#);
 
