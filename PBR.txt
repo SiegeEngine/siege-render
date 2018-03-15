@@ -2,6 +2,7 @@ We use a typical "metalness" workflow.
 
 Albedo map:
   Base color. Used for both diffuse and specular.
+  (uses sRGB gamma, typically)
 
 AO:
   Ambient occlusion. Critical! (Albedo * AO) = traditional diffuse map.
@@ -25,6 +26,7 @@ Gloss/Smoothness -or- Roughness
 Normal (tangent-space)
   Represents normal directions at each pixel.
   Red=x, Green=y, Blue=z.
+  (no sRGB gamma!)
 
 Displacement
   Encodes a heightmap for the texture.
