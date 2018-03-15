@@ -375,7 +375,9 @@ vec4 level(vec4 irrad) {
 
 vec3 shadingSpecularGGX(vec3 N, vec3 V, vec3 L, float roughness, vec3 F0)
 {
-    vec3 H = normalize(V + L);
+    vec3 H = V + L;
+    if (length(H) < 0.00001) { return vec3(0.0, 0.0, 0.0); }
+    H = normalize(H);
     float dotLH = max(dot(L, H), 0.0);
     float dotNH = max(dot(N, H), 0.0);
     float dotNL = max(dot(N, L), 0.0);
@@ -385,6 +387,7 @@ vec3 shadingSpecularGGX(vec3 N, vec3 V, vec3 L, float roughness, vec3 F0)
     // D (GGX normal distribution, Trowbridge-Reitz)
     float alphaSqr = alpha * alpha;
     float denom = dotNH * dotNH * (alphaSqr - 1.0) + 1.0;
+    if (denom==0.0) { return vec3(0.0, 0.0, 0.0); }
     float D = alphaSqr / (pi * denom * denom);
     // F (Fresnel term)
     float F_a = 1.0;
