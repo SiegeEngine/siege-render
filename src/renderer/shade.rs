@@ -412,7 +412,7 @@ void main() {
   clipPos.z = (fragdepth - depth_near) / (depth_far - depth_near);
   clipPos.w = 1.0;
   vec4 position = params.inv_projection * clipPos;
-  vec3 V = -position.xyz;
+  vec3 V = normalize(-position.xyz);
 
   // Sample the textures
   vec4 materials_sample = texture(materialmap, uv);
