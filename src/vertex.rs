@@ -262,14 +262,8 @@ impl VulkanVertex for StarVertex {
                     location: 1,
                     binding: 0,
                     format: Format::R32G32B32_SFloat,
-                    offset: offset_of!(StarVertex, color) as u32,
-                },
-                VertexInputAttributeDescription {
-                    location: 2,
-                    binding: 0,
-                    format: Format::R32_SFloat,
-                    offset: offset_of!(StarVertex, brightness) as u32,
-                },
+                    offset: offset_of!(StarVertex, xyz) as u32,
+                }
             ],
             chain: None,
         }
