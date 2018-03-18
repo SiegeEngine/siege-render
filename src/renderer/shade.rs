@@ -453,7 +453,8 @@ void main() {
   }
 
   // Level the output (still allows >1.0 but sets base exposure/white_level)
-  out_color = level(vec4(color, 1.0));
+  // Limit to maximum f16 to not wrap around.
+  out_color = level(vec4(min(color, 65504), 1.0));
 }
 "#);
 
