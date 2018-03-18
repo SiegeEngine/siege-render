@@ -1,3 +1,26 @@
+Exposure:
+  Scene Brightness = Exposure * Scene Luminance
+  Exposure = 1 / (1.2 * pow(2.0, log2(N*N/t * 100/s)))
+    N = Aperture
+    t = inverse of shutter speed
+    S = ISO setting
+  Histograms could be taken. I think a single number is enough.
+  Compute scene luminance this way:
+    Enable automatic mipmap generation. Sample the final 1x1 mipmap image.
+    DONT pass it back to rust, that is too expensive. Just write it back to
+      a uniform buffer where it can be used by subsequent shaders (if you need
+      to pass it to another shader).
+    You want the geometric mean of luminance (log average), not the arithmetic mean
+      of color. You need to compute log2(luminance(color)) and then generate mipmaps
+      from that. Then sample the 1x1 and do exp2(sample) for average luminance.
+  Auto-adjust exposure by changing N, t and/or s.  Target is 18% Albedo.
+
+Ocean
+  Trochoid waves at varying frequencies
+
+Suns
+  The texture should have rays, and bloom should "blend" those rays, rather than
+  having a pure circle with just a little bit of bloom.
 
 UI layering needs sRGB gamma function applied (if that is applicable), but not
   tonemapping, so we need 1 more pass.

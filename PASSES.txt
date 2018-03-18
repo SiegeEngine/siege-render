@@ -1,110 +1,101 @@
-PLAN:
------
 
-Pass 1:  Early Z-Buffer Depth Testing
--------------------------------------
+===============================================================================
+Geometry Pass
+-------------
+All 3D geometry is rendered		-> DEPTH
+					-> Diffuse g-buffer
+                                        -> Normals g-buffer
+                                        -> Material g-buffer
 
-  Render variable-depth geometry approximately from front to back, using
-  EarlyZ-based shaders, which compute the depth information only:
-	* graybox-earlyz
-        * horizon-earlyz
+===============================================================================
+Ambient Shading
+---------------
+Ambient level of shading is applied
 
-  TBD: Tile-based light culling  (see Forward+)
+  DEPTH ->                              -> Shading
+  Diffuse g-buffer ->
+  Normals g-buffer ->
+  Material g-buffer ->
 
-  Attachments:
-    * Depth Buffer
+===============================================================================
+Lighting
+--------
+For each light:
 
-Pass 2:  Shading (Opaque)
--------------------------
+  Subpass: Geometry
+  -----------------
+  Geometry is rendered, depth only, from perspective of the light
 
-  Render all geometry in any order:
-	* graybox
-        * horizon,
-        * galaxy
-        * stars
-        * suns
-  Read depth buffer, but do not write depth buffer.
-  Use "layout(early_fragment_tests) in;" to check depth buffer prior to shading.
+                                        -> ShadowBuffer
+  Subpass: Shading
+  ----------------
+  Shading is applied for all fragments that are illuminated
 
-  Output levels adjusted against "white_point", however levels above 1.0 should
-  remain above 1.0. Post-processing will tone map to account for this.
+  ShadowBuffer ->                       -> Shading
+  Diffuse g-buffer ->
+  Normals g-buffer ->
+  Material g-buffer ->
 
-  Attachments:
-    Depth Buffer
-    Shading Image (color attachment output)
+===============================================================================
+Transparent & Far Plane
+-----------------------
+Transparent and far-plane graphics are rendered, and each is responsible for
+its own shading.
 
-Pass 3:  (Shading) Transparency
--------------------------------
+  DEPTH ->                              -> Shading
+  Diffuse g-buffer ->
+  Normals g-buffer ->
+  Material g-buffer ->
 
-  TBD.
-
-  Render transparent objects (back to front):
-  	* ?
-
-  Output levels adjusted against "white_point", however levels above 1.0 should
-  remain above 1.0. Post-processing will tone map to account for this.
-
-  Attachments:
-    Depth Buffer
-    Shading Image (color attachment output)
-
-Pass 4: Bloom copy
--------------------
-
-  Copy Shading Image into Bright image with a bright-pass filter
-    * ?Only accept  values where the luminance (not per channel, but total) is > 1.0,
-    * Other? Multiply down?
-    (also down-sampling as we go since "Bright" image is half-resolution).
-    * Don't only copy the 'overbright' amount, because the color balance
-      will be off.
-    * Look up 'bright pass filter'
-
-  Attachments:
-    Shading image (texture)
-    Bright Image (color attachment output)
-
-Pass 5: Bloom h-blur
+===============================================================================
+Luminance Computation (outside of a renderpass)
 ---------------------
+Luminance of each pixel is calculated to a target with auto mipmap generation
+(vulkan has no auto-mipmap - use compute shader on 8x8 input blocks, do 3 levels at once)
+Also look at 18.5 - image copies with scaling "vkCmdBlitImage()"
 
-  Gaussian blur from Bright into BlurPong horizontally
+  Shading ->                            -> Luminance Target
 
-  Attachments:
-    Bright Image (texture)
-    BlurPong Image (color attachment output)
+  * Potentially we sample from a 2nd mip level of Shading, to a 1/4 size luminance
+    target. The first mip level will be arithmetic mean of color (not quite luminance)
+    but an error level we can live with.
 
-Pass 6: Bloom v-blur
---------------------
+===============================================================================
+Blur-H
+------
+Pixels are filtered from shading, if hot enough (for bloom), and blured horizontally
+(luminance value is needed here)
 
-  Gaussian blur from BlurPong into Bright vertically
+  Shading ->                            -> Blur Target
 
-  Attachments:
-    BlurPong Image (texture)
-    Bright Image (color attachment output)
+  * Potentially Shading can have auto-mipmap generation for 1 level only, and the
+    the blur target can be only 1/4 size. This saves time and space, and is doubly
+    used as we will want the mipmap for luminance.
 
-Pass 7:  Post Processing
-------------------------
+===============================================================================
+Blur-V
+------
+Pixels are sampled from Blur Target, blurred vertically and blended back
 
-  Combine Shading Image with Overbright Image
-    * Apply a tonemapping function to the shadping image, so levels greater than
-      1.0 don't wash out. (Reinhard, Exposure, etc).
-    * Add bloom to tonemapped original.  Don't tone-map the bloom???
-    * Try this blending mode: https://en.wikipedia.org/wiki/Blend_modes#Screen
+  Blur Target ->                        -> Shading
 
-  Attachments:
-    Shading Image (texture)
-    Bright Image (texture)
-    Swapchain Image (color attachment output)
+===============================================================================
+Post
+----
+Shading is post-processed with exposure adjustment and tonemapping
+(luminance value is needed here)
 
-Pass 8:  UI
-------------
+  Shading ->                            -> Swapchain Image
 
-  Render the UI onto the swapchain framebuffer with alpha blending
-	* ui
+===============================================================================
+UI
+--
+UI is composited/blended into swapchain image (alpha blending)
 
-  Attachments:
-    Swapchain Image (color attachment output)
+  UI ->                                 -> Swapchain Image
 
 
+===============================================================================
 === GENERAL ARCHITECTURES ===============================
 
 Forward Renderer:
