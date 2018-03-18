@@ -1,0 +1,17 @@
+(IR)RADIANCE to (IL)LUMINANCE
+-----------------------------
+
+If you have radiance rather than luminance, you can convert within the
+color channels using luminous efficacies:
+
+   Wavelength            Approximate Luminous Efficacy
+   ----------            -----------------------------
+   555nm                 683 lumens/W
+
+   sRGB red ~ 613 nm     (0.2126/0.7152) * 683 lumens/W = 203 lumens/W
+   sRGB green ~ 550 nm                     683 lumens/W = 683 lumens/W
+   sRGB blue ~ 460 nm    (0.0722/0.7152) * 683 lumens/W = 68.9 lumens/W
+
+   Scene_luminance_Red   = Scene_radiance_Red   * 203
+   Scene_luminance_Green = Scene_radiance_Green * 683
+   Scene_luminance_Blue  = Scene_radiance_Blue  * 68.9

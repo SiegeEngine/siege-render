@@ -1,0 +1,212 @@
+RADIOMETRY
+==========
+
+All of these quantities are generally wavelength (λ) dependent, but we
+leave that off for brevity and simplicity. Just remember that these values
+can be quite different at different wavelengths.
+
+Energy (Q)
+----------
+  * Other Terms:  radiant energy, light, light energy, electromagnetic energy
+  * Symbol:       Q
+  * Units:        Joules
+
+Flux (Φ)
+--------
+  * Other Terms   Power, radiant flux, radiant power
+  * Described:    Radiant energy per unit time, passing through some given area.
+  * Symbol:       Φ
+  * Units:        Joules / Second   = Watts
+
+  Φ = dQ/dt
+
+Irradiance (E)
+--------------
+  * Other Terms:  Radiant Flux Density, Radiant Exitance (M) or Radiosity (M)
+  * Described:    Flux per unit area.
+		  or: Radiant energy per unit time, per unit area.
+                  Either arriving or leaving (generally called Exitance if leaving)
+                  Can be measured at any point in space.
+  * Symbol:       E (or M if leaving)
+  * Units:        Watts / meter²
+
+    E = dΦ/dA     Φ = ∫ E·dA
+
+    if uniform:  E = Φ/A
+    if area is not perpendicular to light:  E = Φ·cosθ/A
+
+
+Intensity (I)
+-------------
+  * Other Terms:  Radiant intensity
+  * Described:    Angular density of emitted power
+                  or: flux per unit solid angle
+                  or: total flux output of a point source / 4π
+  * Symbol        I
+  * Units         W / sr
+
+    I = dΦ/dω     Φ = ∫ I·dω
+
+    ONLY MEANINGFUL FOR POINT SOURCES OF LIGHT.
+
+
+Radiance (L)
+------------
+  * Symbol        L
+  * Described:    flux density per unit area, per unit solid angle.
+  * Units:        W/(m²·sr)
+
+    L = dE(ω)/dω
+
+    L = ∂²Φ / [∂ω·∂A┴]
+
+    where E(w) is only the perpendicular component of the irradiance E (that way we
+    eliminate the cosθ term).
+
+
+  * "Infinitesimal amount of radiant flux in a single ray of light."
+  * Function of the viewing direction.
+  * ω is the solid angle
+
+  * Emitted radiance:  A is the area on the surface of the source, ω is the
+    solid angle into which the light is emitted (and spreads out).
+  * Recevied radiance:  A is the area on the detector, ω is the solid angle
+    subtended by the source as viewed from that detector.
+
+
+It is useful to separate incoming radiance from outgoing radiance (rather than to
+compute one-sided limits at discontinuities).
+
+
+TERMINOLOGY GOTCHA:
+  > Thermal engineers use the term "radiant intensity" for "radiance" (watts per unit
+    area per unit solid angle).
+  > This became an issue when Computer Graphics adopted concepts of radiative heat
+    transfer to create radiosity theory, and adopted thermal engineering's terminology.
+  > Best to stick to the above, with "radiant intensity" as "watts per unit solid angle"
+    and "radiance" as "watts per unit area per unit solid angle", and ignore those
+    thermal engineers.
+
+Photometry deals with analogous quantities:
+  Luminous Intensity
+  Luminous Flux
+  Luminous Energy
+  Luminous Flux Density
+  Luminance
+  Illuminance (Luminous Exitance [sometimes Luminosity])
+
+  Using luminous efficacy (maximum of 683 lumens/W), and a CIE luminosity
+  function (luminous efficacy for a given wavelength)
+
+=================================================================
+Mike's examples one:  Surface of the sun
+----------------------------------------
+
+Sun provides some level of irradiance (E) here on Earth
+   (maximum of 1361 W/m² above atmosphere, 1000 W/m² at surface)
+
+Sun cuts some solid angle (ω) in the sky (6.87e-5 stradians)
+
+  BTW: for a circle you can get steradians from linear radians with:
+      steradians = 2 * pi * (1 - cos(radians))
+
+L = dE(ω)/dω
+Above atmosphere:
+  L = 1361 W/m² / 6.87e-5 stradians
+  L = 19,787,728 W/m²·sr above atmosphere
+At Earth's surface:
+  L = 1000 W/m² / 6.87e-5 stradians
+  L = 14,539,110 W/m²·sr above atmosphere
+
+Sun's luminous efficacy is 98
+
+  Lum = 19,787,728 * 98 = 1,939,197,441 cd/m²
+  Lum = 14,539,110 * 98 = 1,424,832,800 cd/m²
+
+Let's check:
+  According to this page:
+    https://en.wikipedia.org/wiki/Orders_of_magnitude_(luminance)
+  Solar disk at noon 1,600,000,000 cd/m², which lies between our
+    above/below atmosphere numbers, and so is totally within reason.
+
+=================================================================
+Mike's example two:  Stars
+--------------------------
+
+Each star provides some level of irradiance (E) here on Earth.
+
+Each star cuts some solid angle. Since they all cover less than one
+pixel, but we cannot focus the light smaller than a pixel, we will
+consider them to cover exactly one pixel.  One pixel covers an
+arc of fov/width radians.  Making that into a circle, we use the
+formula above:
+	ω = 2 * pi * (1 - cos((fov/width)/2))
+        (the linear angle is actually a bit more than half a pixel, partway between
+         an inscribed circle and an circumscribed cirle. I haven't worked the formula
+         for a square)
+
+   star_radiance = star_irradiance / ω
+                 = star_irradiance / 2 * pi * (1 - cos((fov/width)/2))
+
+Each star has a luminous efficacy.  Multiply radiance by luminous efficacy
+to get the luminance of the star.
+
+Then take the star's RGB, convert to XYZ, scale Y to this luminance (considering the
+luminance of the monitor -- e.g. Y=1 would be 80 cd/m² on an sRGB monitor),
+then convert back to RGB.
+
+This gives RGB values around 12000. There is no way....
+
+=================================================================
+Mike's recommendations
+----------------------
+
+Keep radiative light levels as irradiance values.
+Keep ambient light levels as irradiance values.
+
+Work out radiance of objects that are visible in the scene.
+
+Convert that radiance into luminance near the end of processing.
+
+=================================================================
+
+----
+http://www.helios32.com/Measuring%20Light.pdf
+
+Spectral versions of the above
+
+Spectral Radiant Energy (Q((λ))
+  * Described:    Radiant Energy per unit wavelength
+  * Symbol:       Q(λ)
+  * Units:        Joules per nanometer
+
+  Q(λ) = dQ/dλ
+
+Spectral Radiant Flux (Φ(λ))
+  * Other Terms:  Spectral Radiant Power
+  * Symbol:       Φ(λ)
+  * Units:        Joules / Second   = Watts
+
+  Φ(λ) = dΦ/dλ
+
+Spectral Radiant Flux Density (E(λ) or M(λ))
+  * Other Terms:  Spectral Irradiance or Spectral Radiant Exitance
+  * Symbol:       E(λ) or M(λ)
+  * Units:        W/(m²·nm)
+
+  E(λ) = dE/dλ
+  M(λ) = dM/dλ
+
+Spectral Radiance
+  * Described:     Radiance per unit wavelength
+  * Symbol         L(λ)
+  * Units:         W/(m²·sr·nm)
+
+   L(λ) = d³Φ / [dA·dω·cosθ·dλ]
+
+Spectral Radiant Intensity
+  * Symbol         I(λ)
+  * Units          W/(sr·nm)
+
+   I(λ) = dI/dλ
+

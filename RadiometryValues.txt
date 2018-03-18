@@ -1,0 +1,31 @@
+'natural' skyglow:
+
+  https://www.nature.com/articles/srep01835?WT.ec_id=SREP-704-20130603
+    'World Atlas' says
+    0.000252 cd/m²
+
+Milkyway luminosity:
+
+  http://adsabs.harvard.edu/abs/2013AAS...22125411L
+    absolute magnitude is Mr = -20.87 +0.33/-0.44 mag
+
+  http://www.stjarnhimlen.se/comp/radfaq.html
+
+    galactic pole: 30  (Luminance, S10vis)
+    galactic equator 160 - 640  (Luminance, S10vis)
+    1 S10vis = 0.69E-6 nit
+
+  that makes it
+    2.07e-05 at galactic pole
+    0.0004416 at galactic equator (brightest part)
+
+Star magnitudes:
+
+  http://www.stjarnhimlen.se/comp/radfaq.html
+
+    1 mv=0 star outside Earth's atmosphere = 2.54e-6 lux (cd·sr/m2)
+    1 mv=0 star per sq degree outside Earth's atmosphere = 0.84e-2 nit (cd/m2)
+    1 mv=0 star per sq degree inside clear unit airmass = 0.69e-2 nit (cd/m2)
+    (clear unit airmass transmits 82% of visual light, dimming by 0.2 magnitudes)
+
+  Magnitude 0 star is 2.45e+29 candela
