@@ -261,7 +261,7 @@ fn fragment_shader(device: &Device, _display_luminance: u32,
 {
     // FIXME: incorporate display luminance
     //    GINA FIXME -- SET TRANSFER FUNCTION TO ACCOUNT FOR config.display_luminance
-    //    let white_point = 80.0 / (display_luminance as f32);
+    //    let white_level = 80.0 / (display_luminance as f32);
 
     let code = format!("{}{}{}",
                        FS_PREFIX,
@@ -308,7 +308,8 @@ layout (set = 1, binding = 0) uniform UBO
   float bloom_strength;
   float bloom_scale;
   float blur_level;
-  float white_point;
+  float ambient;
+  float white_level;
 } ubo;
 
 layout (location = 0) in vec2 inUV;

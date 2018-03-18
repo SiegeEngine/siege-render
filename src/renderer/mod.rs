@@ -98,7 +98,8 @@ pub struct Params {
     pub bloom_strength: f32, // 0.65
     pub bloom_scale: f32, // 1.1
     pub blur_level: f32, // 0.0
-    pub white_point: f32,
+    pub ambient: f32,
+    pub white_level: f32,
 }
 
 pub struct Renderer {
@@ -259,7 +260,8 @@ impl Renderer {
                 bloom_strength: 0.65,
                 bloom_scale: 1.1,
                 blur_level: 0.0,
-                white_point: 0.1,
+                ambient: 0.001,
+                white_level: 0.1,
             };
             params_ubo.write_one(&params, None)?;
         }

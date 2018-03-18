@@ -355,7 +355,8 @@ layout (set = 1, binding = 0) uniform ParamsUBO {
   float bloom_strength;
   float bloom_scale;
   float blur_level;
-  float white_point;
+  float ambient;
+  float white_level;
 } params;
 
 layout (set = 0, binding = 0) uniform sampler2D depthbuffer; // D32_SFloat
@@ -370,7 +371,7 @@ layout(location = 0) out vec4 out_color; // can be >1.0, post will handle it.
 const float pi = 3.14159265359;
 
 vec4 level(vec4 irrad) {
-  return vec4(irrad.xyz / params.white_point, irrad.a);
+  return vec4(irrad.xyz / params.white_level, irrad.a);
 }
 
 vec3 shadingSpecularGGX(vec3 N, vec3 V, vec3 L, float roughness, vec3 F0)
@@ -423,11 +424,7 @@ void main() {
   vec3 albedo = texture(diffusemap, uv).rgb;
   vec3 N = decode_normal(texture(normalsmap, uv)).rgb;
 
-  // Ambient point is scaled off of the white_point, since we presume the white_point
-  // was scaled from true scene brightness (FIXME: once we have true scene brightness,
-  // use that instead). This formula makes night darker (white/ambient is smaller).
-  float ambient_point = 0.15 * params.white_point - 0.000008;
-  vec3 ambient_level = vec3(ambient_point, ambient_point, ambient_point);
+  vec3 ambient_level = vec3(params.ambient, params.ambient, params.ambient);
 
   // Prepare terms we re-use
   vec3 diffuse = albedo * (1 - metallicity) * ao;
@@ -455,7 +452,7 @@ void main() {
     color += shadingSpecularGGX(N, V, L, roughness, specular) * light_intensity;
   }
 
-  // Level the output (still allows >1.0 but sets base exposure/whitepoint)
+  // Level the output (still allows >1.0 but sets base exposure/white_level)
   out_color = level(vec4(color, 1.0));
 }
 "#);
