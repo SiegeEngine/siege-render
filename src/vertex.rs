@@ -84,6 +84,12 @@ impl VulkanVertex for StandardVertex {
                 VertexInputAttributeDescription {
                     location: 1,
                     binding: 0,
+                    format: Format::R32G32B32_SFloat,
+                    offset: offset_of!(StandardVertex, normal) as u32,
+                },
+                VertexInputAttributeDescription {
+                    location: 2,
+                    binding: 0,
                     format: Format::R32G32_SFloat,
                     offset: offset_of!(StandardVertex, uv) as u32,
                 },
