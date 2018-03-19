@@ -1,6 +1,8 @@
 
-const MU: f32 = 0.0;
-const SIGMA: f32 = 1.6;
+const MU: f32 = 0.0; // offset from zero
+const SIGMA: f32 = 1.6; // larger is more spread out
+const IMMEDIATE_FALLOFF: f32 = 0.5; // nice for stars
+
 use std::f32::consts::PI;
 
 fn gaussian(x: f32) -> f32
@@ -14,6 +16,6 @@ fn gaussian(x: f32) -> f32
 
 fn main() {
     for i in -5 .. 6 {
-        println!("{}: {}", i, gaussian(i as f32) / gaussian(0.0) );
+        println!("{}: {}", i, IMMEDIATE_FALLOFF * gaussian(i as f32) / gaussian(0.0));
     }
 }
