@@ -330,7 +330,7 @@ vec3 samp(vec2 offset) {
 
   // New function, considers some lums will be very high
   // Output is in range [0,1]
-  float mult = 1 - pow(1.2, 1-xyz.y);
+  float mult = 1 - pow(1.08, -xyz.y);
 
   // Adjust based on the bloom strength
   // Output will be in range [0,bloom_strength]
