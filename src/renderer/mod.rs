@@ -96,7 +96,7 @@ pub struct Params {
     pub dlight_directions: [Vec4<f32>; 2],
     pub dlight_irradiances: [Vec4<f32>; 2],
     pub bloom_strength: f32, // 0.65
-    pub bloom_scale: f32, // 1.1
+    pub bloom_cliff: f32, // 0.7
     pub blur_level: f32, // 0.0
     pub ambient: f32,
     pub white_level: f32,
@@ -258,7 +258,7 @@ impl Renderer {
                     Default::default(),
                     Default::default() ],
                 bloom_strength: 0.65,
-                bloom_scale: 1.1,
+                bloom_cliff: 0.7,
                 blur_level: 0.0,
                 ambient: 0.001,
                 white_level: 0.1,

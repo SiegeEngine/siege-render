@@ -1,7 +1,7 @@
 
 const MU: f32 = 0.0; // offset from zero
 const SIGMA: f32 = 1.6; // larger is more spread out
-const IMMEDIATE_FALLOFF: f32 = 0.5; // nice for stars
+const IMMEDIATE_FALLOFF: f32 = 1.0; // nice for stars
 
 use std::f32::consts::PI;
 

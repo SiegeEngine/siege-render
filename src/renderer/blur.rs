@@ -302,7 +302,7 @@ layout (set = 1, binding = 0) uniform UBO
   vec4 dlight_directions[2];
   vec4 dlight_irradiances[2];
   float bloom_strength;
-  float bloom_scale;
+  float bloom_cliff;
   float blur_level;
   float white_point;
 } ubo;
@@ -364,17 +364,17 @@ void main()
   // We have a sharp falloff at the first pixel, because this looks nice for stars
   // and doesn't make other things look awful.
   weight[0] = 1.0;
-  weight[1] = 0.5758043;
-  weight[2] = 0.32048336;
-  weight[3] = 0.120695144;
-  weight[4] = 0.030755859;
-  weight[5] = 0.0053029764;
+  weight[1] = 0.8225776;
+  weight[2] = 0.45783338;
+  weight[3] = 0.17242163;
+  weight[4] = 0.04393694;
+  weight[5] = 0.0075756805;
 
-  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
+  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0); // gets size of single texel
   vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
   for (int i = 1; i < 6; ++i) {
-    result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i];
-    result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i];
+    result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i] * ubo.bloom_cliff;
+    result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i] * ubo.bloom_cliff;
   }
   // do not go beyond maximum f16
   outFragColor = vec4(min(result, 65504), 1.0);
@@ -437,7 +437,7 @@ layout (set = 1, binding = 0) uniform UBO
   vec4 dlight_directions[2];
   vec4 dlight_irradiances[2];
   float bloom_strength;
-  float bloom_scale;
+  float bloom_cliff;
   float blur_level;
   float white_point;
 } ubo;
@@ -454,17 +454,17 @@ void main()
 {
   float weight[6];
   weight[0] = 1.0;
-  weight[1] = 0.5758043;
-  weight[2] = 0.32048336;
-  weight[3] = 0.120695144;
-  weight[4] = 0.030755859;
-  weight[5] = 0.0053029764;
+  weight[1] = 0.8225776;
+  weight[2] = 0.45783338;
+  weight[3] = 0.17242163;
+  weight[4] = 0.04393694;
+  weight[5] = 0.0075756805;
 
-  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
+  vec2 tex_offset = 1.0 / textureSize(samplerColor, 0); // gets size of single texel
   vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
   for (int i = 1; i < 6; ++i) {
-    result += samp(vec2(0.0, tex_offset.y * i)) * weight[i];
-    result += samp(vec2(0.0, -tex_offset.y * i)) * weight[i];
+    result += samp(vec2(0.0, tex_offset.y * i)) * weight[i] * ubo.bloom_cliff;
+    result += samp(vec2(0.0, -tex_offset.y * i)) * weight[i] * ubo.bloom_cliff;
   }
   outFragColor = vec4(result, 1.0);
 }
