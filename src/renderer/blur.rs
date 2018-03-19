@@ -318,43 +318,57 @@ layout (location = 0) out vec4 outFragColor;
 // Bright pass filter sampling
 vec3 samp(vec2 offset) {
 
-  // 1. Get the texture irradiance value
+  // Get the texture irradiance value
   vec3 color = texture(samplerColor, inUV + offset).rgb;
 
-  // 2. Get average luminance based on Y
-  float lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+  // Convert to xyz
+  mat3 rgb2xyz = mat3( // column major order
+    0.4124, 0.2126, 0.0193,
+    0.3576, 0.7152, 0.1192,
+    0.1805, 0.0722, 0.9505);
+  vec3 xyz = rgb2xyz * color;
 
-  // 3. Take values greater than about 1, but with a softer knee than that.
-  //    This function yields a value from 0..1 (approx) so we multiply by it.
-  const float one_over_pi = 1.0 / 3.14159265359;
-  const float sharpness = 50;
-  const float knee = 1.1;
-  float mult = clamp(0.45 + 1.1 * atan(sharpness * (lum - knee)) * one_over_pi, 0.0, 1.0);
+  // New function, considers some lums will be very high
+  // Output is in range [0,1]
+  float mult = 1 - pow(1.2, 1-xyz.y);
 
-  // 4. Scale down the max multiplier (which currently ranges [0,1])
-  // so we have a sharp decrease at the first pixel out
-  const float scale = 0.5;
-  mult *= scale;
+  // Adjust based on the bloom strength
+  // Output will be in range [0,bloom_strength]
+  mult *= ubo.bloom_strength;
 
-  // 5. We want bloom to be of the same shade as the color, but not the same
-  //    brightness. We normalize (never normalize zero!). And we apply the
-  //    multiplier.
-  if (color == vec3(0.0, 0.0, 0.0)) { return color; }
-  vec3 bloomcolor = normalize(color) * mult;
+  // Also include blur factor
+  mult = clamp(mult + ubo.blur_level, 0, 1);
 
-  // 6. Multiply by bloom strength, and add blur level (times original color)
-  return bloomcolor * ubo.bloom_strength + color * ubo.blur_level;
+  // Scale the luminance
+  xyz *= mult;
+
+  // For bloom purposes, we want to cap the maximum values.  The original will
+  // still be there for tonemapping.
+  xyz = clamp(xyz, 0.0, 1.0);
+
+  // Convert back to RGB
+  mat3 xyz2rgb = mat3( // column major order
+    3.2406255, -0.96893071, 0.055710120,
+    -1.5372080, 1.8757561, -0.20402105,
+    -0.49862860, 0.041517524, 1.0569959);
+
+  vec3 rgb = xyz2rgb * xyz;
+
+
+  return rgb;
 }
 
 void main()
 {
   float weight[6];
+  // We have a sharp falloff at the first pixel, because this looks nice for stars
+  // and doesn't make other things look awful.
   weight[0] = 1.0;
-  weight[1] = 0.8225776;
-  weight[2] = 0.45783338;
-  weight[3] = 0.17242163;
-  weight[4] = 0.04393694;
-  weight[5] = 0.0075756805;
+  weight[1] = 0.5758043;
+  weight[2] = 0.32048336;
+  weight[3] = 0.120695144;
+  weight[4] = 0.030755859;
+  weight[5] = 0.0053029764;
 
   vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
   vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
@@ -362,7 +376,8 @@ void main()
     result += samp(vec2(tex_offset.x * i, 0.0)) * weight[i];
     result += samp(vec2(-tex_offset.x * i, 0.0)) * weight[i];
   }
-  outFragColor = vec4(result, 1.0);
+  // do not go beyond maximum f16
+  outFragColor = vec4(min(result, 65504), 1.0);
 }
 "#);
 
@@ -439,11 +454,11 @@ void main()
 {
   float weight[6];
   weight[0] = 1.0;
-  weight[1] = 0.8225776;
-  weight[2] = 0.45783338;
-  weight[3] = 0.17242163;
-  weight[4] = 0.04393694;
-  weight[5] = 0.0075756805;
+  weight[1] = 0.5758043;
+  weight[2] = 0.32048336;
+  weight[3] = 0.120695144;
+  weight[4] = 0.030755859;
+  weight[5] = 0.0053029764;
 
   vec2 tex_offset = 1.0 / textureSize(samplerColor, 0) * ubo.bloom_scale; // gets size of single texel
   vec3 result = samp(vec2(0.0, 0.0)) * weight[0]; // current fragment's contribution
