@@ -330,7 +330,8 @@ vec3 samp(vec2 offset) {
 
   // New function, considers some lums will be very high
   // Output is in range [0,1]
-  float mult = 1 - pow(1.08, -xyz.y);
+  //  float mult = 1 - pow(1.08, -xyz.y);
+  float mult = xyz.y / (xyz.y + 6);
 
   // Adjust based on the bloom strength
   // Output will be in range [0,bloom_strength]
@@ -342,9 +343,11 @@ vec3 samp(vec2 offset) {
   // Scale the luminance
   xyz *= mult;
 
-  // For bloom purposes, we want to cap the maximum values.  The original will
-  // still be there for tonemapping.
-  xyz = clamp(xyz, 0.0, 1.0);
+  // Perhaps cap the maximum values.
+  // xyz = xyz / (xyz + 1); // reinhard
+  // xyz = clamp(xyz, 0.0, 1.0); // clamp
+  // Currently I think not, because tonemapping will clamp everything later on.
+  // Current personal settings: strength=0.1, cliff=0.35
 
   // Convert back to RGB
   mat3 xyz2rgb = mat3( // column major order
