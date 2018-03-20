@@ -35,7 +35,7 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    DescriptorSetAllocateInfo, DescriptorType, ShaderStageFlags,
                    WriteDescriptorSetElements, DescriptorSetLayoutBinding,
                    PhysicalDeviceFeatures, PhysicalDeviceProperties,
-                   Format, BufferView};
+                   Format, BufferView, SpecializationInfo};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use siege_math::{Vec4, Mat4};
@@ -445,7 +445,9 @@ impl Renderer {
     pub fn create_pipeline(&mut self,
                            desc_set_layouts: Vec<DescriptorSetLayout>,
                            vertex_shader: Option<&str>,
+                           vertex_shader_spec: Option<SpecializationInfo>,
                            fragment_shader: Option<&str>,
+                           fragment_shader_spec: Option<SpecializationInfo>,
                            vertex_type: Option<PipelineVertexInputStateCreateInfo>,
                            topology: PrimitiveTopology,
                            cull_mode: CullModeFlags,
@@ -471,7 +473,7 @@ impl Renderer {
                 Pass::Transparent => self.transparent_pass.render_pass.clone(),
                 Pass::Ui => self.ui_pass.render_pass.clone(),
             },
-            desc_set_layouts, vs, None, fs, None,
+            desc_set_layouts, vs, vertex_shader_spec, fs, fragment_shader_spec,
             vertex_type, topology, cull_mode, front_face, depth_handling, blend)
     }
 
