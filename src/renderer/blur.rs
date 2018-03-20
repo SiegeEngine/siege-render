@@ -343,11 +343,10 @@ vec3 samp(vec2 offset) {
   // Scale the luminance
   xyz *= mult;
 
-  // Perhaps cap the maximum values.
-  // xyz = xyz / (xyz + 1); // reinhard
+  // We have to cap the maximum values
+  // (If we don't we will overbloom out to rectangles)
+  xyz = xyz / (xyz + 1); // reinhard
   // xyz = clamp(xyz, 0.0, 1.0); // clamp
-  // Currently I think not, because tonemapping will clamp everything later on.
-  // Current personal settings: strength=0.1, cliff=0.35
 
   // Convert back to RGB
   mat3 xyz2rgb = mat3( // column major order
