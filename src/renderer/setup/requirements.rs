@@ -61,7 +61,7 @@ pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
     shader_storage_image_array_dynamic_indexing: false,
     shader_clip_distance: false,
     shader_cull_distance: false,
-    shader_float64: true,
+    shader_float64: false,
     shader_int64: false,
     shader_int16: false,
     shader_resource_residency: false,
