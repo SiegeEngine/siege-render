@@ -24,6 +24,7 @@ pub use self::post::Tonemapper;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+use std::path::PathBuf;
 use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    ShaderModule, Rect2D, Viewport, Offset2D,
                    DescriptorPool, Semaphore, Fence,
@@ -414,6 +415,10 @@ impl Renderer {
         self.resource_manager.load_buffer(
             &self.device, &mut self.memory, &self.commander,
             &mut self.staging_buffer, usage, name)
+    }
+
+    pub fn get_asset_path(&self) -> PathBuf {
+        self.config.asset_path.clone()
     }
 
     pub fn get_image_view(&self, image: &ImageWrap) -> Result<ImageView>
