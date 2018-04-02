@@ -10,13 +10,14 @@ use errors::*;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
 
+#[repr(u32)]
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub enum Tonemapper {
-    Clamp,
-    Reinhard,
-    Exposure,
-    HybridLogGamma,
-    Falsecolor,
+    Clamp = 0,
+    Reinhard = 1,
+    Exposure = 2,
+    HybridLogGamma = 3,
+    Falsecolor = 4,
 }
 
 pub struct PostGfx {
@@ -37,7 +38,6 @@ impl PostGfx {
                viewport: Viewport,
                scissors: Rect2D,
                display_luminance: u32,
-               tonemapper: Tonemapper,
                params_layout: DescriptorSetLayout,
                surface_needs_gamma: bool)
               -> Result<PostGfx>
@@ -109,7 +109,7 @@ impl PostGfx {
 
         let vertex_shader = vertex_shader(device)?;
 
-        let fragment_shader = fragment_shader(device, display_luminance, tonemapper)?;
+        let fragment_shader = fragment_shader(device, display_luminance)?;
 
         let fragment_spec = SpecializationInfo {
             map_entries: vec![
@@ -255,43 +255,14 @@ void main()
     Ok(device.create_shader_module(&create_info, None)?)
 }
 
-fn fragment_shader(device: &Device, _display_luminance: u32,
-                   tonemapper: Tonemapper)
+fn fragment_shader(device: &Device, _display_luminance: u32)
                    -> Result<ShaderModule>
 {
     // FIXME: incorporate display luminance
     //    GINA FIXME -- SET TRANSFER FUNCTION TO ACCOUNT FOR config.display_luminance
     //    let white_level = 80.0 / (display_luminance as f32);
 
-    let code = format!("{}{}{}",
-                       FS_PREFIX,
-                       match tonemapper {
-                           Tonemapper::Clamp => FS_TONEMAP_CLAMP,
-                           Tonemapper::Reinhard => FS_TONEMAP_REINHARD,
-                           Tonemapper::Exposure => FS_TONEMAP_EXPOSURE,
-                           Tonemapper::HybridLogGamma => FS_TONEMAP_HLG,
-                           Tonemapper::Falsecolor => FS_TONEMAP_FALSECOLOR,
-                       },
-                       FS_SUFFIX);
-
-    use std::fs::File;
-    use std::io::Read;
-
-    let mut output: File =
-        ::glsl_to_spirv::compile(&*code, ::glsl_to_spirv::ShaderType::Fragment)?;
-    let mut bytes: Vec<u8> = Vec::new();
-    output.read_to_end(&mut bytes)?;
-
-    let create_info = ShaderModuleCreateInfo {
-        flags: ShaderModuleCreateFlags::empty(),
-        code: bytes,
-        chain: None,
-    };
-
-    Ok(device.create_shader_module(&create_info, None)?)
-}
-
-const FS_PREFIX: &'static str = r#"#version 450
+    let bytes: &[u8] = glsl_fs!(r#"#version 450
 
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
@@ -310,14 +281,13 @@ layout (set = 1, binding = 0) uniform UBO
   float blur_level;
   float ambient;
   float white_level;
+  int tonemapper;
 } ubo;
 
 layout (location = 0) in vec2 inUV;
 
 layout (location = 0) out vec4 outFragColor;
-"#;
 
-const FS_TONEMAP_HLG: &'static str = r#"
 float hlg(float scene_referred) {
   const float r = 0.5; // reference white level
   const float a = 0.17883277;
@@ -340,13 +310,11 @@ float hlg(float scene_referred) {
   }
 }
 
-vec3 tonemap(vec3 scene_referred) {
+vec3 hlg_tonemap(vec3 scene_referred) {
   return vec3(hlg(scene_referred.r), hlg(scene_referred.g), hlg(scene_referred.b));
 }
-"#;
 
-const FS_TONEMAP_FALSECOLOR: &'static str = r#"// False Color
-vec3 tonemap(vec3 scene_referred) {
+vec3 falsecolor_tonemap(vec3 scene_referred) {
   vec3 colors[6] = vec3[](
     vec3(0.0, 0.0, 1.0),
     vec3(0.0, 1.0, 1.0),
@@ -360,28 +328,19 @@ vec3 tonemap(vec3 scene_referred) {
   float level = log2(lum/0.18);
   return colors[int(level) % 6];
 }
-"#;
 
-const FS_TONEMAP_REINHARD: &'static str = r#"
-vec3 tonemap(vec3 scene_referred) {
+vec3 reinhard_tonemap(vec3 scene_referred) {
   return scene_referred / (scene_referred + vec3(1.0));
 }
-"#;
 
-const FS_TONEMAP_CLAMP: &'static str = r#"
-vec3 tonemap(vec3 scene_referred) {
+vec3 clamp_tonemap(vec3 scene_referred) {
   return clamp(scene_referred, 0.0, 1.0);
 }
-"#;
 
-const FS_TONEMAP_EXPOSURE: &'static str = r#"
-vec3 tonemap(vec3 scene_referred) {
+vec3 exposure_tonemap(vec3 scene_referred) {
   const float exposure = 1.0;
   return vec3(1.0) - exp(-scene_referred * exposure);
 }
-"#;
-
-const FS_SUFFIX: &'static str = r#"
 
 float srgb_gamma(float linear) {
   if (linear <= 0.0031308) {
@@ -396,7 +355,25 @@ void main()
   // Load scene referred color from shadingTex
   vec3 scene_referred = texture(shadingTex, inUV).rgb;
 
-  vec3 tonemapped = tonemap(scene_referred);
+  vec3 tonemapped;
+  if (ubo.tonemapper == 0) {
+    tonemapped = clamp_tonemap(scene_referred);
+  }
+  else if (ubo.tonemapper == 1) {
+    tonemapped = reinhard_tonemap(scene_referred);
+  }
+  else if (ubo.tonemapper == 2) {
+    tonemapped = exposure_tonemap(scene_referred);
+  }
+  else if (ubo.tonemapper == 3) {
+    tonemapped = hlg_tonemap(scene_referred);
+  }
+  else if (ubo.tonemapper == 4) {
+    tonemapped = falsecolor_tonemap(scene_referred);
+  }
+  else {
+    tonemapped = reinhard_tonemap(scene_referred);
+  }
 
   if (surface_needs_gamma != 0) {
     outFragColor = vec4(srgb_gamma(tonemapped.r),
@@ -407,5 +384,13 @@ void main()
     outFragColor = vec4(tonemapped, 1.0);
   }
 }
-"#;
+"#);
 
+    let create_info = ShaderModuleCreateInfo {
+        flags: ShaderModuleCreateFlags::empty(),
+        code: bytes.to_vec(),
+        chain: None,
+    };
+
+    Ok(device.create_shader_module(&create_info, None)?)
+}

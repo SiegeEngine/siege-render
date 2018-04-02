@@ -100,6 +100,7 @@ pub struct Params {
     pub blur_level: f32, // 0.0
     pub ambient: f32,
     pub white_level: f32,
+    pub tonemapper: Tonemapper,
 }
 
 pub struct Renderer {
@@ -262,6 +263,7 @@ impl Renderer {
                 blur_level: 0.0,
                 ambient: 0.001,
                 white_level: 0.1,
+                tonemapper: Tonemapper::Reinhard,
             };
             params_ubo.write_one(&params, None)?;
         }
@@ -339,7 +341,6 @@ impl Renderer {
                                     &target_data, post_pass.render_pass.clone(),
                                     viewports[0].clone(), scissors[0].clone(),
                                     config.display_luminance,
-                                    config.tonemapper,
                                     params_desc_layout.clone(),
                                     swapchain_data.surface_data.needs_gamma)?;
 
