@@ -4,7 +4,7 @@ use dacite::core::{Format, ComponentMapping, ComponentSwizzle};
 
 pub fn from_d3d(format: D3DFormat) -> Option<(Format, ComponentMapping)>
 {
-    info!("Looking to match format {:?}", format);
+    //info!("Looking to match format {:?}", format);
     match format {
         D3DFormat::A8B8G8R8 => Some((Format::R8G8B8A8_sRGB, ComponentMapping::identity())),
         D3DFormat::G16R16 => None,
