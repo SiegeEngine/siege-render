@@ -36,7 +36,9 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    DescriptorSetAllocateInfo, DescriptorType, ShaderStageFlags,
                    WriteDescriptorSetElements, DescriptorSetLayoutBinding,
                    PhysicalDeviceFeatures, PhysicalDeviceProperties,
-                   Format, BufferView, SpecializationInfo};
+                   Format, BufferView, SpecializationInfo, QueryPool,
+                   QueryPoolCreateInfo, QueryType, QueryPipelineStatisticFlags,
+                   QueryResultFlags, PipelineStageFlagBits, QueryResult};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use siege_math::{Vec4, Mat4};
@@ -85,6 +87,40 @@ pub enum BlendMode {
     Add
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Stats {
+    pub framenumber: u64,
+    /// How long each frame has lasted for, in seconds, averaged
+    pub frametime_60: f32,
+    pub frametime_600: f32,
+    pub frametime_6000: f32,
+    /// How long was spent waiting for the GPU, in seconds, averaged
+    pub outerrendertime_60: f32,
+    pub outerrendertime_600: f32,
+    pub outerrendertime_6000: f32,
+    /// How long does the GPU report rendering, in seconds, averaged
+    pub rendertime_60: f32,
+    pub rendertime_600: f32,
+    pub rendertime_6000: f32,
+}
+impl Default for Stats {
+    fn default() -> Stats {
+        Stats {
+            framenumber: 0,
+            frametime_60: 0.0,
+            frametime_600: 0.0,
+            frametime_6000: 0.0,
+            outerrendertime_60: 0.0,
+            outerrendertime_600: 0.0,
+            outerrendertime_6000: 0.0,
+            rendertime_60: 0.0,
+            rendertime_600: 0.0,
+            rendertime_6000: 0.0,
+        }
+    }
+}
+
 // FIXME: Some settings the renderer is trying to pass to its shaders (and different ones
 //          to different shaders).
 //        Some settings clients are trying to adjust in the renderer
@@ -122,6 +158,7 @@ pub struct Renderer {
     shading_pass: ShadingPass,
     geometry_pass: GeometryPass,
     target_data: TargetData,
+    timestamp_query_pool: QueryPool,
     rendered_fence: Fence,
     acquired_fence: Fence,
     image_rendered: Semaphore,
@@ -147,6 +184,7 @@ pub struct Renderer {
     instance: Instance,
     shutdown: Arc<AtomicBool>,
     resized: Arc<AtomicBool>,
+    stats: Stats,
     window: Arc<Window>,
     config: Config,
 }
@@ -220,6 +258,14 @@ impl Renderer {
 
         let acquired_fence = setup::get_graphics_fence(&device, false)?;
         let rendered_fence = setup::get_graphics_fence(&device, false)?;
+
+        let timestamp_query_pool = device.create_query_pool(&QueryPoolCreateInfo {
+            flags: Default::default(),
+            query_type: QueryType::Timestamp,
+            query_count: 2,
+            pipeline_statistics: QueryPipelineStatisticFlags::empty(),
+            chain: None,
+        }, None)?;
 
         let target_data = TargetData::create(
             &device, &mut memory, &commander, swapchain_data.extent)?;
@@ -361,6 +407,7 @@ impl Renderer {
             shading_pass: shading_pass,
             geometry_pass: geometry_pass,
             target_data: target_data,
+            timestamp_query_pool: timestamp_query_pool,
             rendered_fence: rendered_fence,
             acquired_fence: acquired_fence,
             image_rendered: image_rendered,
@@ -384,6 +431,7 @@ impl Renderer {
             instance: instance,
             shutdown: shutdown,
             resized: resized,
+            stats: Default::default(),
             window: window,
             config: config
         })
@@ -552,20 +600,32 @@ impl Renderer {
         self.record_command_buffers()?;
         self.memory.log_usage();
 
-        let mut frame_number: u64 = 0;
-        let loop_throttle = Duration::new(
-            0, 1_000_000_000 / self.config.fps_cap);
-        let mut render_start: Instant;
-        let mut render_end: Instant;
-        let mut render_duration: Duration;
-        let mut render_duration_sum: Duration = Duration::new(0,0);
-        let mut report_time: Instant = Instant::now();
+        let loop_throttle = Duration::new(0, 1_000_000_000 / self.config.fps_cap);
 
-        let mut sum_of_seconds_per_frame: f32 = 0.0;
-        let mut count_of_sum: u32 = 0;
-        const TIMING_NUMFRAMES: u64 = 5000;
+        let mut rendertime_1: Duration;
+        let mut rendertime_60: Duration = Duration::new(0,0);
+        let mut rendertime_600: Duration = Duration::new(0,0);
+        let mut rendertime_6000: Duration = Duration::new(0,0);
 
+        let mut outerrendertime_1: Duration;
+        let mut outerrendertime_60: Duration = Duration::new(0,0);
+        let mut outerrendertime_600: Duration = Duration::new(0,0);
+        let mut outerrendertime_6000: Duration = Duration::new(0,0);
+
+        let mut outerrendertime_start: Instant;
+
+        let mut looptime_1: Duration;
+        let mut looptime_60: Duration = Duration::new(0,0);
+        let mut looptime_600: Duration = Duration::new(0,0);
+        let mut looptime_6000: Duration = Duration::new(0,0);
+
+        let mut last_loop_start: Instant;
+        let mut loop_start: Instant = Instant::now();
         loop {
+            last_loop_start = loop_start;
+            loop_start = Instant::now();
+            looptime_1 = loop_start.duration_since(last_loop_start);
+
             {
                 let params = self.params_ubo.as_ptr::<Params>().unwrap();
                 for plugin in &mut self.plugins {
@@ -574,8 +634,8 @@ impl Renderer {
             }
             self.memory.flush()?;
 
-            // Render a frame
-            render_start = match self.render() {
+            // Render a frame (issue the commands)
+            match self.render() {
                 Err(e) => {
                     if let &ErrorKind::Dacite(OutOfDateKhr) = e.kind() {
                         // Rebuild the swapchain if Vulkan complains that it is out of date.
@@ -593,7 +653,7 @@ impl Renderer {
                 Ok(instant) => instant
             };
 
-            frame_number += 1;
+            self.stats.framenumber += 1;
 
             // On windows (at least, perhaps also elsewhere), vulkan won't give us an
             // OutOfDateKhr error on a window resize.  But the window will remain black
@@ -613,40 +673,41 @@ impl Renderer {
             // accurate timings (for now). FIXME.
             // Wait on the acquired fence, before trying to acquire another
             self.acquired_fence.wait_for(Timeout::Infinite)?;
+            outerrendertime_start = Instant::now();
             self.rendered_fence.wait_for(Timeout::Infinite)?;
+            outerrendertime_1 = outerrendertime_start.elapsed();
 
-            render_end = Instant::now();
-
-            render_duration = render_end.duration_since(render_start);
-            render_duration_sum += render_duration;
+            // Query render time
+            rendertime_1 = {
+                let mut results: [QueryResult; 2] = [QueryResult::U32(0); 2];
+                self.timestamp_query_pool.get_results(
+                    0, // first query
+                    2, // query count
+                    1, // stride (dacite takes this and multiplies by size of u32 or u64
+                    QueryResultFlags::WAIT,
+                    &mut results
+                )?;
+                let start = match results[0] {
+                    QueryResult::U32(u) => u,
+                    QueryResult::U64(s) => s as u32
+                };
+                let end = match results[1] {
+                    QueryResult::U32(u) => u,
+                    QueryResult::U64(s) => s as u32
+                };
+                if end > start {
+                    Duration::new(
+                        0,
+                        ((end - start) as f32 * self.ph_props.limits.timestamp_period) as u32
+                    )
+                } else {
+                    Duration::new(0,0) // wrong, but at least we dont panic.
+                }
+            };
 
             // Throttle FPS
-            if render_duration < loop_throttle {
-                ::std::thread::sleep(loop_throttle - render_duration);
-            }
-
-            // FPS calculation
-            if frame_number % TIMING_NUMFRAMES == 0 {
-                let seconds_per_frame = duration_to_seconds(&render_duration_sum)
-                    / (TIMING_NUMFRAMES as f32);
-                let fps = (TIMING_NUMFRAMES as f32)
-                    / duration_to_seconds(&report_time.elapsed());
-                info!("{:>6.1} fps; {:>8.6} s/frame; {:>5.1}%",
-                      fps, seconds_per_frame,
-                      100.0 * seconds_per_frame / 0.016666667);
-
-                // reset data
-                report_time = Instant::now();
-                render_duration_sum = Duration::new(0, 0);
-
-                 // Average over periods
-                if frame_number != TIMING_NUMFRAMES { // not first time
-                    sum_of_seconds_per_frame += seconds_per_frame;
-                    count_of_sum += 1;
-                    let avg = sum_of_seconds_per_frame / count_of_sum as f32;
-                    trace!("Periods={},  Average={}  {:>5.1}%",
-                           count_of_sum, avg, 100.0 * avg / 0.0166666667);
-                }
+            if loop_start.elapsed() < loop_throttle {
+                ::std::thread::sleep(loop_throttle - loop_start.elapsed());
             }
 
             // Shutdown when it is time to do so
@@ -656,10 +717,55 @@ impl Renderer {
                 self.window.hide();
                 return Ok(());
             }
+
+            // Update statistics
+            looptime_60 += looptime_1;
+            looptime_600 += looptime_1;
+            looptime_6000 += looptime_1;
+            outerrendertime_60 += outerrendertime_1;
+            outerrendertime_600 += outerrendertime_1;
+            outerrendertime_6000 += outerrendertime_1;
+            rendertime_60 += rendertime_1;
+            rendertime_600 += rendertime_1;
+            rendertime_6000 += rendertime_1;
+            if self.stats.framenumber % 60 == 0 {
+                self.stats.frametime_60 = duration_to_seconds(&looptime_60) / 60.0;
+                looptime_60 = Duration::new(0,0);
+                self.stats.outerrendertime_60 = duration_to_seconds(&outerrendertime_60) / 60.0;
+                outerrendertime_60 = Duration::new(0,0);
+                self.stats.rendertime_60 = duration_to_seconds(&rendertime_60) / 60.0;
+                rendertime_60 = Duration::new(0,0);
+            }
+            if self.stats.framenumber % 600 == 0 {
+                self.stats.frametime_600 = duration_to_seconds(&looptime_600) / 600.0;
+                looptime_600 = Duration::new(0,0);
+                self.stats.outerrendertime_600 = duration_to_seconds(&outerrendertime_600) / 600.0;
+                outerrendertime_600 = Duration::new(0,0);
+                self.stats.rendertime_600 = duration_to_seconds(&rendertime_600) / 600.0;
+                rendertime_600 = Duration::new(0,0);
+                trace!("Timing: 600 frames, frametime={:>7.5}s, FPS={:>5.1}, \
+                        outer={:>7.5}s inner={:>7.5}s",
+                       self.stats.frametime_600, 1.0/self.stats.frametime_600,
+                       self.stats.outerrendertime_600,
+                       self.stats.rendertime_600);
+            }
+            if self.stats.framenumber % 6000 == 0 {
+                self.stats.frametime_6000 = duration_to_seconds(&looptime_6000) / 6000.0;
+                looptime_6000 = Duration::new(0,0);
+                self.stats.outerrendertime_6000 = duration_to_seconds(&outerrendertime_6000) / 6000.0;
+                outerrendertime_6000 = Duration::new(0,0);
+                self.stats.rendertime_6000 = duration_to_seconds(&rendertime_6000) / 6000.0;
+                rendertime_6000 = Duration::new(0,0);
+                trace!("Timing: 6000 frames, frametime={:>7.5}s, FPS={:>5.1}, \
+                        outer={:>7.5}s inner={:>7.5}s",
+                       self.stats.frametime_6000, 1.0/self.stats.frametime_6000,
+                       self.stats.outerrendertime_6000,
+                       self.stats.rendertime_6000);
+            }
         }
     }
 
-    fn render(&mut self) -> Result<Instant>
+    fn render(&mut self) -> Result<()>
     {
         use std::time::Duration;
         use dacite::core::{Timeout, SubmitInfo, PipelineStageFlags};
@@ -695,21 +801,18 @@ impl Renderer {
         };
 
         // Submit command buffers
-        let start = {
-            let submit_infos = vec![
-                SubmitInfo {
-                    wait_semaphores: vec![self.image_acquired.clone()],
-                    wait_dst_stage_mask: vec![PipelineStageFlags::TOP_OF_PIPE],
-                    command_buffers: vec![self.commander.gfx_command_buffers[next_image].clone()],
-                    signal_semaphores: vec![self.image_rendered.clone()],
-                    chain: None,
-                }
-            ];
+        let submit_infos = vec![
+            SubmitInfo {
+                wait_semaphores: vec![self.image_acquired.clone()],
+                wait_dst_stage_mask: vec![PipelineStageFlags::TOP_OF_PIPE],
+                command_buffers: vec![self.commander.gfx_command_buffers[next_image].clone()],
+                signal_semaphores: vec![self.image_rendered.clone()],
+                chain: None,
+            }
+        ];
 
-            self.rendered_fence.reset()?;
-            self.commander.gfx_queue.submit(Some(&submit_infos), Some(&self.rendered_fence))?;
-            Instant::now()
-        };
+        self.rendered_fence.reset()?;
+        self.commander.gfx_queue.submit(Some(&submit_infos), Some(&self.rendered_fence))?;
 
         // Present this image once semaphore is available
         // The CPU is not stalled here, the graphics card will hold this until the semaphore
@@ -726,7 +829,7 @@ impl Renderer {
             self.present_queue.queue_present_khr(&mut present_info)?;
         }
 
-        Ok(start)
+        Ok(())
     }
 
     fn record_command_buffers(&mut self) -> Result<()>
@@ -753,6 +856,13 @@ impl Renderer {
                 chain: None,
             };
             command_buffer.begin(&begin_info)?;
+
+            command_buffer.reset_query_pool(&self.timestamp_query_pool, 0, 2);
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                0);
 
             // Transition swapchain image to ColorAttachmentOptimal
             // (from whatever it was - usually it is PresentImageKhr, but the
@@ -879,6 +989,11 @@ impl Renderer {
                     layer_count: OptionalArrayLayers::ArrayLayers(1),
                 }
             )?;
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                1);
 
             command_buffer.end()?;
         }
