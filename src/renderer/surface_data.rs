@@ -54,7 +54,7 @@ impl SurfaceData {
         };
         let mut surface_format_index: Option<usize> = None;
         for i in 0..surface_formats.len() {
-            println!("Offered: {:?}", surface_formats[i].format);
+            //println!("Offered: {:?}", surface_formats[i].format);
             if let Some(sfi) = surface_format_index {
                 if ranking(surface_formats[i].format) >
                     ranking(surface_formats[sfi].format)
