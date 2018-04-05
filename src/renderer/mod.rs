@@ -631,9 +631,9 @@ impl Renderer {
                     / (TIMING_NUMFRAMES as f32);
                 let fps = (TIMING_NUMFRAMES as f32)
                     / duration_to_seconds(&report_time.elapsed());
-                trace!("{:>6.1} fps; {:>8.6} s/frame; {:>5.1}%",
-                       fps, seconds_per_frame,
-                       100.0 * seconds_per_frame / 0.016666667);
+                info!("{:>6.1} fps; {:>8.6} s/frame; {:>5.1}%",
+                      fps, seconds_per_frame,
+                      100.0 * seconds_per_frame / 0.016666667);
 
                 // reset data
                 report_time = Instant::now();
