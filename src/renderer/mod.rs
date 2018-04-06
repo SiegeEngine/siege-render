@@ -629,7 +629,7 @@ impl Renderer {
             {
                 let params = self.params_ubo.as_ptr::<Params>().unwrap();
                 for plugin in &mut self.plugins {
-                    plugin.update(params)?;
+                    plugin.update(params, &self.stats)?;
                 }
             }
             self.memory.flush()?;
