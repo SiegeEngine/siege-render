@@ -89,6 +89,91 @@ pub enum BlendMode {
     Add
 }
 
+#[repr(u32)]
+pub enum Timestamp {
+    FullStart = 0,
+    FullEnd = 1,
+    GeometryStart = 2,
+    GeometryEnd = 3,
+    ShadingStart = 4,
+    ShadingEnd = 5,
+    TransparentStart = 6,
+    TransparentEnd = 7,
+    Blur1Start = 8,
+    Blur1End = 9,
+    Blur2Start = 10,
+    Blur2End = 11,
+    PostStart = 12,
+    PostEnd = 13,
+    UiStart = 14,
+    UiEnd = 15,
+}
+const TS_QUERY_COUNT: u32 = 16;
+pub struct Timings {
+    pub full: Duration,
+    pub geometry: Duration,
+    pub shading: Duration,
+    pub transparent: Duration,
+    pub blur1: Duration,
+    pub blur2: Duration,
+    pub post: Duration,
+    pub ui: Duration
+}
+impl Timings {
+    pub fn new() -> Timings {
+        Timings {
+            full: Duration::new(0,0),
+            geometry: Duration::new(0,0),
+            shading: Duration::new(0,0),
+            transparent: Duration::new(0,0),
+            blur1: Duration::new(0,0),
+            blur2: Duration::new(0,0),
+            post: Duration::new(0,0),
+            ui: Duration::new(0,0),
+        }
+    }
+
+    pub fn one(
+        query_results: &[QueryResult; TS_QUERY_COUNT as usize],
+        timestamp_period: f32)
+        -> Timings
+    {
+        let qr: Vec<u32> = query_results.iter().map(|r| {
+            match r {
+                &QueryResult::U32(u) => u,
+                &QueryResult::U64(u) => u as u32
+            }
+        }).collect();
+
+        let to_nanos = |start_index, end_index| {
+            ((qr[end_index as usize].saturating_sub(qr[start_index as usize]))
+             as f32 * timestamp_period) as u32
+        };
+
+        Timings {
+            full: Duration::new(0, to_nanos(Timestamp::FullStart, Timestamp::FullEnd)),
+            geometry: Duration::new(0, to_nanos(Timestamp::GeometryStart, Timestamp::GeometryEnd)),
+            shading: Duration::new(0, to_nanos(Timestamp::ShadingStart, Timestamp::ShadingEnd)),
+            transparent: Duration::new(0, to_nanos(Timestamp::TransparentStart, Timestamp::TransparentEnd)),
+            blur1: Duration::new(0, to_nanos(Timestamp::Blur1Start, Timestamp::Blur1End)),
+            blur2: Duration::new(0, to_nanos(Timestamp::Blur2Start, Timestamp::Blur2End)),
+            post: Duration::new(0, to_nanos(Timestamp::PostStart, Timestamp::PostEnd)),
+            ui: Duration::new(0, to_nanos(Timestamp::UiStart, Timestamp::UiEnd)),
+        }
+    }
+
+    pub fn accumulate(&mut self, other: &Timings) {
+        self.full += other.full;
+        self.geometry += other.geometry;
+        self.shading += other.shading;
+        self.transparent += other.transparent;
+        self.blur1 += other.blur1;
+        self.blur2 += other.blur2;
+        self.post += other.post;
+        self.ui += other.ui;
+    }
+}
+
 // FIXME: Some settings the renderer is trying to pass to its shaders (and different ones
 //          to different shaders).
 //        Some settings clients are trying to adjust in the renderer
@@ -230,7 +315,7 @@ impl Renderer {
         let timestamp_query_pool = device.create_query_pool(&QueryPoolCreateInfo {
             flags: Default::default(),
             query_type: QueryType::Timestamp,
-            query_count: 2,
+            query_count: TS_QUERY_COUNT,
             pipeline_statistics: QueryPipelineStatisticFlags::empty(),
             chain: None,
         }, None)?;
@@ -572,7 +657,8 @@ impl Renderer {
 
         let loop_throttle = Duration::new(0, 1_000_000_000 / self.config.fps_cap);
 
-        let mut rendertime_1: Duration;
+        let mut timings_60 = Timings::new();
+
         let mut rendertime_60: Duration = Duration::new(0,0);
         let mut rendertime_600: Duration = Duration::new(0,0);
         let mut rendertime_6000: Duration = Duration::new(0,0);
@@ -647,32 +733,18 @@ impl Renderer {
             self.rendered_fence.wait_for(Timeout::Infinite)?;
             outerrendertime_1 = outerrendertime_start.elapsed();
 
-            // Query render time
-            rendertime_1 = {
-                let mut results: [QueryResult; 2] = [QueryResult::U32(0); 2];
+            // Query render timings
+            let timings_1 = {
+                let mut results: [QueryResult; TS_QUERY_COUNT as usize]
+                    = [QueryResult::U32(0); TS_QUERY_COUNT as usize];
                 self.timestamp_query_pool.get_results(
                     0, // first query
-                    2, // query count
+                    TS_QUERY_COUNT, // query count
                     1, // stride (dacite takes this and multiplies by size of u32 or u64
                     QueryResultFlags::WAIT,
                     &mut results
                 )?;
-                let start = match results[0] {
-                    QueryResult::U32(u) => u,
-                    QueryResult::U64(s) => s as u32
-                };
-                let end = match results[1] {
-                    QueryResult::U32(u) => u,
-                    QueryResult::U64(s) => s as u32
-                };
-                if end > start {
-                    Duration::new(
-                        0,
-                        ((end - start) as f32 * self.ph_props.limits.timestamp_period) as u32
-                    )
-                } else {
-                    Duration::new(0,0) // wrong, but at least we dont panic.
-                }
+                Timings::one(&results, self.ph_props.limits.timestamp_period)
             };
 
             // Throttle FPS
@@ -690,21 +762,23 @@ impl Renderer {
             }
 
             // Update statistics
+            timings_60.accumulate(&timings_1);
             looptime_60 += looptime_1;
             looptime_600 += looptime_1;
             looptime_6000 += looptime_1;
             outerrendertime_60 += outerrendertime_1;
             outerrendertime_600 += outerrendertime_1;
             outerrendertime_6000 += outerrendertime_1;
-            rendertime_60 += rendertime_1;
-            rendertime_600 += rendertime_1;
-            rendertime_6000 += rendertime_1;
+            rendertime_60 += timings_1.full;
+            rendertime_600 += timings_1.full;
+            rendertime_6000 += timings_1.full;
             if framenumber % 60 == 0 {
-                self.stats.update_60(&looptime_60, &outerrendertime_60, &rendertime_60);
+                self.stats.update_60(&looptime_60, &outerrendertime_60, &rendertime_60,
+                                     &timings_60);
                 looptime_60 = Duration::new(0,0);
                 outerrendertime_60 = Duration::new(0,0);
                 rendertime_60 = Duration::new(0,0);
-
+                timings_60 = Timings::new();
             }
             if framenumber % 600 == 0 {
                 self.stats.update_600(&looptime_600, &outerrendertime_600, &rendertime_600);
@@ -818,12 +892,12 @@ impl Renderer {
             };
             command_buffer.begin(&begin_info)?;
 
-            command_buffer.reset_query_pool(&self.timestamp_query_pool, 0, 2);
+            command_buffer.reset_query_pool(&self.timestamp_query_pool, 0, TS_QUERY_COUNT);
 
             command_buffer.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
-                0);
+                Timestamp::FullStart as u32);
 
             // Transition swapchain image to ColorAttachmentOptimal
             // (from whatever it was - usually it is PresentImageKhr, but the
@@ -850,6 +924,11 @@ impl Renderer {
 
             // Geometry pass
             {
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::GeometryStart as u32);
+
                 self.geometry_pass.record_entry(command_buffer.clone());
 
                 for plugin in &self.plugins {
@@ -858,24 +937,44 @@ impl Renderer {
                 }
 
                 self.geometry_pass.record_exit(command_buffer.clone());
+
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::GeometryEnd as u32);
             }
 
             self.target_data.transition_for_shading(command_buffer.clone())?;
 
             // Shading pass
             {
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::ShadingStart as u32);
+
                 self.shading_pass.record_entry(command_buffer.clone());
 
                 self.shade_gfx.record(command_buffer.clone(),
                                       self.params_desc_set.clone());
 
                 self.shading_pass.record_exit(command_buffer.clone());
+
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::ShadingEnd as u32);
             }
 
             self.target_data.transition_for_transparent(command_buffer.clone())?;
 
             // Transparent pass
             {
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::TransparentStart as u32);
+
                 self.transparent_pass.record_entry(command_buffer.clone());
 
                 for plugin in &self.plugins {
@@ -883,36 +982,66 @@ impl Renderer {
                 }
 
                 self.transparent_pass.record_exit(command_buffer.clone());
+
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::TransparentEnd as u32);
             }
 
             self.target_data.transition_for_blurh(command_buffer.clone())?;
 
             // Blur/Bloom Filter/Horizontal pass
             {
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::Blur1Start as u32);
+
                 self.blur_h_pass.record_entry(command_buffer.clone());
 
                 self.blur_gfx.record_blurh(command_buffer.clone(),
                                            self.params_desc_set.clone());
 
                 self.blur_h_pass.record_exit(command_buffer.clone());
+
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::Blur1End as u32);
             }
 
             self.target_data.transition_for_blurv(command_buffer.clone())?;
 
             // Blur/Bloom Vertical/Merge pass
             {
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::Blur2Start as u32);
+
                 self.blur_v_pass.record_entry(command_buffer.clone());
 
                 self.blur_gfx.record_blurv(command_buffer.clone(),
                                            self.params_desc_set.clone());
 
                 self.blur_v_pass.record_exit(command_buffer.clone());
+
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::Blur2End as u32);
             }
 
             self.target_data.transition_for_post(command_buffer.clone())?;
 
             // Post pass
             {
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::PostStart as u32);
+
                 self.post_pass.record_entry(command_buffer.clone(),
                                             present_index);
 
@@ -920,12 +1049,22 @@ impl Renderer {
                                      self.params_desc_set.clone());
 
                 self.post_pass.record_exit(command_buffer.clone());
+
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::PostEnd as u32);
             }
 
             self.target_data.transition_for_ui(command_buffer.clone())?;
 
             // Ui pass
             {
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::UiStart as u32);
+
                 self.ui_pass.record_entry(command_buffer.clone(),
                                           present_index);
 
@@ -934,6 +1073,11 @@ impl Renderer {
                 }
 
                 self.ui_pass.record_exit(command_buffer.clone());
+
+                command_buffer.write_timestamp(
+                    PipelineStageFlagBits::TopOfPipe,
+                    &self.timestamp_query_pool,
+                    Timestamp::UiEnd as u32);
             }
 
             // Transition swapchain image to PresentImageKhr
@@ -954,7 +1098,7 @@ impl Renderer {
             command_buffer.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
-                1);
+                Timestamp::FullEnd as u32);
 
             command_buffer.end()?;
         }
