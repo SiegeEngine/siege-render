@@ -21,11 +21,10 @@ impl SwapchainData {
                   device: &Device,
                   surface: &SurfaceKhr,
                   preferred_extent: Extent2D,
-                  queue_indices: &QueueIndices,
-                  vsync: bool)
+                  queue_indices: &QueueIndices)
                   -> Result<SwapchainData>
     {
-        let surface_data = SurfaceData::create(physical_device, surface, vsync)?;
+        let surface_data = SurfaceData::create(physical_device, surface)?;
 
         let extent = surface_data.get_surface_extent(preferred_extent);
 

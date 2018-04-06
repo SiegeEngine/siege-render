@@ -20,8 +20,7 @@ pub struct SurfaceData {
 impl SurfaceData {
 
     pub fn create(physical_device: &PhysicalDevice,
-                  surface: &SurfaceKhr,
-                  vsync: bool)
+                  surface: &SurfaceKhr)
                   -> Result<SurfaceData>
     {
         let capabilities = physical_device.get_surface_capabilities_khr(surface)?;
@@ -40,7 +39,7 @@ impl SurfaceData {
         };
         let present_mode = {
             let present_modes = physical_device.get_surface_present_modes_khr(surface)?;
-            get_present_mode(vsync, &present_modes)
+            get_present_mode(&present_modes)
         };
 
         // Choose the best surface format available
@@ -123,25 +122,13 @@ impl SurfaceData {
     }
 }
 
-fn get_present_mode(vsync: bool, present_modes: &Vec<PresentModeKhr>) -> PresentModeKhr
+fn get_present_mode(present_modes: &Vec<PresentModeKhr>) -> PresentModeKhr
 {
-    if vsync {
-        present_modes.iter().map(|mode| *mode).min_by_key(|mode| {
-            match *mode {
-                PresentModeKhr::Mailbox => 1,
-                PresentModeKhr::Fifo => 2,
-                _ => 99,
-            }
-        }).unwrap() // Vulkan guarantees Fifo exists
-    } else {
-        present_modes.iter().map(|mode| *mode).min_by_key(|mode| {
-            match *mode {
-                PresentModeKhr::Immediate => 1,
-                PresentModeKhr::Mailbox => 2,
-                PresentModeKhr::FifoRelaxed => 3,
-                PresentModeKhr::Fifo => 4,
-                _ => 99,
-            }
-        }).unwrap() // Vulkan guarantees Fifo exists
-    }
+    present_modes.iter().map(|mode| *mode).min_by_key(|mode| {
+        match *mode {
+            PresentModeKhr::Mailbox => 1,
+            PresentModeKhr::Fifo => 2,
+            _ => 99,
+        }
+    }).unwrap() // Vulkan guarantees Fifo exists
 }

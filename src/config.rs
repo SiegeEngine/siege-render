@@ -20,7 +20,6 @@ use renderer::{VulkanLogLevel, Tonemapper};
 #[inline] fn default_reversed_depth_buffer() -> bool {
     true
 }
-#[inline] fn default_vsync() -> bool { true }
 #[inline] fn default_width() -> u32 { 800 }
 #[inline] fn default_height() -> u32 { 600 }
 #[inline] fn default_display_luminance() -> u32 { 80 }
@@ -57,8 +56,6 @@ pub struct Config {
     pub fps_cap: u32,
     #[serde(default = "default_reversed_depth_buffer")]
     pub reversed_depth_buffer: bool,
-    #[serde(default = "default_vsync")]
-    pub vsync: bool,
     #[serde(default = "default_width")]
     pub width: u32,
     #[serde(default = "default_height")]
@@ -100,7 +97,6 @@ impl Default for Config {
             vulkan_layers: default_vulkan_layers(),
             fps_cap: default_fps_cap(),
             reversed_depth_buffer: default_reversed_depth_buffer(),
-            vsync: default_vsync(),
             width: default_width(),
             height: default_height(),
             display_luminance: default_display_luminance(),
@@ -136,7 +132,6 @@ impl fmt::Debug for Config {
         }
         writeln!(f, "    Reversed depth buffer: {:?}", self.reversed_depth_buffer)?;
         writeln!(f, "    FPS cap: {}", self.fps_cap)?;
-        writeln!(f, "    vsync: {}", self.vsync)?;
         writeln!(f, "    width: {}", self.width)?;
         writeln!(f, "    height: {}", self.height)?;
         writeln!(f, "    display luminance (max): {} cd/m²", self.display_luminance)?;
