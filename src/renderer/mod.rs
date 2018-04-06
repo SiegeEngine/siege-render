@@ -14,12 +14,14 @@ mod pipeline;
 mod shade;
 mod post;
 mod blur;
+mod stats;
 
 pub use self::buffer::{HostVisibleBuffer, DeviceLocalBuffer};
 pub use self::image_wrap::ImageWrap;
 pub use self::mesh::VulkanMesh;
 pub use self::memory::Lifetime;
 pub use self::post::Tonemapper;
+pub use self::stats::Stats;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -85,40 +87,6 @@ pub enum BlendMode {
     Off,
     Alpha,
     Add
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct Stats {
-    pub framenumber: u64,
-    /// How long each frame has lasted for, in seconds, averaged
-    pub frametime_60: f32,
-    pub frametime_600: f32,
-    pub frametime_6000: f32,
-    /// How long was spent waiting for the GPU, in seconds, averaged
-    pub outerrendertime_60: f32,
-    pub outerrendertime_600: f32,
-    pub outerrendertime_6000: f32,
-    /// How long does the GPU report rendering, in seconds, averaged
-    pub rendertime_60: f32,
-    pub rendertime_600: f32,
-    pub rendertime_6000: f32,
-}
-impl Default for Stats {
-    fn default() -> Stats {
-        Stats {
-            framenumber: 0,
-            frametime_60: 0.0,
-            frametime_600: 0.0,
-            frametime_6000: 0.0,
-            outerrendertime_60: 0.0,
-            outerrendertime_600: 0.0,
-            outerrendertime_6000: 0.0,
-            rendertime_60: 0.0,
-            rendertime_600: 0.0,
-            rendertime_6000: 0.0,
-        }
-    }
 }
 
 // FIXME: Some settings the renderer is trying to pass to its shaders (and different ones
@@ -600,6 +568,8 @@ impl Renderer {
         self.record_command_buffers()?;
         self.memory.log_usage();
 
+        let mut framenumber: u64 = 0;
+
         let loop_throttle = Duration::new(0, 1_000_000_000 / self.config.fps_cap);
 
         let mut rendertime_1: Duration;
@@ -653,7 +623,7 @@ impl Renderer {
                 Ok(instant) => instant
             };
 
-            self.stats.framenumber += 1;
+            framenumber += 1;
 
             // On windows (at least, perhaps also elsewhere), vulkan won't give us an
             // OutOfDateKhr error on a window resize.  But the window will remain black
@@ -728,39 +698,29 @@ impl Renderer {
             rendertime_60 += rendertime_1;
             rendertime_600 += rendertime_1;
             rendertime_6000 += rendertime_1;
-            if self.stats.framenumber % 60 == 0 {
-                self.stats.frametime_60 = duration_to_seconds(&looptime_60) / 60.0;
+            if framenumber % 60 == 0 {
+                self.stats.update_60(&looptime_60, &outerrendertime_60, &rendertime_60);
                 looptime_60 = Duration::new(0,0);
-                self.stats.outerrendertime_60 = duration_to_seconds(&outerrendertime_60) / 60.0;
                 outerrendertime_60 = Duration::new(0,0);
-                self.stats.rendertime_60 = duration_to_seconds(&rendertime_60) / 60.0;
                 rendertime_60 = Duration::new(0,0);
+
             }
-            if self.stats.framenumber % 600 == 0 {
-                self.stats.frametime_600 = duration_to_seconds(&looptime_600) / 600.0;
+            if framenumber % 600 == 0 {
+                self.stats.update_600(&looptime_600, &outerrendertime_600, &rendertime_600);
                 looptime_600 = Duration::new(0,0);
-                self.stats.outerrendertime_600 = duration_to_seconds(&outerrendertime_600) / 600.0;
                 outerrendertime_600 = Duration::new(0,0);
-                self.stats.rendertime_600 = duration_to_seconds(&rendertime_600) / 600.0;
                 rendertime_600 = Duration::new(0,0);
-                trace!("Timing: 600 frames, frametime={:>7.5}s, FPS={:>5.1}, \
-                        outer={:>7.5}s inner={:>7.5}s",
-                       self.stats.frametime_600, 1.0/self.stats.frametime_600,
-                       self.stats.outerrendertime_600,
-                       self.stats.rendertime_600);
             }
-            if self.stats.framenumber % 6000 == 0 {
-                self.stats.frametime_6000 = duration_to_seconds(&looptime_6000) / 6000.0;
+            if framenumber % 6000 == 0 {
+                self.stats.update_6000(&looptime_6000, &outerrendertime_6000, &rendertime_6000);
                 looptime_6000 = Duration::new(0,0);
-                self.stats.outerrendertime_6000 = duration_to_seconds(&outerrendertime_6000) / 6000.0;
                 outerrendertime_6000 = Duration::new(0,0);
-                self.stats.rendertime_6000 = duration_to_seconds(&rendertime_6000) / 6000.0;
                 rendertime_6000 = Duration::new(0,0);
-                trace!("Timing: 6000 frames, frametime={:>7.5}s, FPS={:>5.1}, \
-                        outer={:>7.5}s inner={:>7.5}s",
-                       self.stats.frametime_6000, 1.0/self.stats.frametime_6000,
-                       self.stats.outerrendertime_6000,
-                       self.stats.rendertime_6000);
+                info!("Timing: 6000 frames, frametime={:>7.5}s, FPS={:>5.1}, \
+                       outer={:>7.5}s inner={:>7.5}s",
+                      self.stats.frametime_6000, 1.0/self.stats.frametime_6000,
+                      self.stats.outerrendertime_6000,
+                      self.stats.rendertime_6000);
             }
         }
     }
@@ -1060,10 +1020,4 @@ impl Renderer {
 
         Ok(())
     }
-}
-
-fn duration_to_seconds(duration: &Duration) -> f32
-{
-    duration.as_secs() as f32 +
-        duration.subsec_nanos() as f32 * 0.000_000_001
 }
