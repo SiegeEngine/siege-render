@@ -676,8 +676,9 @@ impl Renderer {
             };
 
             // Throttle FPS
-            if loop_start.elapsed() < loop_throttle {
-                ::std::thread::sleep(loop_throttle - loop_start.elapsed());
+            let elapsed = loop_start.elapsed();
+            if elapsed < loop_throttle {
+                ::std::thread::sleep(loop_throttle - elapsed);
             }
 
             // Shutdown when it is time to do so
