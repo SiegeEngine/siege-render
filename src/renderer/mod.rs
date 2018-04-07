@@ -21,7 +21,7 @@ pub use self::image_wrap::ImageWrap;
 pub use self::mesh::VulkanMesh;
 pub use self::memory::Lifetime;
 pub use self::post::Tonemapper;
-pub use self::stats::Stats;
+pub use self::stats::{Timings, Stats};
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -109,70 +109,6 @@ pub enum Timestamp {
     UiEnd = 15,
 }
 const TS_QUERY_COUNT: u32 = 16;
-pub struct Timings {
-    pub full: Duration,
-    pub geometry: Duration,
-    pub shading: Duration,
-    pub transparent: Duration,
-    pub blur1: Duration,
-    pub blur2: Duration,
-    pub post: Duration,
-    pub ui: Duration
-}
-impl Timings {
-    pub fn new() -> Timings {
-        Timings {
-            full: Duration::new(0,0),
-            geometry: Duration::new(0,0),
-            shading: Duration::new(0,0),
-            transparent: Duration::new(0,0),
-            blur1: Duration::new(0,0),
-            blur2: Duration::new(0,0),
-            post: Duration::new(0,0),
-            ui: Duration::new(0,0),
-        }
-    }
-
-    pub fn one(
-        query_results: &[QueryResult; TS_QUERY_COUNT as usize],
-        timestamp_period: f32)
-        -> Timings
-    {
-        let qr: Vec<u32> = query_results.iter().map(|r| {
-            match r {
-                &QueryResult::U32(u) => u,
-                &QueryResult::U64(u) => u as u32
-            }
-        }).collect();
-
-        let to_nanos = |start_index, end_index| {
-            ((qr[end_index as usize].saturating_sub(qr[start_index as usize]))
-             as f32 * timestamp_period) as u32
-        };
-
-        Timings {
-            full: Duration::new(0, to_nanos(Timestamp::FullStart, Timestamp::FullEnd)),
-            geometry: Duration::new(0, to_nanos(Timestamp::GeometryStart, Timestamp::GeometryEnd)),
-            shading: Duration::new(0, to_nanos(Timestamp::ShadingStart, Timestamp::ShadingEnd)),
-            transparent: Duration::new(0, to_nanos(Timestamp::TransparentStart, Timestamp::TransparentEnd)),
-            blur1: Duration::new(0, to_nanos(Timestamp::Blur1Start, Timestamp::Blur1End)),
-            blur2: Duration::new(0, to_nanos(Timestamp::Blur2Start, Timestamp::Blur2End)),
-            post: Duration::new(0, to_nanos(Timestamp::PostStart, Timestamp::PostEnd)),
-            ui: Duration::new(0, to_nanos(Timestamp::UiStart, Timestamp::UiEnd)),
-        }
-    }
-
-    pub fn accumulate(&mut self, other: &Timings) {
-        self.full += other.full;
-        self.geometry += other.geometry;
-        self.shading += other.shading;
-        self.transparent += other.transparent;
-        self.blur1 += other.blur1;
-        self.blur2 += other.blur2;
-        self.post += other.post;
-        self.ui += other.ui;
-    }
-}
 
 // FIXME: Some settings the renderer is trying to pass to its shaders (and different ones
 //          to different shaders).
@@ -658,29 +594,14 @@ impl Renderer {
         let loop_throttle = Duration::new(0, 1_000_000_000 / self.config.fps_cap);
 
         let mut timings_60 = Timings::new();
-
-        let mut rendertime_60: Duration = Duration::new(0,0);
-        let mut rendertime_600: Duration = Duration::new(0,0);
-        let mut rendertime_6000: Duration = Duration::new(0,0);
-
-        let mut outerrendertime_1: Duration;
-        let mut outerrendertime_60: Duration = Duration::new(0,0);
-        let mut outerrendertime_600: Duration = Duration::new(0,0);
-        let mut outerrendertime_6000: Duration = Duration::new(0,0);
-
-        let mut outerrendertime_start: Instant;
-
-        let mut looptime_1: Duration;
-        let mut looptime_60: Duration = Duration::new(0,0);
-        let mut looptime_600: Duration = Duration::new(0,0);
-        let mut looptime_6000: Duration = Duration::new(0,0);
+        let mut timings_600 = Timings::new();
 
         let mut last_loop_start: Instant;
         let mut loop_start: Instant = Instant::now();
         loop {
             last_loop_start = loop_start;
             loop_start = Instant::now();
-            looptime_1 = loop_start.duration_since(last_loop_start);
+            let looptime_1 = loop_start.duration_since(last_loop_start);
 
             {
                 let params = self.params_ubo.as_ptr::<Params>().unwrap();
@@ -729,9 +650,9 @@ impl Renderer {
             // accurate timings (for now). FIXME.
             // Wait on the acquired fence, before trying to acquire another
             self.acquired_fence.wait_for(Timeout::Infinite)?;
-            outerrendertime_start = Instant::now();
+            let cpuwait_start = Instant::now();
             self.rendered_fence.wait_for(Timeout::Infinite)?;
-            outerrendertime_1 = outerrendertime_start.elapsed();
+            let cpuwait_1 = cpuwait_start.elapsed();
 
             // Query render timings
             let timings_1 = {
@@ -744,7 +665,11 @@ impl Renderer {
                     QueryResultFlags::WAIT,
                     &mut results
                 )?;
-                Timings::one(&results, self.ph_props.limits.timestamp_period)
+                Timings::one(
+                    &looptime_1,
+                    &cpuwait_1,
+                    &results,
+                    self.ph_props.limits.timestamp_period)
             };
 
             // Throttle FPS
@@ -763,39 +688,15 @@ impl Renderer {
 
             // Update statistics
             timings_60.accumulate(&timings_1);
-            looptime_60 += looptime_1;
-            looptime_600 += looptime_1;
-            looptime_6000 += looptime_1;
-            outerrendertime_60 += outerrendertime_1;
-            outerrendertime_600 += outerrendertime_1;
-            outerrendertime_6000 += outerrendertime_1;
-            rendertime_60 += timings_1.full;
-            rendertime_600 += timings_1.full;
-            rendertime_6000 += timings_1.full;
-            if framenumber % 60 == 0 {
-                self.stats.update_60(&looptime_60, &outerrendertime_60, &rendertime_60,
-                                     &timings_60);
-                looptime_60 = Duration::new(0,0);
-                outerrendertime_60 = Duration::new(0,0);
-                rendertime_60 = Duration::new(0,0);
-                timings_60 = Timings::new();
-            }
+            timings_600.accumulate(&timings_1);
+
             if framenumber % 600 == 0 {
-                self.stats.update_600(&looptime_600, &outerrendertime_600, &rendertime_600);
-                looptime_600 = Duration::new(0,0);
-                outerrendertime_600 = Duration::new(0,0);
-                rendertime_600 = Duration::new(0,0);
+                let pass = ::std::mem::replace(&mut timings_600, Timings::new());
+                self.stats.update_600(pass);
             }
-            if framenumber % 6000 == 0 {
-                self.stats.update_6000(&looptime_6000, &outerrendertime_6000, &rendertime_6000);
-                looptime_6000 = Duration::new(0,0);
-                outerrendertime_6000 = Duration::new(0,0);
-                rendertime_6000 = Duration::new(0,0);
-                info!("Timing: 6000 frames, frametime={:>7.5}s, FPS={:>5.1}, \
-                       outer={:>7.5}s inner={:>7.5}s",
-                      self.stats.frametime_6000, 1.0/self.stats.frametime_6000,
-                      self.stats.outerrendertime_6000,
-                      self.stats.rendertime_6000);
+            if framenumber % 60 == 0 {
+                let pass = ::std::mem::replace(&mut timings_60, Timings::new());
+                self.stats.update_60(pass);
             }
         }
     }

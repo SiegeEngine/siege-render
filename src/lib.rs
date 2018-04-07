@@ -53,7 +53,7 @@ pub use config::Config;
 pub mod renderer;
 pub use renderer::{Renderer, Pass, DepthHandling, ImageWrap,
                    HostVisibleBuffer, DeviceLocalBuffer, VulkanMesh, Lifetime,
-                   BlendMode, Params, Stats, Tonemapper};
+                   BlendMode, Params, Stats, Timings, Tonemapper};
 
 pub mod vertex;
 pub use vertex::{VulkanVertex, ColoredVertex, StandardVertex, GuiRectangleVertex,
