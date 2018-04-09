@@ -322,16 +322,18 @@ vec3 samp(vec2 offset) {
   vec3 color = texture(samplerColor, inUV + offset).rgb;
 
   // Convert to xyz
+  /*
   mat3 rgb2xyz = mat3( // column major order
     0.4124, 0.2126, 0.0193,
     0.3576, 0.7152, 0.1192,
     0.1805, 0.0722, 0.9505);
   vec3 xyz = rgb2xyz * color;
+  */
 
   // New function, considers some lums will be very high
   // Output is in range [0,1]
-  //  float mult = 1 - pow(1.08, -xyz.y);
-  float mult = xyz.y / (xyz.y + 6);
+  //  float mult = 1 - pow(1.08, -color.y);
+  float mult = color.y / (color.y + 6);
 
   // Adjust based on the bloom strength
   // Output will be in range [0,bloom_strength]
@@ -341,23 +343,22 @@ vec3 samp(vec2 offset) {
   mult = clamp(mult + ubo.blur_level, 0, 1);
 
   // Scale the luminance
-  xyz *= mult;
+  color *= mult;
 
   // We have to cap the maximum values
   // (If we don't we will overbloom out to rectangles)
-  xyz = xyz / (xyz + 1); // reinhard
-  // xyz = clamp(xyz, 0.0, 1.0); // clamp
+  color = color / (color + 1); // reinhard
+  // color = clamp(color, 0.0, 1.0); // clamp
 
   // Convert back to RGB
-  mat3 xyz2rgb = mat3( // column major order
+/*  mat3 xyz2rgb = mat3( // column major order
     3.2406255, -0.96893071, 0.055710120,
     -1.5372080, 1.8757561, -0.20402105,
     -0.49862860, 0.041517524, 1.0569959);
-
   vec3 rgb = xyz2rgb * xyz;
+*/
 
-
-  return rgb;
+  return color;
 }
 
 void main()

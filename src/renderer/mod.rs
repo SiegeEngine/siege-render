@@ -208,7 +208,7 @@ impl Renderer {
 
         let swapchain_data = SwapchainData::create(
             &physical_device, &device, &surface,
-            Extent2D { width: config.width, height: config.height },
+            Extent2D { width: config.width, height: config.height }, // preferred extent
             &queue_indices)?;
 
         let present_queue = device.get_queue(queue_indices.present_family,
