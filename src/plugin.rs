@@ -18,13 +18,19 @@ pub trait Plugin {
     /// 1.0 is the current white level.  Luminance values >1.0 are permitted
     /// (these will bloom, and/or be levelled by tonemapping).
     ///
-    /// Fragment shader output will be alpha blended on top of current scene.
+    /// Fragment shader output should be alpha blended on top of current scene.
     fn record_transparent(&self, command_buffer: CommandBuffer);
 
     /// Record UI layer. Depth buffer is not active (you will have to handle
     /// UI depth yourself).
     ///
-    /// Fragment shader output will be alpha blended on top of current scene.
+    /// Output should be in sRGB if renderer.ui_needs_gamma() is true, otherwise
+    /// it should be in sRGB linear (without the gamma function applied, which
+    /// means you need to un-gamma your sRGB colors).
+    ///
+    /// Fragment shader output should be alpha blended on top of current scene.
+    /// You should use pre-multiplied alpha (since alpha blending is subtly
+    /// different between sRGB and linear, and it could be either case).
     fn record_ui(&self, command_buffer: CommandBuffer);
 
     /// This callback gives your plugin a chance to update itself, based on

@@ -73,6 +73,7 @@ pub fn create(
                     },
                     src_color_blend_factor: match bm {
                         &BlendMode::Add => BlendFactor::One,
+                        &BlendMode::PreMultiplied => BlendFactor::One,
                         _ => BlendFactor::SrcAlpha,
                     },
                     dst_color_blend_factor: match bm {
