@@ -15,7 +15,7 @@ use dacite::core::{Pipeline, PipelineBindPoint,
                    PrimitiveTopology, CullModeFlags, FrontFace,
                    DescriptorSetLayout, DescriptorSet, Extent2D};
 use siege_render::{Renderer, Pass, DepthHandling, BlendMode, Plugin,
-                   Params, Config, Tonemapper};
+                   Params, Stats, Config, Tonemapper};
 
 pub fn main() {
 
@@ -71,7 +71,7 @@ impl Colortest {
     fn new(renderer: &mut Renderer) -> Colortest {
         let (pipeline_layout, pipeline) = renderer.create_pipeline(
             vec![],
-            Some("colortest.vert"), Some("colortest.frag"),
+            Some("colortest.vert"), None, Some("colortest.frag"), None,
             None, // no vertex type
             PrimitiveTopology::TriangleList,
             CullModeFlags::NONE, FrontFace::CounterClockwise,
@@ -98,8 +98,10 @@ impl Plugin for Colortest {
     fn record_ui(&self, _command_buffer: CommandBuffer) {
     }
 
-    fn update(&mut self, _params: &mut Params) -> Result<(), ::siege_render::Error> {
-        Ok(())
+    fn update(&mut self, _params: &mut Params, _stats: &Stats)
+              -> Result<bool, ::siege_render::Error>
+    {
+        Ok(false)
     }
 
     fn rebuild(&mut self, _extent: Extent2D) -> Result<(), ::siege_render::Error> {
