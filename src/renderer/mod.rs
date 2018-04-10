@@ -473,6 +473,10 @@ impl Renderer {
         self.swapchain_data.extent
     }
 
+    pub fn ui_needs_gamma(&self) -> bool {
+        self.swapchain_data.surface_data.needs_gamma
+    }
+
     pub fn has_anisotrophy(&self) -> bool {
         self.ph_feats.sampler_anisotropy
     }
@@ -603,12 +607,19 @@ impl Renderer {
             loop_start = Instant::now();
             let looptime_1 = loop_start.duration_since(last_loop_start);
 
+            let mut need_rerecord = false; // FIXME: just re-record secondary cmd bufs.
             {
                 let params = self.params_ubo.as_ptr::<Params>().unwrap();
                 for plugin in &mut self.plugins {
-                    plugin.update(params, &self.stats)?;
+                    // FIXME: just re-record the plugin's secondary command buffer
+                    // once we setup secondary command buffers
+                    need_rerecord = need_rerecord || plugin.update(params, &self.stats)?;
                 }
             }
+            if need_rerecord {// FIXME: remove when re-recording 2nd cmd bufs
+                self.record_command_buffers()?;
+            }
+
             self.memory.flush()?;
 
             // Render a frame (issue the commands)
