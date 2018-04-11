@@ -575,9 +575,10 @@ impl Renderer {
         Ok((layout, set))
     }
 
-    pub fn plugin(&mut self, plugin: Box<Plugin>)
+    pub fn plugin(&mut self, plugin: Box<Plugin>) -> Result<()>
     {
         self.plugins.push(plugin);
+        Ok(())
     }
 
     pub fn set_params(&mut self, params: &Params) -> Result<()>
