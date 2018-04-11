@@ -6,6 +6,7 @@ use super::setup::QueueIndices;
 
 pub struct Commander {
     pub gfx_queue: Queue,
+    pub gfx_command_buffer_stale: Vec<bool>,
     pub gfx_command_buffers: Vec<CommandBuffer>,
     pub gfx_command_pool: CommandPool,
     pub xfr_queue: Queue,
@@ -73,11 +74,15 @@ impl Commander {
             CommandPool::allocate_command_buffers(&allocate_info)?
         };
 
+        let mut gfx_command_buffer_stale: Vec<bool> = Vec::new();
+        for _ in 0..num_framebuffers { gfx_command_buffer_stale.push(true); }
+
         let gfx_queue = device.get_queue(queue_indices.graphics_family,
                                          queue_indices.graphics_index);
 
         Ok(Commander {
             gfx_queue: gfx_queue,
+            gfx_command_buffer_stale: gfx_command_buffer_stale,
             gfx_command_buffers: gfx_command_buffers,
             gfx_command_pool: gfx_command_pool,
             xfr_queue: xfr_queue,

@@ -589,7 +589,9 @@ impl Renderer {
         use dacite::core::Error::OutOfDateKhr;
 
         self.window.show();
-        self.record_command_buffers()?;
+        for i in 0..self.swapchain_data.images.len() {
+            self.record_command_buffer(i)?;
+        }
         self.memory.log_usage();
 
         let mut framenumber: u64 = 0;
@@ -606,58 +608,71 @@ impl Renderer {
             loop_start = Instant::now();
             let looptime_1 = loop_start.duration_since(last_loop_start);
 
-            let mut need_rerecord = false; // FIXME: just re-record secondary cmd bufs.
-            {
-                let params = self.params_ubo.as_ptr::<Params>().unwrap();
-                for plugin in &mut self.plugins {
-                    // FIXME: just re-record the plugin's secondary command buffer
-                    // once we setup secondary command buffers
-                    need_rerecord = need_rerecord || plugin.update(params, &self.stats)?;
-                }
-            }
-            if need_rerecord {// FIXME: remove when re-recording 2nd cmd bufs
-                self.record_command_buffers()?;
-            }
-
-            self.memory.flush()?;
-
-            // Render a frame (issue the commands)
-            match self.render() {
-                Err(e) => {
-                    if let &ErrorKind::Dacite(OutOfDateKhr) = e.kind() {
-                        // Rebuild the swapchain if Vulkan complains that it is out of date.
-                        // This is typical on linux.
-                        self.rebuild()?;
-                        // Now we have rebuilt but we didn't render, so skip the rest of
-                        // the loop and try to render again right away
-                        self.rendered_fence.wait_for(Timeout::Infinite)?;
-                        continue;
-                    } else {
-                        return Err(e);
-                    }
-                },
-                Ok(instant) => instant
-            };
-
-            framenumber += 1;
-
             // On windows (at least, perhaps also elsewhere), vulkan won't give us an
             // OutOfDateKhr error on a window resize.  But the window will remain black
             // after resizing.  We have to detect resizes and rebuild the swapchain.
             if self.resized.load(Ordering::Relaxed) {
                 self.rebuild()?;
                 self.resized.store(false, Ordering::Relaxed);
-                self.rendered_fence.wait_for(Timeout::Infinite)?;
                 continue;
             }
 
-            // Wait until the frame is rendered
+            // Be sure any outstanding memory transfers are completed.
+            self.memory.flush()?;
+
+            // Issue the commands to render a frame (this does not wait)
+            let present_image = match self.render() {
+                Err(e) => {
+                    if let &ErrorKind::Dacite(OutOfDateKhr) = e.kind() {
+                        // Rebuild the swapchain if Vulkan complains that it is out of date.
+                        // This is typical on linux.
+                        self.rebuild()?;
+
+                        // Rebuild waited for device idle, so no other waits necessary.
+                        // Just go back up and try again
+                        continue;
+                    } else {
+                        return Err(e);
+                    }
+                },
+                Ok(i) => i
+            };
+
+            // Update plugins. If any of them needs a re-record, we mark all of the
+            // command buffers as stale.
+            let mut need_rerecord = false; // FIXME: just re-record secondary cmd bufs.
+            for plugin in &mut self.plugins {
+                let params = self.params_ubo.as_ptr::<Params>().unwrap();
+                if plugin.update(params, &self.stats)? {
+                    need_rerecord = true;
+                }
+            }
+            if need_rerecord {
+                // mark them all stale
+                for elem in self.commander.gfx_command_buffer_stale.iter_mut() {
+                    *elem=true;
+                }
+            }
+
+            // Re-record all stale non-in-flight command buffers
+            for i in 0..self.swapchain_data.images.len() {
+                if i == present_image {
+                    // We cannot re-record the in-flight command buffer
+                    // It will stay marked 'stale' and get re-recorded next
+                    // loop iteration.
+                    continue;
+                }
+                if self.commander.gfx_command_buffer_stale[i] {
+                    self.record_command_buffer(i)?;
+                    self.commander.gfx_command_buffer_stale[i] = false;
+                }
+            }
+
+            // Wait until the current frame is rendered
             // FIXME: we might actually be ready to acquire another image
-            // before the previous one gets rendered. So this waiting here
-            // could potentially be a bottleneck. But we do it to get more
-            // accurate timings (for now). FIXME.
-            // Wait on the acquired fence, before trying to acquire another
+            // before the previous one gets rendered.
             self.rendered_fence.wait_for(Timeout::Infinite)?;
+            framenumber += 1;
 
             // Query render timings
             let timings_1 = {
@@ -705,7 +720,7 @@ impl Renderer {
         }
     }
 
-    fn render(&mut self) -> Result<()>
+    fn render(&mut self) -> Result<usize>
     {
         use std::time::Duration;
         use dacite::core::{Timeout, SubmitInfo, PipelineStageFlags};
@@ -719,6 +734,9 @@ impl Renderer {
                     Timeout::Some(Duration::from_millis(4_000)),
                     Some(&self.image_acquired),
                     None)?;
+            // Note: even though index is acquired, the presentation engine may still
+            // be using it up until the semaphore/fence are signalled.
+            // Timeout can be zero if we don't want to wait right now.
 
             match next_image_res {
                 AcquireNextImageResultKhr::Index(idx) |
@@ -768,13 +786,14 @@ impl Renderer {
             self.present_queue.queue_present_khr(&mut present_info)?;
         }
 
-        Ok(())
+        Ok(next_image)
     }
 
-    fn record_command_buffers(&mut self) -> Result<()>
+    fn record_command_buffer(&mut self, present_index: usize) -> Result<()>
     {
         // NOTE: recording a command buffer is well known as one of the slower
-        // parts of Vulkan, so this should not be done every frame.
+        // parts of Vulkan, so we should attempt to do as little recording
+        // as possible.
 
         use dacite::core::{CommandBufferBeginInfo, CommandBufferUsageFlags,
                            CommandBufferResetFlags, ImageLayout,
@@ -782,230 +801,230 @@ impl Renderer {
                            OptionalMipLevels, OptionalArrayLayers,
                            ImageSubresourceRange};
 
-        for (present_index, command_buffer) in
-            self.commander.gfx_command_buffers.iter().enumerate()
+        let command_buffer = &self.commander.gfx_command_buffers[present_index];
+
+        // Not sure this is required - was working with out it.  Also, not sure
+        // if releasing resources is the smartest plan either.
+        command_buffer.reset(CommandBufferResetFlags::empty())?;
+
+        let begin_info = CommandBufferBeginInfo {
+            flags: CommandBufferUsageFlags::empty(),
+            inheritance_info: None,
+            chain: None,
+        };
+        command_buffer.begin(&begin_info)?;
+
+        command_buffer.reset_query_pool(&self.timestamp_query_pool, 0, TS_QUERY_COUNT);
+
+        command_buffer.write_timestamp(
+            PipelineStageFlagBits::TopOfPipe,
+            &self.timestamp_query_pool,
+            Timestamp::FullStart as u32);
+
+        // Transition swapchain image to ColorAttachmentOptimal
+        // (from whatever it was - usually it is PresentImageKhr, but the
+        //  very first time it will be Undefined).
+        self.swapchain_data.images[present_index].transition_layout(
+            command_buffer.clone(),
+            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
+            AccessFlags::HOST_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
+            PipelineStageFlags::HOST, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            }
+        )?;
+
+        // Bind viewports and scissors
+        command_buffer.set_viewport(0, &self.viewports);
+        command_buffer.set_scissor(0, &self.scissors);
+
+        self.target_data.transition_for_geometry(command_buffer.clone())?;
+
+        // Geometry pass
         {
-            // Not sure this is required - was working with out it.  Also, not sure
-            // if releasing resources is the smartest plan either.
-            command_buffer.reset(CommandBufferResetFlags::empty())?;
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::GeometryStart as u32);
 
-            let begin_info = CommandBufferBeginInfo {
-                flags: CommandBufferUsageFlags::empty(),
-                inheritance_info: None,
-                chain: None,
-            };
-            command_buffer.begin(&begin_info)?;
+            self.geometry_pass.record_entry(command_buffer.clone());
 
-            command_buffer.reset_query_pool(&self.timestamp_query_pool, 0, TS_QUERY_COUNT);
+            for plugin in &self.plugins {
+                // NOTE: Try to draw front to back
+                plugin.record_geometry(command_buffer.clone());
+            }
+
+            self.geometry_pass.record_exit(command_buffer.clone());
 
             command_buffer.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
-                Timestamp::FullStart as u32);
-
-            // Transition swapchain image to ColorAttachmentOptimal
-            // (from whatever it was - usually it is PresentImageKhr, but the
-            //  very first time it will be Undefined).
-            self.swapchain_data.images[present_index].transition_layout(
-                command_buffer.clone(),
-                ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
-                AccessFlags::HOST_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
-                PipelineStageFlags::HOST, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-                ImageSubresourceRange {
-                    aspect_mask: ImageAspectFlags::COLOR,
-                    base_mip_level: 0,
-                    level_count: OptionalMipLevels::MipLevels(1),
-                    base_array_layer: 0,
-                    layer_count: OptionalArrayLayers::ArrayLayers(1),
-                }
-            )?;
-
-            // Bind viewports and scissors
-            command_buffer.set_viewport(0, &self.viewports);
-            command_buffer.set_scissor(0, &self.scissors);
-
-            self.target_data.transition_for_geometry(command_buffer.clone())?;
-
-            // Geometry pass
-            {
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::GeometryStart as u32);
-
-                self.geometry_pass.record_entry(command_buffer.clone());
-
-                for plugin in &self.plugins {
-                    // NOTE: Try to draw front to back
-                    plugin.record_geometry(command_buffer.clone());
-                }
-
-                self.geometry_pass.record_exit(command_buffer.clone());
-
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::GeometryEnd as u32);
-            }
-
-            self.target_data.transition_for_shading(command_buffer.clone())?;
-
-            // Shading pass
-            {
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::ShadingStart as u32);
-
-                self.shading_pass.record_entry(command_buffer.clone());
-
-                self.shade_gfx.record(command_buffer.clone(),
-                                      self.params_desc_set.clone());
-
-                self.shading_pass.record_exit(command_buffer.clone());
-
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::ShadingEnd as u32);
-            }
-
-            self.target_data.transition_for_transparent(command_buffer.clone())?;
-
-            // Transparent pass
-            {
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::TransparentStart as u32);
-
-                self.transparent_pass.record_entry(command_buffer.clone());
-
-                for plugin in &self.plugins {
-                    plugin.record_transparent(command_buffer.clone());
-                }
-
-                self.transparent_pass.record_exit(command_buffer.clone());
-
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::TransparentEnd as u32);
-            }
-
-            self.target_data.transition_for_blurh(command_buffer.clone())?;
-
-            // Blur/Bloom Filter/Horizontal pass
-            {
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::Blur1Start as u32);
-
-                self.blur_h_pass.record_entry(command_buffer.clone());
-
-                self.blur_gfx.record_blurh(command_buffer.clone(),
-                                           self.params_desc_set.clone());
-
-                self.blur_h_pass.record_exit(command_buffer.clone());
-
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::Blur1End as u32);
-            }
-
-            self.target_data.transition_for_blurv(command_buffer.clone())?;
-
-            // Blur/Bloom Vertical/Merge pass
-            {
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::Blur2Start as u32);
-
-                self.blur_v_pass.record_entry(command_buffer.clone());
-
-                self.blur_gfx.record_blurv(command_buffer.clone(),
-                                           self.params_desc_set.clone());
-
-                self.blur_v_pass.record_exit(command_buffer.clone());
-
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::Blur2End as u32);
-            }
-
-            self.target_data.transition_for_post(command_buffer.clone())?;
-
-            // Post pass
-            {
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::PostStart as u32);
-
-                self.post_pass.record_entry(command_buffer.clone(),
-                                            present_index);
-
-                self.post_gfx.record(command_buffer.clone(),
-                                     self.params_desc_set.clone());
-
-                self.post_pass.record_exit(command_buffer.clone());
-
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::PostEnd as u32);
-            }
-
-            self.target_data.transition_for_ui(command_buffer.clone())?;
-
-            // Ui pass
-            {
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::UiStart as u32);
-
-                self.ui_pass.record_entry(command_buffer.clone(),
-                                          present_index);
-
-                for plugin in &self.plugins {
-                    plugin.record_ui(command_buffer.clone());
-                }
-
-                self.ui_pass.record_exit(command_buffer.clone());
-
-                command_buffer.write_timestamp(
-                    PipelineStageFlagBits::TopOfPipe,
-                    &self.timestamp_query_pool,
-                    Timestamp::UiEnd as u32);
-            }
-
-            // Transition swapchain image to PresentImageKhr
-            self.swapchain_data.images[present_index].transition_layout(
-                command_buffer.clone(),
-                ImageLayout::ColorAttachmentOptimal, ImageLayout::PresentSrcKhr,
-                AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::HOST_READ,
-                PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::HOST,
-                ImageSubresourceRange {
-                    aspect_mask: ImageAspectFlags::COLOR,
-                    base_mip_level: 0,
-                    level_count: OptionalMipLevels::MipLevels(1),
-                    base_array_layer: 0,
-                    layer_count: OptionalArrayLayers::ArrayLayers(1),
-                }
-            )?;
-
-            command_buffer.write_timestamp(
-                PipelineStageFlagBits::TopOfPipe,
-                &self.timestamp_query_pool,
-                Timestamp::FullEnd as u32);
-
-            command_buffer.end()?;
+                Timestamp::GeometryEnd as u32);
         }
+
+        self.target_data.transition_for_shading(command_buffer.clone())?;
+
+        // Shading pass
+        {
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::ShadingStart as u32);
+
+            self.shading_pass.record_entry(command_buffer.clone());
+
+            self.shade_gfx.record(command_buffer.clone(),
+                                  self.params_desc_set.clone());
+
+            self.shading_pass.record_exit(command_buffer.clone());
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::ShadingEnd as u32);
+        }
+
+        self.target_data.transition_for_transparent(command_buffer.clone())?;
+
+        // Transparent pass
+        {
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::TransparentStart as u32);
+
+            self.transparent_pass.record_entry(command_buffer.clone());
+
+            for plugin in &self.plugins {
+                plugin.record_transparent(command_buffer.clone());
+            }
+
+            self.transparent_pass.record_exit(command_buffer.clone());
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::TransparentEnd as u32);
+        }
+
+        self.target_data.transition_for_blurh(command_buffer.clone())?;
+
+        // Blur/Bloom Filter/Horizontal pass
+        {
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::Blur1Start as u32);
+
+            self.blur_h_pass.record_entry(command_buffer.clone());
+
+            self.blur_gfx.record_blurh(command_buffer.clone(),
+                                       self.params_desc_set.clone());
+
+            self.blur_h_pass.record_exit(command_buffer.clone());
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::Blur1End as u32);
+        }
+
+        self.target_data.transition_for_blurv(command_buffer.clone())?;
+
+        // Blur/Bloom Vertical/Merge pass
+        {
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::Blur2Start as u32);
+
+            self.blur_v_pass.record_entry(command_buffer.clone());
+
+            self.blur_gfx.record_blurv(command_buffer.clone(),
+                                       self.params_desc_set.clone());
+
+            self.blur_v_pass.record_exit(command_buffer.clone());
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::Blur2End as u32);
+        }
+
+        self.target_data.transition_for_post(command_buffer.clone())?;
+
+        // Post pass
+        {
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::PostStart as u32);
+
+            self.post_pass.record_entry(command_buffer.clone(),
+                                        present_index);
+
+            self.post_gfx.record(command_buffer.clone(),
+                                 self.params_desc_set.clone());
+
+            self.post_pass.record_exit(command_buffer.clone());
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::PostEnd as u32);
+        }
+
+        self.target_data.transition_for_ui(command_buffer.clone())?;
+
+        // Ui pass
+        {
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::UiStart as u32);
+
+            self.ui_pass.record_entry(command_buffer.clone(),
+                                      present_index);
+
+            for plugin in &self.plugins {
+                plugin.record_ui(command_buffer.clone());
+            }
+
+            self.ui_pass.record_exit(command_buffer.clone());
+
+            command_buffer.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::UiEnd as u32);
+        }
+
+        // Transition swapchain image to PresentImageKhr
+        self.swapchain_data.images[present_index].transition_layout(
+            command_buffer.clone(),
+            ImageLayout::ColorAttachmentOptimal, ImageLayout::PresentSrcKhr,
+            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::HOST_READ,
+            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::HOST,
+            ImageSubresourceRange {
+                aspect_mask: ImageAspectFlags::COLOR,
+                base_mip_level: 0,
+                level_count: OptionalMipLevels::MipLevels(1),
+                base_array_layer: 0,
+                layer_count: OptionalArrayLayers::ArrayLayers(1),
+            }
+        )?;
+
+        command_buffer.write_timestamp(
+            PipelineStageFlagBits::TopOfPipe,
+            &self.timestamp_query_pool,
+            Timestamp::FullEnd as u32);
+
+        command_buffer.end()?;
+
+        self.commander.gfx_command_buffer_stale[present_index] = false;
 
         Ok(())
     }
@@ -1065,7 +1084,9 @@ impl Renderer {
         }
 
         // Re-record command buffers (the framebuffer image views are new, so we must)
-        self.record_command_buffers()?;
+        for i in 0..self.swapchain_data.images.len() {
+            self.record_command_buffer(i)?;
+        }
 
         Ok(())
     }
