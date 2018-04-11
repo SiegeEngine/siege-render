@@ -1,7 +1,8 @@
 
 use dacite::core::{Device, Extent2D, CommandBuffer, ImageLayout, AccessFlags,
                    PipelineStageFlags, ImageAspectFlags, OptionalMipLevels,
-                   OptionalArrayLayers, ImageSubresourceRange};
+                   OptionalArrayLayers, ImageSubresourceRange, ImageMemoryBarrier,
+                   QueueFamilyIndex, DependencyFlags};
 use errors::*;
 use super::image_wrap::{ImageWrap, ImageWrapType};
 use super::memory::{Memory, Lifetime};
@@ -25,6 +26,21 @@ Material:		R8G8B8A8_UNorm
 Shading:                R16G16B16A16_SFloat (goes overbright)
 Blur:                   R16G16B16A16_SFloat (goes overbright)
  */
+
+const STD_COLOR_SUBRESOURCE_RANGE: ImageSubresourceRange = ImageSubresourceRange {
+    aspect_mask: ImageAspectFlags::COLOR,
+    base_mip_level: 0,
+    level_count: OptionalMipLevels::MipLevels(1),
+    base_array_layer: 0,
+    layer_count: OptionalArrayLayers::ArrayLayers(1),
+};
+const STD_DEPTH_SUBRESOURCE_RANGE: ImageSubresourceRange = ImageSubresourceRange {
+    aspect_mask: ImageAspectFlags::DEPTH,
+    base_mip_level: 0,
+    level_count: OptionalMipLevels::MipLevels(1),
+    base_array_layer: 0,
+    layer_count: OptionalArrayLayers::ArrayLayers(1),
+};
 
 pub struct TargetData {
     pub blur_image: ImageWrap,
@@ -87,42 +103,46 @@ impl TargetData {
         // write and read depth: depth never needs transition
 
         // write diffuse, normal, and material
-        self.diffuse_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
-            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
-        self.normals_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
-            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
-        self.material_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
-            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
+        let diffuse_barrier = ImageMemoryBarrier {
+            src_access_mask: Default::default(),
+            dst_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+            old_layout: ImageLayout::Undefined,
+            new_layout: ImageLayout::ColorAttachmentOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.diffuse_image.image.clone(),
+            subresource_range: STD_COLOR_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        let normals_barrier = ImageMemoryBarrier {
+            src_access_mask: Default::default(),
+            dst_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+            old_layout: ImageLayout::Undefined,
+            new_layout: ImageLayout::ColorAttachmentOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.normals_image.image.clone(),
+            subresource_range: STD_COLOR_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        let material_barrier = ImageMemoryBarrier {
+            src_access_mask: Default::default(),
+            dst_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+            old_layout: ImageLayout::Undefined,
+            new_layout: ImageLayout::ColorAttachmentOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.material_image.image.clone(),
+            subresource_range: STD_COLOR_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        command_buffer.pipeline_barrier(
+            PipelineStageFlags::TOP_OF_PIPE,
+            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            DependencyFlags::empty(),
+            None, //memory barriers
+            None , //buffer memory barriers
+            Some(&[diffuse_barrier, normals_barrier, material_barrier])); //image memory barriers
 
         Ok(())
     }
@@ -131,72 +151,87 @@ impl TargetData {
                                   -> Result<()>
     {
         // Transition depth buffer for shader reads
-        self.depth_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::DepthStencilAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
-            AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+        let depth_barrier = ImageMemoryBarrier {
+            src_access_mask: AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
                 | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-            AccessFlags::SHADER_READ,
-            PipelineStageFlags::EARLY_FRAGMENT_TESTS, PipelineStageFlags::FRAGMENT_SHADER,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::DEPTH,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
+            dst_access_mask: AccessFlags::SHADER_READ,
+            old_layout: ImageLayout::DepthStencilAttachmentOptimal,
+            new_layout: ImageLayout::ShaderReadOnlyOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.depth_image.image.clone(),
+            subresource_range: STD_DEPTH_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        command_buffer.pipeline_barrier(
+            PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            PipelineStageFlags::FRAGMENT_SHADER,
+            DependencyFlags::empty(),
+            None, //memory barriers
+            None , //buffer memory barriers
+            Some(&[depth_barrier])); //image memory barriers
 
         // read diffuse, normal, and material
-        self.diffuse_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
-            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
-        self.normals_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
-            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
-        self.material_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::ColorAttachmentOptimal, ImageLayout::ShaderReadOnlyOptimal,
-            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::SHADER_READ,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::FRAGMENT_SHADER,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
+        let diffuse_barrier = ImageMemoryBarrier {
+            src_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: AccessFlags::SHADER_READ,
+            old_layout: ImageLayout::ColorAttachmentOptimal,
+            new_layout: ImageLayout::ShaderReadOnlyOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.diffuse_image.image.clone(),
+            subresource_range: STD_COLOR_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        let normals_barrier = ImageMemoryBarrier {
+            src_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: AccessFlags::SHADER_READ,
+            old_layout: ImageLayout::ColorAttachmentOptimal,
+            new_layout: ImageLayout::ShaderReadOnlyOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.normals_image.image.clone(),
+            subresource_range: STD_COLOR_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        let material_barrier = ImageMemoryBarrier {
+            src_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: AccessFlags::SHADER_READ,
+            old_layout: ImageLayout::ColorAttachmentOptimal,
+            new_layout: ImageLayout::ShaderReadOnlyOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.material_image.image.clone(),
+            subresource_range: STD_COLOR_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        command_buffer.pipeline_barrier(
+            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            PipelineStageFlags::FRAGMENT_SHADER,
+            DependencyFlags::empty(),
+            None, //memory barriers
+            None , //buffer memory barriers
+            Some(&[diffuse_barrier, normals_barrier, material_barrier])); //image memory barriers
 
         // write shading
-        self.shading_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
-            Default::default(), AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::TOP_OF_PIPE, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
+        let shading_barrier = ImageMemoryBarrier {
+            src_access_mask: Default::default(),
+            dst_access_mask: AccessFlags::COLOR_ATTACHMENT_WRITE,
+            old_layout: ImageLayout::Undefined,
+            new_layout: ImageLayout::ColorAttachmentOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.shading_image.image.clone(),
+            subresource_range: STD_COLOR_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        command_buffer.pipeline_barrier(
+            PipelineStageFlags::TOP_OF_PIPE,
+            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            DependencyFlags::empty(),
+            None, //memory barriers
+            None , //buffer memory barriers
+            Some(&[shading_barrier])); //image memory barriers
 
         Ok(())
     }
@@ -205,23 +240,25 @@ impl TargetData {
                                    -> Result<()>
     {
         // Reinstate the depth buffer
-        self.depth_image.transition_layout(
-            command_buffer.clone(),
-            ImageLayout::ShaderReadOnlyOptimal,
-            ImageLayout::DepthStencilAttachmentOptimal,
-            AccessFlags::SHADER_READ,
-            AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+        let depth_barrier = ImageMemoryBarrier {
+            src_access_mask: AccessFlags::SHADER_READ,
+            dst_access_mask: AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
                 | AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            old_layout: ImageLayout::ShaderReadOnlyOptimal,
+            new_layout: ImageLayout::DepthStencilAttachmentOptimal,
+            src_queue_family_index: QueueFamilyIndex::Ignored,
+            dst_queue_family_index: QueueFamilyIndex::Ignored,
+            image: self.depth_image.image.clone(),
+            subresource_range: STD_DEPTH_SUBRESOURCE_RANGE,
+            chain: None
+        };
+        command_buffer.pipeline_barrier(
             PipelineStageFlags::FRAGMENT_SHADER,
             PipelineStageFlags::EARLY_FRAGMENT_TESTS,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::DEPTH,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            })?;
-
+            DependencyFlags::empty(),
+            None, //memory barriers
+            None , //buffer memory barriers
+            Some(&[depth_barrier])); //image memory barriers
 
         // write shading: already there.
 
