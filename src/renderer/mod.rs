@@ -663,9 +663,7 @@ impl Renderer {
             // accurate timings (for now). FIXME.
             // Wait on the acquired fence, before trying to acquire another
             self.acquired_fence.wait_for(Timeout::Infinite)?;
-            let cpuwait_start = Instant::now();
             self.rendered_fence.wait_for(Timeout::Infinite)?;
-            let cpuwait_1 = cpuwait_start.elapsed();
 
             // Query render timings
             let timings_1 = {
@@ -680,7 +678,6 @@ impl Renderer {
                 )?;
                 Timings::one(
                     &looptime_1,
-                    &cpuwait_1,
                     &results,
                     self.ph_props.limits.timestamp_period)
             };
