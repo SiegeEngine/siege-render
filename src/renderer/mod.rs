@@ -625,7 +625,7 @@ impl Renderer {
             self.memory.flush()?;
 
             // Issue the commands to render a frame (this does not wait)
-            let present_image = match self.render() {
+            let present_image = match self.start_render() {
                 Err(e) => {
                     if let &ErrorKind::Dacite(OutOfDateKhr) = e.kind() {
                         // Rebuild the swapchain if Vulkan complains that it is out of date.
@@ -724,7 +724,7 @@ impl Renderer {
         }
     }
 
-    fn render(&mut self) -> Result<usize>
+    fn start_render(&mut self) -> Result<usize>
     {
         use std::time::Duration;
         use dacite::core::{Timeout, SubmitInfo, PipelineStageFlags};
