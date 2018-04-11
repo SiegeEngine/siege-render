@@ -1,6 +1,7 @@
 
 use errors::*;
 use dacite::core::Device;
+use siege_math::Point3;
 use siege_mesh::{Mesh, Vertex};
 use super::buffer::{DeviceLocalBuffer, HostVisibleBuffer};
 use super::memory::{Memory, Lifetime};
@@ -13,6 +14,9 @@ pub struct VulkanMesh {
 
     pub num_vertices: u32,
     pub num_indices: u32,
+
+    pub bounding_sphere: Option<(Point3<f32>, f32)>,
+    pub bounding_cuboid: Option<[Point3<f32>; 8]>,
 
     // TBD: texture images
 
@@ -49,7 +53,9 @@ impl VulkanMesh {
             vertex_buffer: vertex_buffer,
             index_buffer: index_buffer,
             num_vertices: mesh.vertices.len() as u32,
-            num_indices: (mesh.indices.len() * 3) as u32 // we group them in 3s
+            num_indices: (mesh.indices.len() * 3) as u32, // we group them in 3s
+            bounding_sphere: mesh.bounding_sphere.clone(),
+            bounding_cuboid: mesh.bounding_cuboid.clone(),
         })
     }
 }
