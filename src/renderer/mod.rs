@@ -150,7 +150,6 @@ pub struct Renderer {
     target_data: TargetData,
     timestamp_query_pool: QueryPool,
     rendered_fence: Fence,
-    acquired_fence: Fence,
     image_rendered: Semaphore,
     image_acquired: Semaphore,
     descriptor_pool: DescriptorPool,
@@ -246,7 +245,6 @@ impl Renderer {
 
         let (image_acquired, image_rendered) = setup::get_semaphores(&device)?;
 
-        let acquired_fence = setup::get_graphics_fence(&device, false)?;
         let rendered_fence = setup::get_graphics_fence(&device, false)?;
 
         let timestamp_query_pool = device.create_query_pool(&QueryPoolCreateInfo {
@@ -399,7 +397,6 @@ impl Renderer {
             target_data: target_data,
             timestamp_query_pool: timestamp_query_pool,
             rendered_fence: rendered_fence,
-            acquired_fence: acquired_fence,
             image_rendered: image_rendered,
             image_acquired: image_acquired,
             descriptor_pool: descriptor_pool,
@@ -633,7 +630,6 @@ impl Renderer {
                         self.rebuild()?;
                         // Now we have rebuilt but we didn't render, so skip the rest of
                         // the loop and try to render again right away
-                        self.acquired_fence.wait_for(Timeout::Infinite)?;
                         self.rendered_fence.wait_for(Timeout::Infinite)?;
                         continue;
                     } else {
@@ -651,7 +647,6 @@ impl Renderer {
             if self.resized.load(Ordering::Relaxed) {
                 self.rebuild()?;
                 self.resized.store(false, Ordering::Relaxed);
-                self.acquired_fence.wait_for(Timeout::Infinite)?;
                 self.rendered_fence.wait_for(Timeout::Infinite)?;
                 continue;
             }
@@ -662,7 +657,6 @@ impl Renderer {
             // could potentially be a bottleneck. But we do it to get more
             // accurate timings (for now). FIXME.
             // Wait on the acquired fence, before trying to acquire another
-            self.acquired_fence.wait_for(Timeout::Infinite)?;
             self.rendered_fence.wait_for(Timeout::Infinite)?;
 
             // Query render timings
@@ -720,12 +714,11 @@ impl Renderer {
         // Get next image
         let next_image;
         loop {
-            self.acquired_fence.reset()?;
             let next_image_res = self.swapchain_data.swapchain
                 .acquire_next_image_khr(
                     Timeout::Some(Duration::from_millis(4_000)),
                     Some(&self.image_acquired),
-                    Some(&self.acquired_fence))?;
+                    None)?;
 
             match next_image_res {
                 AcquireNextImageResultKhr::Index(idx) |
