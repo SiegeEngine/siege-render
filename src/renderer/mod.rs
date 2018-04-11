@@ -596,7 +596,11 @@ impl Renderer {
 
         let mut framenumber: u64 = 0;
 
-        let loop_throttle = Duration::new(0, 1_000_000_000 / self.config.fps_cap);
+        let loop_throttle = if self.config.fps_cap > 0 {
+            Duration::new(0, 1_000_000_000 / self.config.fps_cap)
+        } else {
+            Duration::new(0, 0)
+        };
 
         let mut timings_60 = Timings::new();
         let mut timings_600 = Timings::new();
