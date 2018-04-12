@@ -301,4 +301,31 @@ impl ResourceManager {
 
         Ok(dlb)
     }
+
+    pub fn make_buffer<T: Copy>(
+        &mut self,
+        device: &Device,
+        memory: &mut Memory,
+        commander: &Commander,
+        staging_buffer: &mut HostVisibleBuffer,
+        data: &[T],
+        usage: BufferUsageFlags,
+        name: &str)
+        -> Result<DeviceLocalBuffer>
+    {
+        // Check if we already have it
+        if let Some(bufref) = self.buffers.get(name) {
+            return Ok(bufref.clone());
+        }
+
+        let dlb = DeviceLocalBuffer::new_uploaded(
+            device, memory, commander,
+            staging_buffer, data,
+            usage, Lifetime::Temporary,
+            &*format!("buffer {}", name))?;
+
+        self.buffers.insert(name.to_owned(), dlb.clone());
+
+        Ok(dlb)
+    }
 }

@@ -455,6 +455,19 @@ impl Renderer {
             &mut self.staging_buffer, usage, name)
     }
 
+    pub fn make_buffer<T: Copy>(
+        &mut self,
+        data: &[T],
+        usage: BufferUsageFlags,
+        name: &str)
+        -> Result<DeviceLocalBuffer>
+    {
+        self.resource_manager.make_buffer(
+            &self.device, &mut self.memory, &self.commander,
+            &mut self.staging_buffer, data,
+            usage, name)
+    }
+
     pub fn get_asset_path(&self) -> PathBuf {
         self.config.asset_path.clone()
     }
