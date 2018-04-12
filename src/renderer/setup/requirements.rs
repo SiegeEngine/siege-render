@@ -22,10 +22,10 @@ pub const FEATURES_NEEDED: PhysicalDeviceFeatures = PhysicalDeviceFeatures {
     large_points: true,
     sampler_anisotropy: true, // FIXME - we want this, we dont need it.
     texture_compression_bc: true,
+    robust_buffer_access: cfg!(debug_assertions), // finds bugs; too expensive for live.
     //
     // the rest are false
     //
-    robust_buffer_access: false,
     full_draw_index_uint32: false,
     image_cube_array: false,
     independent_blend: false,
