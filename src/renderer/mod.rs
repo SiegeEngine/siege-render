@@ -210,6 +210,9 @@ impl Renderer {
             &physical_device, &device, &surface,
             Extent2D { width: config.width, height: config.height }, // preferred extent
             &queue_indices)?;
+        debug!("Present mode {:?} with {} swapchain images",
+               swapchain_data.surface_data.present_mode,
+               swapchain_data.images.len());
 
         let present_queue = device.get_queue(queue_indices.present_family,
                                              queue_indices.present_index);
@@ -644,7 +647,7 @@ impl Renderer {
 
             // Update plugins. If any of them needs a re-record, we mark all of the
             // command buffers as stale.
-            let mut need_rerecord = false; // FIXME: just re-record secondary cmd bufs.
+            let mut need_rerecord = false;
             for plugin in &mut self.plugins {
                 let params = self.params_ubo.as_ptr::<Params>().unwrap();
                 if plugin.update(params, &self.stats)? {
@@ -672,10 +675,14 @@ impl Renderer {
                 }
             }
 
-            // Wait until the current frame is rendered
-            // FIXME: we might actually be ready to acquire another image
-            // before the previous one gets rendered.
+            // Wait until the current frame is rendered, so that objects tied
+            // into that render remain alive during the render, and also to
+            // wait for the Query pool results. This does not wait for
+            // presentation (however rendering had to wait for acquisition and
+            // this might not have been ready until vsync, depending on
+            // presentation mode).
             self.rendered_fence.wait_for(Timeout::Infinite)?;
+
             framenumber += 1;
 
             // Query render timings
@@ -738,6 +745,7 @@ impl Renderer {
                     Timeout::Some(Duration::from_millis(4_000)),
                     Some(&self.image_acquired),
                     None)?;
+
             // Note: even though index is acquired, the presentation engine may still
             // be using it up until the semaphore/fence are signalled.
             // Timeout can be zero if we don't want to wait right now.
@@ -749,12 +757,12 @@ impl Renderer {
                     break;
                 },
                 AcquireNextImageResultKhr::NotReady => {
-                    ::std::thread::sleep(Duration::from_millis(100));
+                    ::std::thread::sleep(Duration::new(0, 50_000)); // 0.05ms
                     continue;
                 },
                 AcquireNextImageResultKhr::Timeout => {
                     error!("Swapchain image acquisition timed out (but we keep trying)");
-                    ::std::thread::sleep(Duration::from_millis(100));
+                    ::std::thread::sleep(Duration::new(0, 50_000)); // 0.05ms
                     continue;
                     //return Err(ErrorKind::SwapchainTimeout.into())
                 }
