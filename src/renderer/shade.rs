@@ -380,6 +380,7 @@ vec3 shadingSpecularGGX(vec3 N, vec3 V, vec3 L, float roughness, vec3 F0)
     if (length(H) < 0.00001) { return vec3(0.0, 0.0, 0.0); }
     H = normalize(H);
     float dotLH = max(dot(L, H), 0.0);
+    if (dotLH > 0.9999) { dotLH = 0.9999; } // head shadow spark fix
     float dotNH = max(dot(N, H), 0.0);
     float dotNL = max(dot(N, L), 0.0);
     float dotNV = max(dot(N, V), 0.0);
