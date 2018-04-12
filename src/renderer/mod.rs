@@ -675,6 +675,22 @@ impl Renderer {
                 }
             }
 
+            // PLACEHOLDER FOR OPTIONAL JOBS
+            // Here we can query the fence status, and if not signalled, we can go do
+            // some job that is waiting, ala:
+            /*
+            loop {
+              fence_status = vkGetFenceStatus(device, fences[nextImageIndex]);
+              if fence_status==VK_SUCCESS {
+                break;
+              }
+              if smallJobQueue.empty() {
+                break;
+              }
+              //execute next small job
+            }
+            */
+
             // Wait until the current frame is rendered, so that objects tied
             // into that render remain alive during the render, and also to
             // wait for the Query pool results. This does not wait for
