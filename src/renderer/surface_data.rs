@@ -127,7 +127,8 @@ fn get_present_mode(present_modes: &Vec<PresentModeKhr>) -> PresentModeKhr
     present_modes.iter().map(|mode| *mode).min_by_key(|mode| {
         match *mode {
             PresentModeKhr::Mailbox => 1,
-            PresentModeKhr::Fifo => 2,
+            PresentModeKhr::FifoRelaxed => 2,
+            PresentModeKhr::Fifo => 3,
             _ => 99,
         }
     }).unwrap() // Vulkan guarantees Fifo exists
