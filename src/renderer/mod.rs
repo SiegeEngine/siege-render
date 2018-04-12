@@ -681,9 +681,19 @@ impl Renderer {
             // presentation (however rendering had to wait for acquisition and
             // this might not have been ready until vsync, depending on
             // presentation mode).
+            let x = Instant::now();
             self.rendered_fence.wait_for(Timeout::Infinite)?;
+            let cpu_exclude_time = x.elapsed();
 
             framenumber += 1;
+
+            // Shutdown when it is time to do so
+            if self.shutdown.load(Ordering::Relaxed) {
+                info!("Graphics is shutting down...");
+                self.device.wait_idle()?;
+                self.window.hide();
+                return Ok(());
+            }
 
             // Query render timings
             let timings_1 = {
@@ -696,9 +706,18 @@ impl Renderer {
                     QueryResultFlags::WAIT,
                     &mut results
                 )?;
+
+                // This skips the render wait, and the throttle (below), but also
+                // the update statistics (although that is short).
+                let cputime = loop_start.elapsed().checked_sub(cpu_exclude_time)
+                    .unwrap_or(Duration::new(0,0));
+                let cputime_ms = cputime.as_secs() as f32 * 1000.0
+                    + cputime.subsec_nanos() as f32 * 0.000_001;
+
                 Timings::one(
                     &looptime_1,
                     &results,
+                    cputime_ms,
                     self.ph_props.limits.timestamp_period)
             };
 
@@ -706,14 +725,6 @@ impl Renderer {
             let elapsed = loop_start.elapsed();
             if elapsed < loop_throttle {
                 ::std::thread::sleep(loop_throttle - elapsed);
-            }
-
-            // Shutdown when it is time to do so
-            if self.shutdown.load(Ordering::Relaxed) {
-                info!("Graphics is shutting down...");
-                self.device.wait_idle()?;
-                self.window.hide();
-                return Ok(());
             }
 
             // Update statistics

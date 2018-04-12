@@ -6,6 +6,7 @@ use renderer::{Timestamp, TS_QUERY_COUNT};
 #[derive(Debug, Clone)]
 pub struct Timings {
     pub frame: f32,
+    pub cpu: f32,
     pub render: f32,
     pub geometry: f32,
     pub shading: f32,
@@ -19,6 +20,7 @@ impl Timings {
     pub fn new() -> Timings {
         Timings {
             frame: 0.0,
+            cpu: 0.0,
             render: 0.0,
             geometry: 0.0,
             shading: 0.0,
@@ -33,6 +35,7 @@ impl Timings {
     pub fn one(
         frame_duration: &Duration,
         query_results: &[QueryResult; TS_QUERY_COUNT as usize],
+        cputime_ms: f32,
         timestamp_period: f32)
         -> Timings
     {
@@ -50,6 +53,7 @@ impl Timings {
 
         Timings {
             frame: duration_to_milliseconds(frame_duration),
+            cpu: cputime_ms,
             render: to_ms(Timestamp::FullStart, Timestamp::FullEnd),
             geometry: to_ms(Timestamp::GeometryStart, Timestamp::GeometryEnd),
             shading: to_ms(Timestamp::ShadingStart, Timestamp::ShadingEnd),
@@ -63,6 +67,7 @@ impl Timings {
 
     pub fn accumulate(&mut self, other: &Timings) {
         self.frame += other.frame;
+        self.cpu += other.cpu;
         self.render += other.render;
         self.geometry += other.geometry;
         self.shading += other.shading;
