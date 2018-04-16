@@ -160,7 +160,8 @@ impl ShadeGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None, // no depth attachment (we use as input herein)
-                vec![BlendMode::Off])?;
+                vec![BlendMode::Off],
+                vec![])?;
 
         let mut shade_gfx = ShadeGfx {
             pipeline: pipeline,

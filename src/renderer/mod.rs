@@ -40,7 +40,8 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    PhysicalDeviceFeatures, PhysicalDeviceProperties,
                    Format, BufferView, SpecializationInfo, QueryPool,
                    QueryPoolCreateInfo, QueryType, QueryPipelineStatisticFlags,
-                   QueryResultFlags, PipelineStageFlagBits, QueryResult};
+                   QueryResultFlags, PipelineStageFlagBits, QueryResult,
+                   PushConstantRange};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
 use siege_math::{Vec4, Mat4};
@@ -128,6 +129,22 @@ pub struct Params {
     pub ambient: f32,
     pub white_level: f32,
     pub tonemapper: Tonemapper,
+}
+
+pub struct PipelineSetup {
+    pub desc_set_layouts: Vec<DescriptorSetLayout>,
+    pub vertex_shader: Option<&'static str>,
+    pub vertex_shader_spec: Option<SpecializationInfo>,
+    pub fragment_shader: Option<&'static str>,
+    pub fragment_shader_spec: Option<SpecializationInfo>,
+    pub vertex_type: Option<PipelineVertexInputStateCreateInfo>,
+    pub topology: PrimitiveTopology,
+    pub cull_mode: CullModeFlags,
+    pub front_face: FrontFace,
+    pub depth_handling: DepthHandling,
+    pub blend: Vec<BlendMode>,
+    pub pass: Pass,
+    pub push_constant_ranges: Vec<PushConstantRange>,
 }
 
 pub struct Renderer {
@@ -504,38 +521,31 @@ impl Renderer {
     }
 
     pub fn create_pipeline(&mut self,
-                           desc_set_layouts: Vec<DescriptorSetLayout>,
-                           vertex_shader: Option<&str>,
-                           vertex_shader_spec: Option<SpecializationInfo>,
-                           fragment_shader: Option<&str>,
-                           fragment_shader_spec: Option<SpecializationInfo>,
-                           vertex_type: Option<PipelineVertexInputStateCreateInfo>,
-                           topology: PrimitiveTopology,
-                           cull_mode: CullModeFlags,
-                           front_face: FrontFace,
-                           depth_handling: DepthHandling,
-                           blend: Vec<BlendMode>,
-                           pass: Pass)
+                           setup: PipelineSetup)
                            -> Result<(PipelineLayout, Pipeline)>
     {
-        let vs = match vertex_shader {
+        let vs = match setup.vertex_shader {
             Some(vs) => Some(self.load_shader(vs)?),
             None => None
         };
-        let fs = match fragment_shader {
+        let fs = match setup.fragment_shader {
             Some(fs) => Some(self.load_shader(fs)?),
             None => None
         };
         pipeline::create(
             &self.device, self.viewports[0].clone(), self.scissors[0].clone(),
             self.config.reversed_depth_buffer,
-            match pass {
+            match setup.pass {
                 Pass::Geometry => self.geometry_pass.render_pass.clone(),
                 Pass::Transparent => self.transparent_pass.render_pass.clone(),
                 Pass::Ui => self.ui_pass.render_pass.clone(),
             },
-            desc_set_layouts, vs, vertex_shader_spec, fs, fragment_shader_spec,
-            vertex_type, topology, cull_mode, front_face, depth_handling, blend)
+            setup.desc_set_layouts,
+            vs, setup.vertex_shader_spec,
+            fs, setup.fragment_shader_spec,
+            setup.vertex_type, setup.topology, setup.cull_mode, setup.front_face,
+            setup.depth_handling, setup.blend,
+            setup.push_constant_ranges)
     }
 
     pub fn create_sampler(&mut self,

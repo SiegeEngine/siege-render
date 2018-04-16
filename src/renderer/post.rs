@@ -137,7 +137,8 @@ impl PostGfx {
                 PrimitiveTopology::TriangleList,
                 CullModeFlags::NONE, FrontFace::Clockwise,
                 DepthHandling::None,
-                vec![BlendMode::Off])?;
+                vec![BlendMode::Off],
+                vec![])?;
 
         let mut post_gfx = PostGfx {
             pipeline: pipeline,
