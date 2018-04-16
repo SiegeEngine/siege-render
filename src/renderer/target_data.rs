@@ -358,6 +358,8 @@ impl TargetData {
     pub fn transition_for_ui(&mut self, _command_buffer: CommandBuffer)
                              -> Result<()>
     {
+        // depth buffer: already in correct format
+
         // (write swapchain): not handled here
 
         Ok(())

@@ -3,10 +3,13 @@ use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer};
 use errors::*;
 use renderer::swapchain_data::SwapchainData;
+use renderer::image_wrap::ImageWrap;
 
 pub struct UiPass {
     pub framebuffers: Vec<Framebuffer>,
     pub swapchain_image_views: Vec<ImageView>,
+    #[allow(dead_code)]
+    pub depth_image_view: ImageView, // must survive for Framebuffer usage
     pub extent: Extent2D,
     pub render_pass: RenderPass,
 }
@@ -14,6 +17,7 @@ pub struct UiPass {
 impl UiPass {
     pub fn new(
         device: &Device,
+        depth_image: &ImageWrap,
         swapchain_data: &SwapchainData)
         -> Result<UiPass>
     {
@@ -25,6 +29,18 @@ impl UiPass {
                                RenderPassCreateFlags, RenderPassCreateInfo,
                                AttachmentReference, AttachmentIndex};
 
+            let depth_attachment_description = depth_image.get_attachment_description(
+                AttachmentLoadOp::Clear,
+                AttachmentStoreOp::DontCare,
+                ImageLayout::DepthStencilAttachmentOptimal,
+                ImageLayout::DepthStencilAttachmentOptimal
+            );
+
+            let depth_attachment_reference = AttachmentReference {
+                attachment: AttachmentIndex::Index(0),
+                layout: ImageLayout::DepthStencilAttachmentOptimal
+            };
+
             let swapchain_attachment_description = swapchain_data.images[0].get_attachment_description(
                 AttachmentLoadOp::Load,
                 AttachmentStoreOp::Store,
@@ -33,7 +49,7 @@ impl UiPass {
             );
 
             let swapchain_attachment_reference = AttachmentReference {
-                attachment: AttachmentIndex::Index(0),
+                attachment: AttachmentIndex::Index(1),
                 layout: ImageLayout::ColorAttachmentOptimal
             };
 
@@ -43,7 +59,7 @@ impl UiPass {
                 input_attachments: vec![],
                 color_attachments: vec![swapchain_attachment_reference],
                 resolve_attachments: vec![],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(depth_attachment_reference),
                 preserve_attachments: vec![],
             };
 
@@ -61,6 +77,7 @@ impl UiPass {
             let create_info = RenderPassCreateInfo {
                 flags: RenderPassCreateFlags::empty(),
                 attachments: vec![
+                    depth_attachment_description,
                     swapchain_attachment_description,
                 ],
                 subpasses: vec![subpass],
@@ -73,25 +90,28 @@ impl UiPass {
             device.create_render_pass(&create_info, None)?
         };
 
-        let (swapchain_image_views, framebuffers, extent) =
-            build(device, render_pass.clone(), swapchain_data)?;
+        let (depth_image_view, swapchain_image_views, framebuffers, extent) =
+            build(device, render_pass.clone(), depth_image, swapchain_data)?;
 
         Ok(UiPass {
             framebuffers: framebuffers,
             swapchain_image_views: swapchain_image_views,
+            depth_image_view: depth_image_view,
             extent: extent,
             render_pass: render_pass,
         })
     }
 
     pub fn rebuild(&mut self, device: &Device,
+                   depth_image: &ImageWrap,
                    swapchain_data: &SwapchainData)
                    -> Result<()>
     {
-        let (swapchain_image_views, framebuffers, extent) =
-            build(device, self.render_pass.clone(), swapchain_data)?;
+        let (depth_image_view, swapchain_image_views, framebuffers, extent) =
+            build(device, self.render_pass.clone(), depth_image, swapchain_data)?;
 
         self.framebuffers = framebuffers;
+        self.depth_image_view = depth_image_view;
         self.swapchain_image_views = swapchain_image_views;
         self.extent = extent;
 
@@ -104,13 +124,18 @@ impl UiPass {
     {
         use dacite::core::{Rect2D, Offset2D,
                            SubpassContents, RenderPassBeginInfo,
-                           ClearValue, ClearColorValue};
+                           ClearValue, ClearColorValue,
+                           ClearDepthStencilValue};
 
         let begin_info = RenderPassBeginInfo {
             render_pass: self.render_pass.clone(),
             framebuffer: self.framebuffers[present_index].clone(),
             render_area: Rect2D::new(Offset2D::zero(), self.extent),
             clear_values:  vec![
+                ClearValue::DepthStencil(ClearDepthStencilValue {
+                    depth: 0.0,
+                    stencil: 0,
+                }),
                 ClearValue::Color(ClearColorValue::Float32([0.0, 0.0, 0.0, 1.0])), // unused
             ],
             chain: None,
@@ -128,9 +153,12 @@ impl UiPass {
     }
 }
 
-fn build(device: &Device, render_pass: RenderPass, swapchain_data: &SwapchainData)
-    -> Result<(Vec<ImageView>, Vec<Framebuffer>, Extent2D)>
+fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
+         swapchain_data: &SwapchainData)
+    -> Result<(ImageView, Vec<ImageView>, Vec<Framebuffer>, Extent2D)>
 {
+    let depth_image_view = depth_image.get_image_view(device)?;
+
     let extent = swapchain_data.extent;
 
     let mut image_views = Vec::new();
@@ -139,13 +167,14 @@ fn build(device: &Device, render_pass: RenderPass, swapchain_data: &SwapchainDat
     for image in &swapchain_data.images {
         use dacite::core::{FramebufferCreateInfo, FramebufferCreateFlags};
 
-        let image_view = image.get_image_view(device)?;
+        let swap_image_view = image.get_image_view(device)?;
 
         let create_info = FramebufferCreateInfo {
             flags: FramebufferCreateFlags::empty(),
             render_pass: render_pass.clone(),
             attachments: vec![
-                image_view.clone(),
+                depth_image_view.clone(),
+                swap_image_view.clone(),
             ],
             width: extent.width,
             height: extent.height,
@@ -154,9 +183,9 @@ fn build(device: &Device, render_pass: RenderPass, swapchain_data: &SwapchainDat
         };
         let framebuffer = device.create_framebuffer(&create_info, None)?;
 
-        image_views.push(image_view);
+        image_views.push(swap_image_view);
         framebuffers.push(framebuffer);
     };
 
-    Ok((image_views, framebuffers, extent))
+    Ok((depth_image_view, image_views, framebuffers, extent))
 }

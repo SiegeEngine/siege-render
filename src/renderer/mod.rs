@@ -278,7 +278,7 @@ impl Renderer {
         let post_pass = PostPass::new(
             &device, &target_data.shading_image, &swapchain_data)?;
         let ui_pass = UiPass::new(
-            &device, &swapchain_data)?;
+            &device, &target_data.depth_image, &swapchain_data)?;
 
         let mut params_ubo = HostVisibleBuffer::new::<Params>(
             &device, &mut memory, 1,
@@ -1118,6 +1118,7 @@ impl Renderer {
                                &self.target_data.shading_image,
                                &self.swapchain_data)?;
         self.ui_pass.rebuild(&self.device,
+                             &self.target_data.depth_image,
                              &self.swapchain_data)?;
 
         // Rebuild post, blur
