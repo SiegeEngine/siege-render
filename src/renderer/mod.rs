@@ -504,6 +504,10 @@ impl Renderer {
         self.swapchain_data.extent
     }
 
+    pub fn get_viewport(&self) -> Viewport {
+        self.viewports[0]
+    }
+
     pub fn ui_needs_gamma(&self) -> bool {
         self.swapchain_data.surface_data.needs_gamma
     }
