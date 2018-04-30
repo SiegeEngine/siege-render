@@ -186,23 +186,23 @@ impl ImageWrap {
                            Fence, FenceCreateInfo, FenceCreateFlags,
                            SubmitInfo, Timeout};
 
-        commander.gfx_command_buffers[0].reset(CommandBufferResetFlags::RELEASE_RESOURCES)?;
+        commander.gfxutil_command_buffer.reset(CommandBufferResetFlags::RELEASE_RESOURCES)?;
 
         let command_buffer_begin_info = CommandBufferBeginInfo {
             flags: CommandBufferUsageFlags::ONE_TIME_SUBMIT,
             inheritance_info: None,
             chain: None
         };
-        commander.gfx_command_buffers[0].begin(&command_buffer_begin_info)?;
+        commander.gfxutil_command_buffer.begin(&command_buffer_begin_info)?;
 
         self.transition_layout(
-            commander.gfx_command_buffers[0].clone(),
+            commander.gfxutil_command_buffer.clone(),
             src_layout, dst_layout,
             src_access, dst_access,
             src_stage, dst_stage,
             subresource_range)?;
 
-        commander.gfx_command_buffers[0].end()?;
+        commander.gfxutil_command_buffer.end()?;
 
         let fence = {
             let create_info = FenceCreateInfo {
@@ -215,7 +215,7 @@ impl ImageWrap {
         let submit_info = SubmitInfo {
             wait_semaphores: vec![],
             wait_dst_stage_mask: vec![PipelineStageFlags::BOTTOM_OF_PIPE],
-            command_buffers: vec![commander.gfx_command_buffers[0].clone()],
+            command_buffers: vec![commander.gfxutil_command_buffer.clone()],
             signal_semaphores: vec![],
             chain: None
         };

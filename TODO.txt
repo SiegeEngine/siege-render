@@ -1,3 +1,10 @@
+
+We attempted multiple command buffers, but:
+  * You cannot end a primary command buffer while still inside of a renderpass.
+  * So renderpasses (including all plugin buffers) have to be just 1 command buffer
+  * So we don't gain that much, unless we get data about which pass (geom,trans,ui)
+    to re-record; and we still have to do it for all plugins.
+
 Exposure:
   Scene Brightness = Exposure * Scene Luminance
   Exposure = 1 / (1.2 * pow(2.0, log2(N*N/t * 100/s)))

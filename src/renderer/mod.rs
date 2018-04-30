@@ -605,6 +605,7 @@ impl Renderer {
     pub fn plugin(&mut self, plugin: Box<Plugin>) -> Result<()>
     {
         self.plugins.push(plugin);
+        self.commander.one_more_plugin()?;
         Ok(())
     }
 
@@ -619,8 +620,11 @@ impl Renderer {
         use dacite::core::Error::OutOfDateKhr;
 
         self.window.show();
-        for i in 0..self.swapchain_data.images.len() {
-            self.record_command_buffer(i)?;
+        for si in 0..self.swapchain_data.images.len() {
+            self.record_main_cmdbuffers(si)?;
+            for pi in 0..self.plugins.len() {
+                self.record_plugin_cmdbuffers(pi, si);
+            }
         }
         self.memory.log_usage();
 
@@ -672,33 +676,28 @@ impl Renderer {
                 Ok(i) => i
             };
 
-            // Update plugins. If any of them needs a re-record, we mark all of the
-            // command buffers as stale.
-            let mut need_rerecord = false;
-            for plugin in &mut self.plugins {
+            // Update plugins, mark stale if re-record is needed
+            for (p_no, plugin) in self.plugins.iter_mut().enumerate() {
                 let params = self.params_ubo.as_ptr::<Params>().unwrap();
                 if plugin.update(params, &self.stats)? {
-                    need_rerecord = true;
-                }
-            }
-            if need_rerecord {
-                // mark them all stale
-                for elem in self.commander.gfx_command_buffer_stale.iter_mut() {
-                    *elem=true;
+                    self.commander.plugin_cmdbuffer_staleness[p_no] = true;
                 }
             }
 
             // Re-record all stale non-in-flight command buffers
-            for i in 0..self.swapchain_data.images.len() {
-                if i == present_image {
+            for swap_no in 0..self.swapchain_data.images.len() {
+                if swap_no == present_image {
                     // We cannot re-record the in-flight command buffer
                     // It will stay marked 'stale' and get re-recorded next
                     // loop iteration.
                     continue;
                 }
-                if self.commander.gfx_command_buffer_stale[i] {
-                    self.record_command_buffer(i)?;
-                    self.commander.gfx_command_buffer_stale[i] = false;
+                for p_no in 0..self.plugins.len() {
+                    if self.commander.plugin_cmdbuffer_staleness[p_no] == true {
+                        // re-record!
+                        self.record_plugin_cmdbuffers(p_no, swap_no);
+                        self.commander.plugin_cmdbuffer_staleness[p_no] = false;
+                    }
                 }
             }
 
@@ -830,11 +829,29 @@ impl Renderer {
         };
 
         // Submit command buffers
+        // FIXME: we can compose this vector each time we "plug-in", we don't need to compose
+        // it every frame!
+        use dacite::core::CommandBuffer;
+        let mut cmd_buffers: Vec<CommandBuffer> = Vec::new();
+        cmd_buffers.push(self.commander.gfx_command_buffers[next_image].pre.clone());
+        for p in 0..self.plugins.len() {
+            cmd_buffers.push(self.commander.gfx_command_buffers[next_image].geom[p].clone());
+        }
+        cmd_buffers.push(self.commander.gfx_command_buffers[next_image].after_geom.clone());
+        for p in 0..self.plugins.len() {
+            cmd_buffers.push(self.commander.gfx_command_buffers[next_image].transparent[p].clone());
+        }
+        cmd_buffers.push(self.commander.gfx_command_buffers[next_image].after_transparent.clone());
+        for p in 0..self.plugins.len() {
+            cmd_buffers.push(self.commander.gfx_command_buffers[next_image].ui[p].clone());
+        }
+        cmd_buffers.push(self.commander.gfx_command_buffers[next_image].after_ui.clone());
+
         let submit_infos = vec![
             SubmitInfo {
                 wait_semaphores: vec![self.image_acquired.clone()],
                 wait_dst_stage_mask: vec![PipelineStageFlags::TOP_OF_PIPE],
-                command_buffers: vec![self.commander.gfx_command_buffers[next_image].clone()],
+                command_buffers: cmd_buffers,
                 signal_semaphores: vec![self.image_rendered.clone()],
                 chain: None,
             }
@@ -861,7 +878,26 @@ impl Renderer {
         Ok(next_image)
     }
 
-    fn record_command_buffer(&mut self, present_index: usize) -> Result<()>
+    fn record_plugin_cmdbuffers(&mut self, plugin_no: usize, swap_index: usize)
+    {
+        // NOTE: recording a command buffer is well known as one of the slower
+        // parts of Vulkan, so we should attempt to do as little recording
+        // as possible.
+
+        // Re-record geometry command buffer
+        self.plugins[plugin_no].record_geometry(
+            self.commander.gfx_command_buffers[swap_index].geom[plugin_no].clone());
+
+        // Re-record transparent command buffer
+        self.plugins[plugin_no].record_transparent(
+            self.commander.gfx_command_buffers[swap_index].transparent[plugin_no].clone());
+
+        // Re-record ui command buffer
+        self.plugins[plugin_no].record_ui(
+            self.commander.gfx_command_buffers[swap_index].ui[plugin_no].clone());
+    }
+
+    fn record_main_cmdbuffers(&mut self, swap_index: usize) -> Result<()>
     {
         // NOTE: recording a command buffer is well known as one of the slower
         // parts of Vulkan, so we should attempt to do as little recording
@@ -873,230 +909,230 @@ impl Renderer {
                            OptionalMipLevels, OptionalArrayLayers,
                            ImageSubresourceRange};
 
-        let command_buffer = &self.commander.gfx_command_buffers[present_index];
-
-        // Not sure this is required - was working with out it.  Also, not sure
-        // if releasing resources is the smartest plan either.
-        command_buffer.reset(CommandBufferResetFlags::empty())?;
-
         let begin_info = CommandBufferBeginInfo {
             flags: CommandBufferUsageFlags::empty(),
             inheritance_info: None,
             chain: None,
         };
-        command_buffer.begin(&begin_info)?;
 
-        command_buffer.reset_query_pool(&self.timestamp_query_pool, 0, TS_QUERY_COUNT);
-
-        command_buffer.write_timestamp(
-            PipelineStageFlagBits::TopOfPipe,
-            &self.timestamp_query_pool,
-            Timestamp::FullStart as u32);
-
-        // Transition swapchain image to ColorAttachmentOptimal
-        // (from whatever it was - usually it is PresentImageKhr, but the
-        //  very first time it will be Undefined).
-        self.swapchain_data.images[present_index].transition_layout(
-            command_buffer.clone(),
-            ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
-            AccessFlags::HOST_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
-            PipelineStageFlags::HOST, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            }
-        )?;
-
-        // Bind viewports and scissors
-        command_buffer.set_viewport(0, &self.viewports);
-        command_buffer.set_scissor(0, &self.scissors);
-
-        self.target_data.transition_for_geometry(command_buffer.clone())?;
-
-        // Geometry pass
+        // Record 'pre' command buffer
         {
-            command_buffer.write_timestamp(
+            let pre = &self.commander.gfx_command_buffers[swap_index].pre;
+            // Not sure this is required - was working with out it.  Also, not sure
+            // if releasing resources is the smartest plan either.
+            pre.reset(CommandBufferResetFlags::empty())?;
+            pre.begin(&begin_info)?;
+
+            pre.reset_query_pool(&self.timestamp_query_pool, 0, TS_QUERY_COUNT);
+
+            pre.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::FullStart as u32);
+
+            // Transition swapchain image to ColorAttachmentOptimal
+            // (from whatever it was - usually it is PresentImageKhr, but the
+            //  very first time it will be Undefined).
+            self.swapchain_data.images[swap_index].transition_layout(
+                pre.clone(),
+                ImageLayout::Undefined, ImageLayout::ColorAttachmentOptimal,
+                AccessFlags::HOST_READ, AccessFlags::COLOR_ATTACHMENT_WRITE,
+                PipelineStageFlags::HOST, PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                ImageSubresourceRange {
+                    aspect_mask: ImageAspectFlags::COLOR,
+                    base_mip_level: 0,
+                    level_count: OptionalMipLevels::MipLevels(1),
+                    base_array_layer: 0,
+                    layer_count: OptionalArrayLayers::ArrayLayers(1),
+                }
+            )?;
+
+            // Bind viewports and scissors
+            pre.set_viewport(0, &self.viewports);
+            pre.set_scissor(0, &self.scissors);
+
+            self.target_data.transition_for_geometry(pre.clone())?;
+
+            // Setart Geometry pass
+            pre.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::GeometryStart as u32);
 
-            self.geometry_pass.record_entry(command_buffer.clone());
+            self.geometry_pass.record_entry(pre.clone());
 
-            for plugin in &self.plugins {
-                // NOTE: Try to draw front to back
-                plugin.record_geometry(command_buffer.clone());
-            }
+            pre.end()?;
+        }
 
-            self.geometry_pass.record_exit(command_buffer.clone());
+        // Record 'after_geom' command buffer
+        {
+            let after_geom = &self.commander.gfx_command_buffers[swap_index].after_geom;
+            // Not sure this is required - was working with out it.  Also, not sure
+            // if releasing resources is the smartest plan either.
+            after_geom.reset(CommandBufferResetFlags::empty())?;
+            after_geom.begin(&begin_info)?;
 
-            command_buffer.write_timestamp(
+            self.geometry_pass.record_exit(after_geom.clone());
+
+            after_geom.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::GeometryEnd as u32);
-        }
 
-        self.target_data.transition_for_shading(command_buffer.clone())?;
+            self.target_data.transition_for_shading(after_geom.clone())?;
 
-        // Shading pass
-        {
-            command_buffer.write_timestamp(
+            after_geom.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::ShadingStart as u32);
 
-            self.shading_pass.record_entry(command_buffer.clone());
+            self.shading_pass.record_entry(after_geom.clone());
 
-            self.shade_gfx.record(command_buffer.clone(),
+            self.shade_gfx.record(after_geom.clone(),
                                   self.params_desc_set.clone());
 
-            self.shading_pass.record_exit(command_buffer.clone());
+            self.shading_pass.record_exit(after_geom.clone());
 
-            command_buffer.write_timestamp(
+            after_geom.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::ShadingEnd as u32);
-        }
 
-        self.target_data.transition_for_transparent(command_buffer.clone())?;
+            self.target_data.transition_for_transparent(after_geom.clone())?;
 
-        // Transparent pass
-        {
-            command_buffer.write_timestamp(
+            after_geom.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::TransparentStart as u32);
 
-            self.transparent_pass.record_entry(command_buffer.clone());
+            self.transparent_pass.record_entry(after_geom.clone());
 
-            for plugin in &self.plugins {
-                plugin.record_transparent(command_buffer.clone());
-            }
+            after_geom.end()?;
+        }
 
-            self.transparent_pass.record_exit(command_buffer.clone());
+        // Record 'after_transparent' command buffer
+        {
+            let after_transparent = &self.commander.gfx_command_buffers[swap_index].after_transparent;
+            // Not sure this is required - was working with out it.  Also, not sure
+            // if releasing resources is the smartest plan either.
+            after_transparent.reset(CommandBufferResetFlags::empty())?;
+            after_transparent.begin(&begin_info)?;
 
-            command_buffer.write_timestamp(
+            self.transparent_pass.record_exit(after_transparent.clone());
+
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::TransparentEnd as u32);
-        }
 
-        self.target_data.transition_for_blurh(command_buffer.clone())?;
+            self.target_data.transition_for_blurh(after_transparent.clone())?;
 
-        // Blur/Bloom Filter/Horizontal pass
-        {
-            command_buffer.write_timestamp(
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::Blur1Start as u32);
 
-            self.blur_h_pass.record_entry(command_buffer.clone());
+            self.blur_h_pass.record_entry(after_transparent.clone());
 
-            self.blur_gfx.record_blurh(command_buffer.clone(),
+            self.blur_gfx.record_blurh(after_transparent.clone(),
                                        self.params_desc_set.clone());
 
-            self.blur_h_pass.record_exit(command_buffer.clone());
+            self.blur_h_pass.record_exit(after_transparent.clone());
 
-            command_buffer.write_timestamp(
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::Blur1End as u32);
-        }
 
-        self.target_data.transition_for_blurv(command_buffer.clone())?;
+            self.target_data.transition_for_blurv(after_transparent.clone())?;
 
-        // Blur/Bloom Vertical/Merge pass
-        {
-            command_buffer.write_timestamp(
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::Blur2Start as u32);
 
-            self.blur_v_pass.record_entry(command_buffer.clone());
+            self.blur_v_pass.record_entry(after_transparent.clone());
 
-            self.blur_gfx.record_blurv(command_buffer.clone(),
+            self.blur_gfx.record_blurv(after_transparent.clone(),
                                        self.params_desc_set.clone());
 
-            self.blur_v_pass.record_exit(command_buffer.clone());
+            self.blur_v_pass.record_exit(after_transparent.clone());
 
-            command_buffer.write_timestamp(
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::Blur2End as u32);
-        }
 
-        self.target_data.transition_for_post(command_buffer.clone())?;
+            self.target_data.transition_for_post(after_transparent.clone())?;
 
-        // Post pass
-        {
-            command_buffer.write_timestamp(
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::PostStart as u32);
 
-            self.post_pass.record_entry(command_buffer.clone(),
-                                        present_index);
+            self.post_pass.record_entry(after_transparent.clone(),
+                                        swap_index);
 
-            self.post_gfx.record(command_buffer.clone(),
+            self.post_gfx.record(after_transparent.clone(),
                                  self.params_desc_set.clone());
 
-            self.post_pass.record_exit(command_buffer.clone());
+            self.post_pass.record_exit(after_transparent.clone());
 
-            command_buffer.write_timestamp(
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::PostEnd as u32);
-        }
 
-        self.target_data.transition_for_ui(command_buffer.clone())?;
+            self.target_data.transition_for_ui(after_transparent.clone())?;
 
-        // Ui pass
-        {
-            command_buffer.write_timestamp(
+            after_transparent.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::UiStart as u32);
 
-            self.ui_pass.record_entry(command_buffer.clone(),
-                                      present_index);
+            self.ui_pass.record_entry(after_transparent.clone(),
+                                      swap_index);
 
-            for plugin in &self.plugins {
-                plugin.record_ui(command_buffer.clone());
-            }
+            after_transparent.end()?;
+        }
 
-            self.ui_pass.record_exit(command_buffer.clone());
+        // Record 'after_ui' command buffer
+        {
+            let after_ui = &self.commander.gfx_command_buffers[swap_index].after_ui;
+            // Not sure this is required - was working with out it.  Also, not sure
+            // if releasing resources is the smartest plan either.
+            after_ui.reset(CommandBufferResetFlags::empty())?;
+            after_ui.begin(&begin_info)?;
 
-            command_buffer.write_timestamp(
+            self.ui_pass.record_exit(after_ui.clone());
+
+            after_ui.write_timestamp(
                 PipelineStageFlagBits::TopOfPipe,
                 &self.timestamp_query_pool,
                 Timestamp::UiEnd as u32);
+
+            // Transition swapchain image to PresentImageKhr
+            self.swapchain_data.images[swap_index].transition_layout(
+                after_ui.clone(),
+                ImageLayout::ColorAttachmentOptimal, ImageLayout::PresentSrcKhr,
+                AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::HOST_READ,
+                PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::HOST,
+                ImageSubresourceRange {
+                    aspect_mask: ImageAspectFlags::COLOR,
+                    base_mip_level: 0,
+                    level_count: OptionalMipLevels::MipLevels(1),
+                    base_array_layer: 0,
+                    layer_count: OptionalArrayLayers::ArrayLayers(1),
+                }
+            )?;
+
+            after_ui.write_timestamp(
+                PipelineStageFlagBits::TopOfPipe,
+                &self.timestamp_query_pool,
+                Timestamp::FullEnd as u32);
+
+            after_ui.end()?;
         }
-
-        // Transition swapchain image to PresentImageKhr
-        self.swapchain_data.images[present_index].transition_layout(
-            command_buffer.clone(),
-            ImageLayout::ColorAttachmentOptimal, ImageLayout::PresentSrcKhr,
-            AccessFlags::COLOR_ATTACHMENT_WRITE, AccessFlags::HOST_READ,
-            PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, PipelineStageFlags::HOST,
-            ImageSubresourceRange {
-                aspect_mask: ImageAspectFlags::COLOR,
-                base_mip_level: 0,
-                level_count: OptionalMipLevels::MipLevels(1),
-                base_array_layer: 0,
-                layer_count: OptionalArrayLayers::ArrayLayers(1),
-            }
-        )?;
-
-        command_buffer.write_timestamp(
-            PipelineStageFlagBits::TopOfPipe,
-            &self.timestamp_query_pool,
-            Timestamp::FullEnd as u32);
-
-        command_buffer.end()?;
-
-        self.commander.gfx_command_buffer_stale[present_index] = false;
 
         Ok(())
     }
@@ -1157,8 +1193,11 @@ impl Renderer {
         }
 
         // Re-record command buffers (the framebuffer image views are new, so we must)
-        for i in 0..self.swapchain_data.images.len() {
-            self.record_command_buffer(i)?;
+        for si in 0..self.swapchain_data.images.len() {
+            self.record_main_cmdbuffers(si)?;
+            for pi in 0..self.plugins.len() {
+                self.record_plugin_cmdbuffers(pi, si);
+            }
         }
 
         Ok(())
