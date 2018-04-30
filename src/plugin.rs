@@ -35,11 +35,19 @@ pub trait Plugin {
 
     /// This callback gives your plugin a chance to update itself, based on
     /// changed parameters or stats.  It also allows your plugin to change
-    /// any of the render parameters.
+    /// any of the render parameters.  This update happens in parallel with
+    /// GPU drawing, so do not change GPU state during this call, use
+    /// gpu_update() for that.
     ///
     /// Return true if you need to re-record your command buffers.  Otherwise
     /// return false.
     fn update(&mut self, params: &mut Params, stats: &Stats) -> Result<bool>;
+
+    /// This callback gives your plugin a chance to change GPU state based
+    /// upon changed parameters or stats. Try to do most work in update(), and
+    /// then change GPU state here in gpu_update(), which runs after the GPU
+    /// has finished drawing the frame.
+    fn gpu_update(&mut self) -> Result<()>;
 
     /// This callback is called whenever the window size changes. The window
     /// size is passed in as `extent`. Your command buffers will always be

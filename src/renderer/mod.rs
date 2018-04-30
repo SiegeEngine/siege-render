@@ -728,6 +728,12 @@ impl Renderer {
             self.rendered_fence.wait_for(Timeout::Infinite)?;
             let cpu_exclude_time = x.elapsed();
 
+            // Run plugin gpu_update() functions now that the GPU has finished
+            // rendering
+            for plugin in &mut self.plugins {
+                plugin.gpu_update()?;
+            }
+
             framenumber += 1;
 
             // Shutdown when it is time to do so
