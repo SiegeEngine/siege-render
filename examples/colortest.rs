@@ -13,9 +13,9 @@ use winit::EventsLoop;
 use dacite::core::{Pipeline, PipelineBindPoint,
                    CommandBuffer, PipelineLayout,
                    PrimitiveTopology, CullModeFlags, FrontFace,
-                   DescriptorSetLayout, DescriptorSet, Extent2D};
+                   Extent2D};
 use siege_render::{Renderer, Pass, DepthHandling, BlendMode, Plugin,
-                   Params, Stats, Config, Tonemapper};
+                   Params, Stats, Config, Tonemapper, PipelineSetup};
 
 pub fn main() {
 
@@ -70,14 +70,21 @@ pub struct Colortest {
 impl Colortest {
     fn new(renderer: &mut Renderer) -> Colortest {
         let (pipeline_layout, pipeline) = renderer.create_pipeline(
-            vec![],
-            Some("colortest.vert"), None, Some("colortest.frag"), None,
-            None, // no vertex type
-            PrimitiveTopology::TriangleList,
-            CullModeFlags::NONE, FrontFace::CounterClockwise,
-            DepthHandling::None,
-            vec![BlendMode::Off],
-            Pass::Ui).unwrap();
+            PipelineSetup {
+                desc_set_layouts: vec![],
+                vertex_shader: Some("colortest.vert"),
+                vertex_shader_spec: None,
+                fragment_shader: Some("colortest.frag"),
+                fragment_shader_spec: None,
+                vertex_type: None, // no vertex type
+                topology: PrimitiveTopology::TriangleList,
+                cull_mode: CullModeFlags::NONE,
+                front_face: FrontFace::CounterClockwise,
+                depth_handling: DepthHandling::None,
+                blend: vec![BlendMode::Off],
+                pass: Pass::Ui,
+                push_constant_ranges: vec![]
+            }).unwrap();
 
         Colortest {
             pipeline: pipeline,
@@ -102,6 +109,11 @@ impl Plugin for Colortest {
               -> Result<bool, ::siege_render::Error>
     {
         Ok(false)
+    }
+
+    fn gpu_update(&mut self) -> Result<(), ::siege_render::Error>
+    {
+        Ok(())
     }
 
     fn rebuild(&mut self, _extent: Extent2D) -> Result<(), ::siege_render::Error> {

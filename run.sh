@@ -23,4 +23,4 @@ cargo test || exit 1
 # export VK_INSTANCE_LAYERS="VK_LAYER_GOOGLE_threading:VK_LAYER_LUNARG_parameter_validation:VK_LAYER_LUNARG_object_tracker:VK_LAYER_LUNARG_core_validation:VK_LAYER_LUNARG_swapchain:VK_LAYER_GOOGLE_unique_objects"
 # export VK_INSTANCE_LAYERS=VK_LAYER_LUNARG_standard_validation
 
-RUST_BACKTRACE=1 target/debug/examples/simple
+RUST_BACKTRACE=1 target/debug/examples/colortest
