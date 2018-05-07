@@ -14,7 +14,7 @@ use dacite::core::{Pipeline, PipelineBindPoint,
                    CommandBuffer, PipelineLayout,
                    PrimitiveTopology, CullModeFlags, FrontFace,
                    Extent2D};
-use siege_render::{Renderer, Pass, DepthHandling, BlendMode, Plugin,
+use siege_render::{Renderer, Pass, BlendMode, Plugin,
                    Params, Stats, Config, Tonemapper, PipelineSetup};
 
 pub fn main() {
@@ -80,7 +80,8 @@ impl Colortest {
                 topology: PrimitiveTopology::TriangleList,
                 cull_mode: CullModeFlags::NONE,
                 front_face: FrontFace::CounterClockwise,
-                depth_handling: DepthHandling::None,
+                test_depth: false,
+                write_depth: false,
                 blend: vec![BlendMode::Off],
                 pass: Pass::Ui,
                 push_constant_ranges: vec![]
@@ -97,12 +98,12 @@ impl Plugin for Colortest {
     fn record_geometry(&self, _command_buffer: CommandBuffer) {
     }
 
-    fn record_transparent(&self, command_buffer: CommandBuffer) {
-        command_buffer.bind_pipeline(PipelineBindPoint::Graphics, &self.pipeline);
-        command_buffer.draw(3, 1, 0, 0);
+    fn record_transparent(&self, _command_buffer: CommandBuffer) {
     }
 
-    fn record_ui(&self, _command_buffer: CommandBuffer) {
+    fn record_ui(&self, command_buffer: CommandBuffer) {
+        command_buffer.bind_pipeline(PipelineBindPoint::Graphics, &self.pipeline);
+        command_buffer.draw(3, 1, 0, 0);
     }
 
     fn update(&mut self, _params: &mut Params, _stats: &Stats)
