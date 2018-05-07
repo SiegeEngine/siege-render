@@ -51,7 +51,7 @@ pub mod config;
 pub use config::Config;
 
 pub mod renderer;
-pub use renderer::{Renderer, Pass, DepthHandling, ImageWrap,
+pub use renderer::{Renderer, Pass, ImageWrap,
                    HostVisibleBuffer, DeviceLocalBuffer, VulkanMesh, Lifetime,
                    BlendMode, Params, Stats, Timings, Tonemapper, PipelineSetup};
 

@@ -141,7 +141,8 @@ pub struct PipelineSetup {
     pub topology: PrimitiveTopology,
     pub cull_mode: CullModeFlags,
     pub front_face: FrontFace,
-    pub depth_handling: DepthHandling,
+    pub test_depth: bool,
+    pub write_depth: bool,
     pub blend: Vec<BlendMode>,
     pub pass: Pass,
     pub push_constant_ranges: Vec<PushConstantRange>,
@@ -536,6 +537,7 @@ impl Renderer {
             Some(fs) => Some(self.load_shader(fs)?),
             None => None
         };
+
         pipeline::create(
             &self.device, self.viewports[0].clone(), self.scissors[0].clone(),
             self.config.reversed_depth_buffer,
@@ -548,7 +550,8 @@ impl Renderer {
             vs, setup.vertex_shader_spec,
             fs, setup.fragment_shader_spec,
             setup.vertex_type, setup.topology, setup.cull_mode, setup.front_face,
-            setup.depth_handling, setup.blend,
+            DepthHandling::Some(setup.test_depth, setup.write_depth),
+            setup.blend,
             setup.push_constant_ranges)
     }
 
