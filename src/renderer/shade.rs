@@ -131,21 +131,22 @@ impl ShadeGfx {
                 SpecializationMapEntry { // near depth
                     constant_id: 0,
                     offset: 0,
-                    size: 4,
+                    size: ::std::mem::size_of::<f32>(),
                 },
                 SpecializationMapEntry { // far depth
                     constant_id: 0,
-                    offset: 4,
-                    size: 4,
+                    offset: 1 * ::std::mem::size_of::<f32>() as u32,
+                    size: ::std::mem::size_of::<f32>(),
                 },
             ],
             // near than far
-            data: if reversed_depth_buffer {
-                vec![ 0x00, 0x00, 0x80, 0x3f, // 1.0 (0x3f800000) in LSB
-                      0x00, 0x00, 0x00, 0x00 ]
-            } else {
-                vec![ 0x00, 0x00, 0x00, 0x00,
-                      0x00, 0x00, 0x80, 0x3f ] // 1.0 (0x3f800000) in LSB
+            data: {
+                let f: [f32; 2] = if reversed_depth_buffer { [1.0, 0.0] } else { [0.0, 1.0] };
+                unsafe {
+                    ::std::slice::from_raw_parts(
+                        f.as_ptr() as *const u8,
+                        2 * ::std::mem::size_of::<f32>()).to_vec()
+                }
             }
         };
 

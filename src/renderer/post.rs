@@ -116,13 +116,16 @@ impl PostGfx {
                 SpecializationMapEntry { // near depth
                     constant_id: 0,
                     offset: 0,
-                    size: 4,
+                    size: ::std::mem::size_of::<i32>(),
                 },
             ],
-            data: if surface_needs_gamma {
-                vec![ 0x01, 0x00, 0x00, 0x00 ]
-            } else {
-                vec![ 0x00, 0x00, 0x00, 0x00 ]
+            data: {
+                let i: [i32; 1] = if surface_needs_gamma { [1] } else { [0] };
+                unsafe {
+                    ::std::slice::from_raw_parts(
+                        i.as_ptr() as *const u8,
+                        1 * ::std::mem::size_of::<i32>()).to_vec()
+                }
             }
         };
 
