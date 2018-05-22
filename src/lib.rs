@@ -15,6 +15,8 @@ pub use self::errors::*;
 pub mod config;
 pub use self::config::Config;
 
+pub mod format;
+
 pub mod renderer;
 
 // These maximums are due to the size of memory chunks that we define in
