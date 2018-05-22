@@ -1,4 +1,5 @@
 extern crate ash;
+extern crate ddsfile;
 #[macro_use]
 extern crate log;
 #[macro_use]
