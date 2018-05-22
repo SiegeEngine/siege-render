@@ -7,6 +7,7 @@ readme = "README.md"
 license = "PROPRIETARY"
 
 [dependencies]
+ash = "0.24"
 error-chain = "0.11"
 log = "0.4"
 separator = "0.3"
