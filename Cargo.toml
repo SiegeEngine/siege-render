@@ -7,3 +7,4 @@ readme = "README.md"
 license = "PROPRIETARY"
 
 [dependencies]
+error-chain = "0.11"
