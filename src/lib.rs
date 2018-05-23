@@ -4,6 +4,7 @@ extern crate ddsfile;
 extern crate log;
 #[macro_use]
 extern crate error_chain;
+extern crate siege_mesh;
 extern crate separator;
 #[macro_use]
 extern crate serde_derive;

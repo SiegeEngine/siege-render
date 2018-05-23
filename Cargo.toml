@@ -14,3 +14,4 @@ separator = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
 ddsfile = "0.2.3"
+siege-mesh = { git = "https://github.com/SiegeEngine/siege-mesh.git" }
