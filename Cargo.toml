@@ -6,6 +6,12 @@ description = "Siege Game Engine Rendering Component"
 readme = "README.md"
 license = "PROPRIETARY"
 
+[features]
+default = ["use-siege-math"]
+use-siege-math = [ "siege-math", "siege-mesh/siege-math" ]
+use-cgmath = [ "cgmath", "siege-mesh/cgmath" ]
+use-nalgebra = [ "nalgebra", "siege-mesh/nalgebra" ]
+
 [dependencies]
 ash = "0.24"
 error-chain = "0.11"
@@ -14,4 +20,7 @@ separator = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
 ddsfile = "0.2.3"
-siege-mesh = { git = "https://github.com/SiegeEngine/siege-mesh.git" }
+siege-mesh = { git = "https://github.com/SiegeEngine/siege-mesh.git", default-features = false }
+siege-math = { git = "https://github.com/SiegeEngine/siege-math.git", optional = true }
+cgmath = { version = "0.16", features = ["serde"], optional = true }
+nalgebra = { version = "0.14", features = ["serde-serialize"], optional = true }

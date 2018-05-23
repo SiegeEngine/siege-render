@@ -1,11 +1,17 @@
 extern crate ash;
+#[cfg(feature = "cgmath")]
+extern crate cgmath;
 extern crate ddsfile;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate error_chain;
-extern crate siege_mesh;
+#[cfg(feature = "nalgebra")]
+extern crate nalgebra;
 extern crate separator;
+#[cfg(feature = "siege-math")]
+extern crate siege_math;
+extern crate siege_mesh;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -17,6 +23,9 @@ pub mod config;
 pub use self::config::Config;
 
 pub mod format;
+
+pub mod math;
+pub use self::math::*;
 
 pub mod renderer;
 
