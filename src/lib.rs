@@ -33,7 +33,11 @@ pub use vertex::{CheapV1Vertex, CheapV2Vertex, ColoredVertex, CubemapVertex, Gra
 pub mod math;
 pub use self::math::*;
 
+pub mod plugin;
+pub use plugin::Plugin;
+
 pub mod renderer;
+pub use renderer::{Params, Stats, Tonemapper, VulkanLogLevel};
 
 // These maximums are due to the size of memory chunks that we define in
 // graphics/memory.rs.  4K resolution is the maximum that we support.
