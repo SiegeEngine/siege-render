@@ -26,6 +26,10 @@ pub use self::config::Config;
 
 pub mod format;
 
+pub mod vertex;
+pub use vertex::{CheapV1Vertex, CheapV2Vertex, ColoredVertex, CubemapVertex, GrayboxVertex,
+                 GuiRectangleVertex, StandardVertex, StarVertex};
+
 pub mod math;
 pub use self::math::*;
 
