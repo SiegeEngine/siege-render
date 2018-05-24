@@ -9,6 +9,25 @@ pub enum VulkanLogLevel {
     Debug,
 }
 
+// Passes that consumers of the library can plug into
+pub enum Pass {
+    Geometry,
+    Transparent,
+    Ui
+}
+
+pub enum DepthHandling {
+    None,
+    Some(bool, bool) // test, write
+}
+
+pub enum BlendMode {
+    Off,
+    Alpha,
+    PreMultiplied,
+    Add
+}
+
 #[repr(u32)]
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum Tonemapper {
