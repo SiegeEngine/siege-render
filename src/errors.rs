@@ -16,6 +16,10 @@ error_chain! {
             description("General Error"),
             display("General Error: '{}'", s),
         }
+        MissingExtension(s: String) {
+            description("Vulkan Extension Missing"),
+            display("Vulkan Extension Missing: '{}'", s),
+        }
         AshInstanceError(inner: ::ash::InstanceError) {
             description("Ash Instance Error"),
             display("Ash Instance Error: '{}'", inner),
