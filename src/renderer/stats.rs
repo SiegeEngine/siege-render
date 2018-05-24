@@ -1,6 +1,5 @@
-
-use std::time::{Instant, Duration};
 use renderer::{Timestamp, TS_QUERY_COUNT};
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub struct Timings {
@@ -35,13 +34,11 @@ impl Timings {
         frame_duration: &Duration,
         query_results: &[u32; TS_QUERY_COUNT as usize],
         cputime_ms: f32,
-        timestamp_period: f32)
-        -> Timings
-    {
+        timestamp_period: f32,
+    ) -> Timings {
         let to_ms = |start_index, end_index| {
-            ((query_results[end_index as usize]
-              .saturating_sub(query_results[start_index as usize]))
-             as f32 * timestamp_period) * 0.000_001
+            ((query_results[end_index as usize].saturating_sub(query_results[start_index as usize]))
+                as f32 * timestamp_period) * 0.000_001
         };
 
         Timings {
@@ -92,21 +89,17 @@ impl Default for Stats {
 }
 
 impl Stats {
-    pub fn update_60(&mut self, timings: Timings)
-    {
+    pub fn update_60(&mut self, timings: Timings) {
         self.timings_60 = timings;
         self.last_updated = Instant::now();
     }
 
-    pub fn update_600(&mut self, timings: Timings)
-    {
+    pub fn update_600(&mut self, timings: Timings) {
         self.timings_600 = timings;
         self.last_updated = Instant::now();
     }
 }
 
-fn duration_to_milliseconds(duration: &Duration) -> f32
-{
-    duration.as_secs() as f32 * 1000.0 +
-        duration.subsec_nanos() as f32 * 0.000_001
+fn duration_to_milliseconds(duration: &Duration) -> f32 {
+    duration.as_secs() as f32 * 1000.0 + duration.subsec_nanos() as f32 * 0.000_001
 }

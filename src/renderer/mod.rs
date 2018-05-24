@@ -1,4 +1,10 @@
+use config::Config;
+use errors::*;
 use math::{Mat4, Vec4};
+use plugin::Plugin;
+
+mod stats;
+pub use self::stats::{Stats, Timings};
 
 #[derive(Debug, Deserialize, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub enum VulkanLogLevel {
@@ -13,19 +19,19 @@ pub enum VulkanLogLevel {
 pub enum Pass {
     Geometry,
     Transparent,
-    Ui
+    Ui,
 }
 
 pub enum DepthHandling {
     None,
-    Some(bool, bool) // test, write
+    Some(bool, bool), // test, write
 }
 
 pub enum BlendMode {
     Off,
     Alpha,
     PreMultiplied,
-    Add
+    Add,
 }
 
 #[repr(u32)]
@@ -99,5 +105,25 @@ pub struct Params {
     pub tonemapper: Tonemapper,
 }
 
-mod stats;
-pub use self::stats::{Timings, Stats};
+pub struct Renderer {
+    plugins: Vec<Box<Plugin>>,
+    config: Config,
+}
+
+impl Renderer {
+    pub fn new(config: Config) -> Result<Renderer> {
+        Ok(Renderer {
+            plugins: Vec::new(),
+            config: config,
+        })
+    }
+
+    pub fn plugin(&mut self, plugin: Box<Plugin>) -> Result<()> {
+        self.plugins.push(plugin);
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> Result<()> {
+        unimplemented!()
+    }
+}
