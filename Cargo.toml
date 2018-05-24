@@ -1,10 +1,11 @@
 [package]
 name = "siege-render"
-version = "0.1.0"
+version = "0.4.0-unstable"
 authors = ["Mike Dilger <mike@optcomp.nz>"]
 description = "Siege Game Engine Rendering Component"
+repository = "https://github.com/SiegeEngine/siege-render"
 readme = "README.md"
-license = "PROPRIETARY"
+license = "MIT"
 
 [features]
 default = ["use-siege-math"]
