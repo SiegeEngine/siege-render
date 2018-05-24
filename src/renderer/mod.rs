@@ -19,6 +19,27 @@ pub enum Tonemapper {
     Falsecolor = 4,
 }
 
+#[repr(u32)]
+pub enum Timestamp {
+    FullStart = 0,
+    FullEnd = 1,
+    GeometryStart = 2,
+    GeometryEnd = 3,
+    ShadingStart = 4,
+    ShadingEnd = 5,
+    TransparentStart = 6,
+    TransparentEnd = 7,
+    Blur1Start = 8,
+    Blur1End = 9,
+    Blur2Start = 10,
+    Blur2End = 11,
+    PostStart = 12,
+    PostEnd = 13,
+    UiStart = 14,
+    UiEnd = 15,
+}
+const TS_QUERY_COUNT: u32 = 16;
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct Params {
@@ -59,4 +80,5 @@ pub struct Params {
     pub tonemapper: Tonemapper,
 }
 
-pub struct Stats;
+mod stats;
+pub use self::stats::{Timings, Stats};
