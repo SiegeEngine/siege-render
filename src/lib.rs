@@ -14,6 +14,7 @@ extern crate separator;
 #[cfg(feature = "siege-math")]
 extern crate siege_math;
 extern crate siege_mesh;
+extern crate siege_vulkan;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
