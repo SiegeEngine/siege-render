@@ -27,3 +27,5 @@ serde_derive = "1.0"
 siege-mesh = { git = "https://github.com/SiegeEngine/siege-mesh.git", default-features = false }
 siege-math = { git = "https://github.com/SiegeEngine/siege-math.git", optional = true }
 siege-vulkan = { git = "https://github.com/SiegeEngine/siege-vulkan.git" }
+winapi = "0.3"
+winit = "0.15"

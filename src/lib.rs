@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate ash;
 #[cfg(feature = "cgmath")]
 extern crate cgmath;
@@ -18,6 +19,9 @@ extern crate siege_vulkan;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
+#[cfg(windows)]
+extern crate winapi;
+extern crate winit;
 
 pub mod errors;
 pub use self::errors::*;
