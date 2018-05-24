@@ -1,7 +1,14 @@
+use ash::version::V1_0;
+use ash::{Entry, Instance};
 use config::Config;
 use errors::*;
 use math::{Mat4, Vec4};
 use plugin::Plugin;
+use std::sync::Arc;
+use winit::Window;
+
+mod setup;
+use self::setup::*;
 
 mod stats;
 pub use self::stats::{Stats, Timings};
@@ -106,13 +113,21 @@ pub struct Params {
 }
 
 pub struct Renderer {
+    entry: Entry<V1_0>,
+    instance: Instance<V1_0>,
     plugins: Vec<Box<Plugin>>,
     config: Config,
 }
 
 impl Renderer {
-    pub fn new(config: Config) -> Result<Renderer> {
+    pub fn new(config: Config, window: Arc<Window>) -> Result<Renderer> {
+        let entry = Entry::new()?;
+
+        let instance = setup_instance(&entry, &config, &window)?;
+
         Ok(Renderer {
+            entry: entry,
+            instance: instance,
             plugins: Vec::new(),
             config: config,
         })
