@@ -29,3 +29,6 @@ siege-math = { git = "https://github.com/SiegeEngine/siege-math.git", optional =
 siege-vulkan = { git = "https://github.com/SiegeEngine/siege-vulkan.git" }
 winapi = "0.3"
 winit = "0.15"
+
+[dev-dependencies]
+env_logger = "0.5"
