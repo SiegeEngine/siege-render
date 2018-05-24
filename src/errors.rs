@@ -16,6 +16,10 @@ error_chain! {
             description("General Error"),
             display("General Error: '{}'", s),
         }
+        GeneralStatic(s: &'static str) {
+            description("General Error"),
+            display("General Error: '{}'", s),
+        }
         MissingExtension(s: String) {
             description("Vulkan Extension Missing"),
             display("Vulkan Extension Missing: '{}'", s),
@@ -141,5 +145,11 @@ impl From<::ash::vk::types::Result> for Error {
             R::ErrorIncompatibleDisplayKhr => ErrorKind::VkIncompatibleDisplayKhr,
             R::ErrorValidationFailedExt => ErrorKind::VkValidationFailedExt,
         })
+    }
+}
+
+impl From<Vec<&'static str>> for Error {
+    fn from(v: Vec<&'static str>) -> Error {
+        Error::from_kind(ErrorKind::General(v.join("\n")))
     }
 }

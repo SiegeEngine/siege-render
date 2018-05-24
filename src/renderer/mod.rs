@@ -1,5 +1,6 @@
 use ash::version::V1_0;
 use ash::{Entry, Instance};
+use ash::extensions::DebugReport;
 use config::Config;
 use errors::*;
 use math::{Mat4, Vec4};
@@ -113,9 +114,9 @@ pub struct Params {
 }
 
 pub struct Renderer {
-    entry: Entry<V1_0>,
-    instance: Instance<V1_0>,
     plugins: Vec<Box<Plugin>>,
+    instance: Instance<V1_0>,
+    entry: Entry<V1_0>,
     config: Config,
 }
 
@@ -125,10 +126,12 @@ impl Renderer {
 
         let instance = setup_instance(&entry, &config, &window)?;
 
+        let debug_report = DebugReport::new(&entry, &instance)?;
+
         Ok(Renderer {
-            entry: entry,
-            instance: instance,
             plugins: Vec::new(),
+            instance: instance,
+            entry: entry,
             config: config,
         })
     }
