@@ -4,7 +4,8 @@ use ash::{Entry, Instance};
 use config::Config;
 use errors::*;
 use siege_vulkan::CStringSet;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 use std::ptr;
 use winit::Window;
 
@@ -37,8 +38,14 @@ pub fn setup_instance(
     };
 
     let layers = CStringSet::new(config.vulkan_layers.iter().map(|s| &**s).collect());
+    for layer in layers.iter() {
+        info!("LAYER: {}", layer.to_str().unwrap());
+    }
 
-    let extensions: CStringSet = get_extensions(entry, window)?;
+    let extensions: CStringSet = get_extensions(entry, config, window)?;
+    for extension in extensions.iter() {
+        info!("EXTENSION: {}", extension.to_str().unwrap());
+    }
 
     let create_info = InstanceCreateInfo {
         s_type: StructureType::InstanceCreateInfo,
@@ -54,20 +61,35 @@ pub fn setup_instance(
     Ok(unsafe { entry.create_instance(&create_info, None)? })
 }
 
-fn get_extensions(entry: &Entry<V1_0>, window: &Window) -> Result<CStringSet> {
-    let required_extensions = get_required_surface_extensions(window);
+fn get_extensions(entry: &Entry<V1_0>, config: &Config, window: &Window) -> Result<CStringSet> {
+    let mut required_extensions = get_required_surface_extensions(window);
+
+    if config.vulkan_debug_output {
+        required_extensions.push("VK_EXT_debug_report");
+    }
 
     // Ensure all extensions we need are available
-    let available_extensions = entry.enumerate_instance_extension_properties()?;
-    'outer: for req in &required_extensions {
-        for ava in &available_extensions {
+    let available_extensions_raw = entry.enumerate_instance_extension_properties()?;
+    let available_extensions: Vec<&[u8]> = {
+        let mut ae: Vec<&[u8]> = Vec::new();
+        for ava in &available_extensions_raw {
             let a: &[u8] = unsafe {
                 ::std::slice::from_raw_parts(
                     ava.extension_name.as_ptr() as *const u8,
                     ava.extension_name.iter().position(|c| *c == 0).unwrap(),
                 )
             };
-            if req.as_bytes() == a {
+            debug!("Available Extension: {:?}", unsafe {
+                CStr::from_ptr(a.as_ptr() as *const c_char)
+            });
+            ae.push(a);
+        }
+        ae
+    };
+
+    'outer: for req in &required_extensions {
+        for ava in &available_extensions {
+            if req.as_bytes() == *ava {
                 continue 'outer;
             }
         }

@@ -38,7 +38,7 @@ fn main() {
         Arc::new(window)
     };
 
-    let _renderer = Renderer::new(config, arc_window.clone());
+    let _renderer = Renderer::new(config, arc_window.clone()).unwrap();
 
     info!("Got a renderer.");
 }
