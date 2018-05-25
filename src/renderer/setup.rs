@@ -1,6 +1,6 @@
 use ash::extensions::DebugReport;
-use ash::version::{EntryV1_0, V1_0};
-use ash::vk::types::{DebugReportCallbackEXT, StructureType};
+use ash::version::{EntryV1_0, InstanceV1_0, V1_0};
+use ash::vk::types::{DebugReportCallbackEXT, StructureType, SurfaceKHR};
 use ash::{Entry, Instance};
 use config::Config;
 use errors::*;
@@ -64,7 +64,7 @@ pub fn setup_instance(
     Ok(unsafe { entry.create_instance(&create_info, None)? })
 }
 
-fn get_extensions(entry: &Entry<V1_0>, config: &Config, window: &Window) -> Result<CStringSet> {
+fn get_extensions<E: EntryV1_0>(entry: &E, config: &Config, window: &Window) -> Result<CStringSet> {
     let mut required_extensions = get_required_surface_extensions(window);
 
     if config.vulkan_debug_output {
@@ -107,46 +107,20 @@ fn get_required_surface_extensions(window: &Window) -> Vec<&'static str> {
 
     required.push("VK_KHR_surface");
 
-    #[cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd",
-              target_os = "openbsd"))]
-    {
-        use winit::os::unix::WindowExt;
-        if window.get_wayland_display().is_some() {
-            required.push("VK_KHR_wayland_surface");
-        } else if window.get_xcb_connection().is_some() {
-            required.push("VK_KHR_xcb_surface");
-        } else if window.get_xlib_display().is_some() {
-            required.push("VK_KHR_xlib_surface");
-        } else {
-            panic!("Vulkan does not have a KHR surface extension for the window provided.");
-        }
-        // There is also a vulkan VK_KHR_mir_surface, but winit doesn't support mir.
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        required.push("VK_KHR_win32_surface");
-    }
-
-    #[cfg(target_os = "android")]
-    {
-        required.push("VK_KHR_android_surface");
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        // There is no surface for mac
-        panic!("Vulkan does not have a KHR surface extension for MacOS windows.")
+    match get_surface_kind(window) {
+        SurfaceKind::Xlib => required.push("VK_KHR_xlib_surface"),
+        SurfaceKind::Xcb => required.push("VK_KHR_xcb_surface"),
+        SurfaceKind::Wayland => required.push("VK_KHR_wayland_surface"),
+        SurfaceKind::Win32 => required.push("VK_KHR_win32_surface"),
+        SurfaceKind::Android =>  required.push("VK_KHR_android_surface"),
     }
 
     required
 }
 
-pub fn setup_debug_report(
-    entry: &Entry<V1_0>,
-    config: &Config,
-    instance: &Instance<V1_0>,
-) -> Result<DebugReportCallbackEXT> {
+pub fn setup_debug_report<E: EntryV1_0, I: InstanceV1_0>(entry: &E, config: &Config, instance: &I)
+                                                         -> Result<DebugReportCallbackEXT>
+{
     use ash::vk::types::{DebugReportCallbackCreateInfoEXT, DEBUG_REPORT_DEBUG_BIT_EXT,
                          DEBUG_REPORT_ERROR_BIT_EXT, DEBUG_REPORT_INFORMATION_BIT_EXT,
                          DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT, DEBUG_REPORT_WARNING_BIT_EXT};
@@ -220,4 +194,130 @@ unsafe extern "system" fn callback(
     }
 
     0
+}
+
+#[allow(dead_code)]
+enum SurfaceKind {
+    Xlib,
+    Xcb,
+    Wayland,
+    Win32,
+    Android
+}
+
+fn get_surface_kind(window: &Window) -> SurfaceKind {
+    #[cfg(all(unix, not(target_os = "android")))]
+    {
+        use winit::os::unix::WindowExt;
+        if window.get_wayland_display().is_some() {
+            return SurfaceKind::Wayland;
+        } else if window.get_xlib_display().is_some() {
+            return SurfaceKind::Xlib;
+        }/* else if window.get_xcb_connection().is_some() {
+            return SurfaceKind::Xcb;
+        // FIXME: winit does not quite support xcb
+        // https://github.com/tomaka/winit/issues/5
+        // once it does, prefer xcb to xlib.
+        }*/
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return SurfaceKind::Win32;
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        return SurfaceKind::Android;
+    }
+
+    panic!("Vulkan does not have a KHR surface extension for the window provided.");
+}
+
+pub fn setup_surface<E: EntryV1_0, I: InstanceV1_0>(entry: &E, instance: &I, window: &Window)
+                                                    -> Result<SurfaceKHR>
+{
+    match get_surface_kind(window) {
+        SurfaceKind::Xlib => {
+            #[cfg(all(unix, not(target_os = "android")))]
+            {
+                use winit::os::unix::WindowExt;
+                use ash::extensions::XlibSurface;
+                use ash::vk::types::{Display, XlibSurfaceCreateInfoKHR};
+                let x11_display = window.get_xlib_display().unwrap();
+                let x11_window = window.get_xlib_window().unwrap();
+                let x11_create_info = XlibSurfaceCreateInfoKHR {
+                    s_type: StructureType::XlibSurfaceCreateInfoKhr,
+                    p_next: ptr::null(),
+                    flags: Default::default(),
+                    window: x11_window as ::ash::vk::types::Window,
+                    dpy: x11_display as *mut Display,
+                };
+                let xlib_surface_loader =
+                    XlibSurface::new(entry, instance)?;
+                Ok(unsafe { xlib_surface_loader.create_xlib_surface_khr(&x11_create_info, None) }?)
+            }
+            #[cfg(not(all(unix, not(target_os = "android"))))]
+            {
+                panic!("Surface is xlib, but os does not match!");
+            }
+        },
+        SurfaceKind::Xcb => {
+            #[cfg(all(unix, not(target_os = "android")))]
+            {
+                use winit::os::unix::WindowExt;
+                use ash::extensions::XcbSurface;
+                use ash::vk::types::{XcbSurfaceCreateInfoKHR, xcb_connection_t};
+                let xcb_connection = window.get_xcb_connection().unwrap() as *mut xcb_connection_t;
+                let xcb_window: u32 = 0;
+                let xcb_create_info = XcbSurfaceCreateInfoKHR {
+                    s_type: StructureType::XcbSurfaceCreateInfoKhr,
+                    p_next: ptr::null(),
+                    flags: Default::default(),
+                    connection: xcb_connection,
+                    window: xcb_window,
+                };
+                let xcb_surface_loader =
+                    XcbSurface::new(entry, instance)?;
+                Ok(unsafe { xcb_surface_loader.create_xcb_surface_khr(&xcb_create_info, None) }?)
+            }
+            #[cfg(not(all(unix, not(target_os = "android"))))]
+            {
+                panic!("Surface is xcb, but os does not match!");
+            }
+        },
+        SurfaceKind::Wayland => {
+            unimplemented!()
+        },
+        SurfaceKind::Win32 => {
+            #[cfg(windows)]
+            {
+                use ash::vk::types::Win32SurfaceCreateInfoKHR;
+                use ash::extensions::Win32Surface;
+                use winapi::shared::windef::HWND;
+                use winapi::um::winuser::GetWindow;
+                use winit::os::windows::WindowExt;
+
+                let hwnd = window.get_hwnd() as HWND;
+                let hinstance = GetWindow(hwnd, 0) as *const vk::c_void;
+                let win32_create_info = Win32SurfaceCreateInfoKHR {
+                    s_type: StructureType::Win32SurfaceCreateInfoKhr,
+                    p_next: ptr::null(),
+                    flags: Default::default(),
+                    hinstance: hinstance,
+                    hwnd: hwnd as *const vk::c_void,
+                };
+                let win32_surface_loader =
+                    Win32Surface::new(entry, instance)?;
+                Ok(unsafe { win32_surface_loader.create_win32_surface_khr(&win32_create_info, None) }?)
+            }
+            #[cfg(not(windows))]
+            {
+                panic!("Surface is win32, but os does not match!");
+            }
+        },
+        SurfaceKind::Android => {
+            unimplemented!()
+        },
+    }
 }
