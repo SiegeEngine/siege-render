@@ -6,6 +6,7 @@ extern crate winit;
 
 use siege_render::{Config, Renderer, Tonemapper};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use winit::EventsLoop;
 
 fn main() {
@@ -38,7 +39,15 @@ fn main() {
         Arc::new(window)
     };
 
-    let _renderer = Renderer::new(config, arc_window.clone()).unwrap();
+    let resized = Arc::new(AtomicBool::new(false));
+    let shutdown = Arc::new(AtomicBool::new(false));
+
+    let _renderer = Renderer::new(
+        config,
+        arc_window.clone(),
+        resized.clone(),
+        shutdown.clone(),
+    ).unwrap();
 
     info!("Got a renderer.");
 }

@@ -142,13 +142,14 @@ fn get_required_surface_extensions(window: &Window) -> Vec<&'static str> {
     required
 }
 
-pub fn setup_debug_report(entry: &Entry<V1_0>, config: &Config, instance: &Instance<V1_0>)
-                          -> Result<DebugReportCallbackEXT>
-{
-    use ash::vk::types::{DEBUG_REPORT_DEBUG_BIT_EXT, DEBUG_REPORT_ERROR_BIT_EXT,
-                         DEBUG_REPORT_WARNING_BIT_EXT, DEBUG_REPORT_INFORMATION_BIT_EXT,
-                         DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,
-                         DebugReportCallbackCreateInfoEXT};
+pub fn setup_debug_report(
+    entry: &Entry<V1_0>,
+    config: &Config,
+    instance: &Instance<V1_0>,
+) -> Result<DebugReportCallbackEXT> {
+    use ash::vk::types::{DebugReportCallbackCreateInfoEXT, DEBUG_REPORT_DEBUG_BIT_EXT,
+                         DEBUG_REPORT_ERROR_BIT_EXT, DEBUG_REPORT_INFORMATION_BIT_EXT,
+                         DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT, DEBUG_REPORT_WARNING_BIT_EXT};
 
     let debug_report = DebugReport::new(entry, instance)?;
 
@@ -177,10 +178,12 @@ pub fn setup_debug_report(entry: &Entry<V1_0>, config: &Config, instance: &Insta
         p_user_data: ptr::null_mut(),
     };
 
-    Ok(unsafe { debug_report.create_debug_report_callback_ext(
-        &create_info,
-        None // allocation callbacks
-    )}?)
+    Ok(unsafe {
+        debug_report.create_debug_report_callback_ext(
+            &create_info,
+            None, // allocation callbacks
+        )
+    }?)
 }
 
 use ash::vk::types::{DebugReportFlagsEXT, DebugReportObjectTypeEXT};
@@ -193,11 +196,11 @@ unsafe extern "system" fn callback(
     message_code: i32,
     _layer_prefix: *const c_char,
     message: *const c_char,
-    _user_data: *mut c_void) -> u32
-{
+    _user_data: *mut c_void,
+) -> u32 {
     use ash::vk::types::{DEBUG_REPORT_DEBUG_BIT_EXT, DEBUG_REPORT_ERROR_BIT_EXT,
-                         DEBUG_REPORT_WARNING_BIT_EXT, DEBUG_REPORT_INFORMATION_BIT_EXT,
-                         DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT};
+                         DEBUG_REPORT_INFORMATION_BIT_EXT,
+                         DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT, DEBUG_REPORT_WARNING_BIT_EXT};
 
     if *message != 0 {
         let cstr = CStr::from_ptr(message);
@@ -205,17 +208,13 @@ unsafe extern "system" fn callback(
 
         if flags.intersects(DEBUG_REPORT_ERROR_BIT_EXT) {
             error!("\r\n  vk[{}]: {}", message_code, s);
-        }
-        else if flags.intersects(DEBUG_REPORT_WARNING_BIT_EXT) {
+        } else if flags.intersects(DEBUG_REPORT_WARNING_BIT_EXT) {
             warn!("\r\n  vk[{}]: {}", message_code, s);
-        }
-        else if flags.intersects(DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
+        } else if flags.intersects(DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
             warn!("\r\n  vk[{}]: {}", message_code, s);
-        }
-        else if flags.intersects(DEBUG_REPORT_INFORMATION_BIT_EXT) {
+        } else if flags.intersects(DEBUG_REPORT_INFORMATION_BIT_EXT) {
             info!("\r\n  vk[{}]: {}", message_code, s);
-        }
-        else if flags.intersects(DEBUG_REPORT_DEBUG_BIT_EXT) {
+        } else if flags.intersects(DEBUG_REPORT_DEBUG_BIT_EXT) {
             debug!("\r\n  vk[{}]: {}", message_code, s);
         }
     }

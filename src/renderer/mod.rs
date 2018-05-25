@@ -1,11 +1,12 @@
 use ash::version::V1_0;
-use ash::{Entry, Instance};
 use ash::vk::types::DebugReportCallbackEXT;
+use ash::{Entry, Instance};
 use config::Config;
 use errors::*;
 use math::{Mat4, Vec4};
 use plugin::Plugin;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use winit::Window;
 
 mod setup;
@@ -118,11 +119,20 @@ pub struct Renderer {
     debug_report_callback: DebugReportCallbackEXT,
     instance: Instance<V1_0>,
     entry: Entry<V1_0>,
+    shutdown: Arc<AtomicBool>,
+    resized: Arc<AtomicBool>,
+    stats: Stats,
+    window: Arc<Window>,
     config: Config,
 }
 
 impl Renderer {
-    pub fn new(config: Config, window: Arc<Window>) -> Result<Renderer> {
+    pub fn new(
+        config: Config,
+        window: Arc<Window>,
+        resized: Arc<AtomicBool>,
+        shutdown: Arc<AtomicBool>,
+    ) -> Result<Renderer> {
         let entry = Entry::new()?;
 
         let instance = setup_instance(&entry, &config, &window)?;
@@ -134,6 +144,10 @@ impl Renderer {
             debug_report_callback: debug_report_callback,
             instance: instance,
             entry: entry,
+            shutdown: shutdown.clone(),
+            resized: resized.clone(),
+            stats: Default::default(),
+            window: window.clone(),
             config: config,
         })
     }
