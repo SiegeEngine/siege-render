@@ -1,6 +1,6 @@
 use ash::version::V1_0;
 use ash::{Entry, Instance};
-use ash::extensions::DebugReport;
+use ash::vk::types::DebugReportCallbackEXT;
 use config::Config;
 use errors::*;
 use math::{Mat4, Vec4};
@@ -115,6 +115,7 @@ pub struct Params {
 
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
+    debug_report_callback: DebugReportCallbackEXT,
     instance: Instance<V1_0>,
     entry: Entry<V1_0>,
     config: Config,
@@ -126,10 +127,11 @@ impl Renderer {
 
         let instance = setup_instance(&entry, &config, &window)?;
 
-        let debug_report = DebugReport::new(&entry, &instance)?;
+        let debug_report_callback = setup_debug_report(&entry, &config, &instance)?;
 
         Ok(Renderer {
             plugins: Vec::new(),
+            debug_report_callback: debug_report_callback,
             instance: instance,
             entry: entry,
             config: config,
