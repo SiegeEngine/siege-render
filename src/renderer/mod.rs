@@ -9,7 +9,6 @@ use std::sync::atomic::AtomicBool;
 use winit::Window;
 
 mod setup;
-use self::setup::*;
 
 mod stats;
 pub use self::stats::{Stats, Timings};
@@ -20,14 +19,23 @@ pub use self::types::*;
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
 
+    #[allow(dead_code)] // FIXME, check again later
     debug_report_callback: DebugReportCallbackEXT,
+    #[allow(dead_code)] // FIXME, check again later
     surface: SurfaceKHR,
+    #[allow(dead_code)] // FIXME, check again later
     instance: Instance<V1_0>,
+    #[allow(dead_code)] // FIXME, check again later
     entry: Entry<V1_0>,
+    #[allow(dead_code)] // FIXME, check again later
     shutdown: Arc<AtomicBool>,
+    #[allow(dead_code)] // FIXME, check again later
     resized: Arc<AtomicBool>,
+    #[allow(dead_code)] // FIXME, chech again later
     stats: Stats,
+    #[allow(dead_code)] // FIXME, check again later
     window: Arc<Window>,
+    #[allow(dead_code)] // FIXME, check again later
     config: Config,
 }
 
@@ -40,11 +48,11 @@ impl Renderer {
     ) -> Result<Renderer> {
         let entry = Entry::new()?;
 
-        let instance = setup_instance(&entry, &config, &window)?;
+        let instance = self::setup::instance::setup_instance(&entry, &config, &window)?;
 
-        let debug_report_callback = setup_debug_report(&entry, &config, &instance)?;
+        let debug_report_callback = self::setup::debug_report::setup_debug_report(&entry, &config, &instance)?;
 
-        let surface = setup_surface(&entry, &instance, &window)?;
+        let surface = self::setup::surface::setup_surface(&entry, &instance, &window)?;
 
         Ok(Renderer {
             plugins: Vec::new(),
