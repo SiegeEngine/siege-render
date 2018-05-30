@@ -53,7 +53,8 @@ impl Renderer {
 
         let instance = self::setup::instance::setup_instance(&entry, &config, &window)?;
 
-        let debug_report_callback = self::setup::debug_report::setup_debug_report(&entry, &config, &instance)?;
+        let debug_report_callback =
+            self::setup::debug_report::setup_debug_report(&entry, &config, &instance)?;
 
         let surface_khr = self::setup::surface::setup_surface(&entry, &instance, &window)?;
 

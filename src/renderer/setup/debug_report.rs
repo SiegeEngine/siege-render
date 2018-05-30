@@ -9,9 +9,11 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr;
 
-pub fn setup_debug_report<E: EntryV1_0, I: InstanceV1_0>(entry: &E, config: &Config, instance: &I)
-                                                         -> Result<DebugReportCallbackEXT>
-{
+pub fn setup_debug_report<E: EntryV1_0, I: InstanceV1_0>(
+    entry: &E,
+    config: &Config,
+    instance: &I,
+) -> Result<DebugReportCallbackEXT> {
     use ash::vk::types::{DebugReportCallbackCreateInfoEXT, DEBUG_REPORT_DEBUG_BIT_EXT,
                          DEBUG_REPORT_ERROR_BIT_EXT, DEBUG_REPORT_INFORMATION_BIT_EXT,
                          DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT, DEBUG_REPORT_WARNING_BIT_EXT};

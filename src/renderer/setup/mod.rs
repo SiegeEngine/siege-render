@@ -10,7 +10,7 @@ enum SurfaceKind {
     Xcb,
     Wayland,
     Win32,
-    Android
+    Android,
 }
 
 fn get_surface_kind(window: &Window) -> SurfaceKind {
@@ -21,7 +21,7 @@ fn get_surface_kind(window: &Window) -> SurfaceKind {
             return SurfaceKind::Wayland;
         } else if window.get_xlib_display().is_some() {
             return SurfaceKind::Xlib;
-        }/* else if window.get_xcb_connection().is_some() {
+        } /* else if window.get_xcb_connection().is_some() {
             return SurfaceKind::Xcb;
         // FIXME: winit does not quite support xcb
         // https://github.com/tomaka/winit/issues/5

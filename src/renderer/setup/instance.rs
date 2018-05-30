@@ -111,7 +111,7 @@ fn get_required_surface_extensions(window: &Window) -> Vec<&'static str> {
         SurfaceKind::Xcb => required.push("VK_KHR_xcb_surface"),
         SurfaceKind::Wayland => required.push("VK_KHR_wayland_surface"),
         SurfaceKind::Win32 => required.push("VK_KHR_win32_surface"),
-        SurfaceKind::Android =>  required.push("VK_KHR_android_surface"),
+        SurfaceKind::Android => required.push("VK_KHR_android_surface"),
     }
 
     required
