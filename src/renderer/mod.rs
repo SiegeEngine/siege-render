@@ -22,7 +22,7 @@ pub struct Renderer {
     #[allow(dead_code)] // FIXME, check again later
     debug_report_callback: DebugReportCallbackEXT,
     #[allow(dead_code)] // FIXME, check again later
-    surface: SurfaceKHR,
+    surface_khr: SurfaceKHR,
     #[allow(dead_code)] // FIXME, check again later
     instance: Instance<V1_0>,
     #[allow(dead_code)] // FIXME, check again later
@@ -52,12 +52,12 @@ impl Renderer {
 
         let debug_report_callback = self::setup::debug_report::setup_debug_report(&entry, &config, &instance)?;
 
-        let surface = self::setup::surface::setup_surface(&entry, &instance, &window)?;
+        let surface_khr = self::setup::surface::setup_surface(&entry, &instance, &window)?;
 
         Ok(Renderer {
             plugins: Vec::new(),
             debug_report_callback: debug_report_callback,
-            surface: surface,
+            surface_khr: surface_khr,
             instance: instance,
             entry: entry,
             shutdown: shutdown.clone(),
