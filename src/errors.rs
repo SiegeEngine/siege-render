@@ -101,6 +101,10 @@ error_chain! {
         VkValidationFailedExt {
             description("Vulkan: Validation Failed"),
         }
+        DeviceNotSuitable(s: String) {
+            description("Device not suitable"),
+            display("Device not suitable: '{}'", s),
+        }
     }
 }
 

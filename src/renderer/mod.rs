@@ -8,6 +8,9 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use winit::Window;
 
+mod queue_indices;
+use self::queue_indices::QueueIndices;
+
 mod setup;
 
 mod stats;
