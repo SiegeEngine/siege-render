@@ -9,6 +9,7 @@ error_chain! {
     foreign_links {
         FfiNul(::std::ffi::NulError);
         AshDeviceError(::ash::DeviceError);
+        Utf8Error(::std::str::Utf8Error);
     }
 
     errors {
@@ -104,6 +105,9 @@ error_chain! {
         DeviceNotSuitable(s: String) {
             description("Device not suitable"),
             display("Device not suitable: '{}'", s),
+        }
+        NoSuitableDevice {
+            description("No Suitable Graphics Device Found"),
         }
     }
 }
