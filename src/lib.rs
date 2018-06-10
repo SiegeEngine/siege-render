@@ -45,7 +45,8 @@ pub mod plugin;
 pub use plugin::Plugin;
 
 pub mod renderer;
-pub use renderer::{BlendMode, Params, Pass, Renderer, Stats, Timings, Tonemapper, VulkanLogLevel};
+pub use renderer::{BlendMode, DeviceRequirements, Params, Pass, Renderer, Stats, Timings,
+                   Tonemapper, VulkanLogLevel};
 
 // These maximums are due to the size of memory chunks that we define in
 // graphics/memory.rs.  4K resolution is the maximum that we support.

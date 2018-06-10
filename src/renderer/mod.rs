@@ -9,12 +9,12 @@ use std::sync::atomic::AtomicBool;
 use winit::Window;
 
 mod queue_indices;
-use self::queue_indices::QueueIndices;
 
 mod requirements;
 pub use self::requirements::DeviceRequirements;
 
 mod setup;
+use self::setup::physical::Physical;
 
 mod stats;
 pub use self::stats::{Stats, Timings};
@@ -25,6 +25,8 @@ pub use self::types::*;
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
 
+    #[allow(dead_code)] // FIXME, check again later
+    physical: Physical,
     #[allow(dead_code)] // FIXME, check again later
     debug_report_callback: DebugReportCallbackEXT,
     #[allow(dead_code)] // FIXME, check again later
@@ -48,6 +50,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(
         config: Config,
+        requirements: DeviceRequirements,
         window: Arc<Window>,
         resized: Arc<AtomicBool>,
         shutdown: Arc<AtomicBool>,
@@ -61,8 +64,16 @@ impl Renderer {
 
         let surface_khr = self::setup::surface::setup_surface(&entry, &instance, &window)?;
 
+        let physical = self::setup::physical::find_suitable_device(
+            &entry,
+            &instance,
+            surface_khr,
+            &requirements,
+        )?;
+
         Ok(Renderer {
             plugins: Vec::new(),
+            physical: physical,
             debug_report_callback: debug_report_callback,
             surface_khr: surface_khr,
             instance: instance,

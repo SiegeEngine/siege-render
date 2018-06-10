@@ -4,7 +4,7 @@ extern crate log;
 extern crate siege_render;
 extern crate winit;
 
-use siege_render::{Config, Renderer, Tonemapper};
+use siege_render::{Config, DeviceRequirements, Renderer, Tonemapper};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use winit::EventsLoop;
@@ -42,8 +42,11 @@ fn main() {
     let resized = Arc::new(AtomicBool::new(false));
     let shutdown = Arc::new(AtomicBool::new(false));
 
+    let requirements: DeviceRequirements = Default::default();
+
     let _renderer = Renderer::new(
         config,
+        requirements,
         arc_window.clone(),
         resized.clone(),
         shutdown.clone(),
