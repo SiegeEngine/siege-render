@@ -59,38 +59,6 @@ fn default_display_luminance() -> u32 {
     80
 }
 #[inline]
-fn default_gpu_memory_required() -> u64 {
-    9216000
-}
-#[inline]
-fn default_max_descriptor_sets() -> u32 {
-    16
-}
-#[inline]
-fn default_max_uniform_buffers() -> u32 {
-    2
-}
-#[inline]
-fn default_max_uniform_texel_buffers() -> u32 {
-    2
-}
-#[inline]
-fn default_max_dynamic_uniform_buffers() -> u32 {
-    2
-}
-#[inline]
-fn default_max_samplers() -> u32 {
-    2
-}
-#[inline]
-fn default_max_sampled_images() -> u32 {
-    2
-}
-#[inline]
-fn default_max_combined_image_samplers() -> u32 {
-    10
-}
-#[inline]
 fn default_timing_setup() -> bool {
     false
 }
@@ -127,22 +95,6 @@ pub struct Config {
     pub height: u32,
     #[serde(default = "default_display_luminance")]
     pub display_luminance: u32,
-    #[serde(default = "default_gpu_memory_required")]
-    pub gpu_memory_required: u64,
-    #[serde(default = "default_max_descriptor_sets")]
-    pub max_descriptor_sets: u32,
-    #[serde(default = "default_max_uniform_buffers")]
-    pub max_uniform_buffers: u32,
-    #[serde(default = "default_max_uniform_texel_buffers")]
-    pub max_uniform_texel_buffers: u32,
-    #[serde(default = "default_max_dynamic_uniform_buffers")]
-    pub max_dynamic_uniform_buffers: u32,
-    #[serde(default = "default_max_samplers")]
-    pub max_samplers: u32,
-    #[serde(default = "default_max_sampled_images")]
-    pub max_sampled_images: u32,
-    #[serde(default = "default_max_combined_image_samplers")]
-    pub max_combined_image_samplers: u32,
     #[serde(default = "default_timing_setup")]
     pub timing_setup: bool,
     #[serde(default = "default_tonemapper")]
@@ -165,14 +117,6 @@ impl Default for Config {
             width: default_width(),
             height: default_height(),
             display_luminance: default_display_luminance(),
-            gpu_memory_required: default_gpu_memory_required(),
-            max_descriptor_sets: default_max_descriptor_sets(),
-            max_uniform_buffers: default_max_uniform_buffers(),
-            max_uniform_texel_buffers: default_max_uniform_texel_buffers(),
-            max_dynamic_uniform_buffers: default_max_dynamic_uniform_buffers(),
-            max_samplers: default_max_samplers(),
-            max_sampled_images: default_max_sampled_images(),
-            max_combined_image_samplers: default_max_combined_image_samplers(),
             timing_setup: default_timing_setup(),
             tonemapper: default_tonemapper(),
         }
@@ -213,34 +157,6 @@ impl fmt::Debug for Config {
             f,
             "    display luminance (max): {} cd/m²",
             self.display_luminance
-        )?;
-        writeln!(f, "    have a least: {} memory", self.gpu_memory_required)?;
-        writeln!(f, "    Allocated desc sets: {}", self.max_descriptor_sets)?;
-        writeln!(
-            f,
-            "    Allocated desc for uniform buffers: {}",
-            self.max_uniform_buffers
-        )?;
-        writeln!(
-            f,
-            "    Allocated desc for uniform texel buffers: {}",
-            self.max_uniform_texel_buffers
-        )?;
-        writeln!(
-            f,
-            "    Allocated desc for dynamic uniform buffers: {}",
-            self.max_dynamic_uniform_buffers
-        )?;
-        writeln!(f, "    Allocated desc for samplers: {}", self.max_samplers)?;
-        writeln!(
-            f,
-            "    Allocated desc for sampled images: {}",
-            self.max_sampled_images
-        )?;
-        writeln!(
-            f,
-            "    Allocated desc for combined image samplers: {}",
-            self.max_combined_image_samplers
         )?;
         writeln!(f, "    Timing Setup: {}", self.timing_setup)?;
         writeln!(f, "    Tone mapper: {:?}", self.tonemapper)?;
