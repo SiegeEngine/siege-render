@@ -1,6 +1,6 @@
 use ash::version::V1_0;
 use ash::vk::types::{DebugReportCallbackEXT, SurfaceKHR};
-use ash::{Entry, Instance};
+use ash::{Device, Entry, Instance};
 use config::Config;
 use errors::*;
 use plugin::Plugin;
@@ -25,6 +25,8 @@ pub use self::types::*;
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
 
+    #[allow(dead_code)] // FIXME, check again later
+    device: Device<V1_0>,
     #[allow(dead_code)] // FIXME, check again later
     physical: Physical,
     #[allow(dead_code)] // FIXME, check again later
@@ -71,8 +73,11 @@ impl Renderer {
             &requirements,
         )?;
 
+        let device = self::setup::device::create_device(&instance, &physical, &requirements)?;
+
         Ok(Renderer {
             plugins: Vec::new(),
+            device: device,
             physical: physical,
             debug_report_callback: debug_report_callback,
             surface_khr: surface_khr,

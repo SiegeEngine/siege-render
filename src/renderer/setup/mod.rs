@@ -1,6 +1,7 @@
 use winit::Window;
 
 pub mod debug_report;
+pub mod device;
 pub mod instance;
 pub mod physical;
 pub mod requirements;
