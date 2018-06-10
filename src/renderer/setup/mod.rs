@@ -2,6 +2,7 @@ use winit::Window;
 
 pub mod debug_report;
 pub mod instance;
+pub mod requirements;
 pub mod surface;
 
 #[allow(dead_code)]
