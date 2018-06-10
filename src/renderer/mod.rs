@@ -11,6 +11,9 @@ use winit::Window;
 mod queue_indices;
 use self::queue_indices::QueueIndices;
 
+mod requirements;
+pub use self::requirements::DeviceRequirements;
+
 mod setup;
 
 mod stats;
