@@ -109,6 +109,12 @@ error_chain! {
         NoSuitableDevice {
             description("No Suitable Graphics Device Found"),
         }
+        MemoryNotHostWritable {
+            description("Device memory is not host writable"),
+        }
+        OutOfGraphicsMemory {
+            description("Out of graphics memory (or memory type requested does not exist)"),
+        }
     }
 }
 

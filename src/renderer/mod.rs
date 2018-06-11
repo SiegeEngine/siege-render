@@ -10,6 +10,9 @@ use winit::Window;
 
 mod queue_indices;
 
+mod memory;
+use self::memory::Memory;
+
 mod requirements;
 pub use self::requirements::DeviceRequirements;
 
@@ -25,6 +28,8 @@ pub use self::types::*;
 pub struct Renderer {
     plugins: Vec<Box<Plugin>>,
 
+    #[allow(dead_code)] // FIXME, check again later
+    memory: Memory,
     #[allow(dead_code)] // FIXME, check again later
     device: Device<V1_0>,
     #[allow(dead_code)] // FIXME, check again later
@@ -75,8 +80,12 @@ impl Renderer {
 
         let device = self::setup::device::create_device(&instance, &physical, &requirements)?;
 
+        let memory = Memory::new(physical.memory_properties.clone(),
+                                 physical.properties.clone());
+
         Ok(Renderer {
             plugins: Vec::new(),
+            memory: memory,
             device: device,
             physical: physical,
             debug_report_callback: debug_report_callback,
