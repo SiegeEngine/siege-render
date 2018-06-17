@@ -1,4 +1,4 @@
-use ash::version::V1_0;
+use ash::version::{V1_0, DeviceV1_0};
 use ash::vk::types::{DebugReportCallbackEXT, SurfaceKHR};
 use ash::extensions::Surface;
 use ash::{Device, Entry, Instance};
@@ -114,5 +114,14 @@ impl Renderer {
 
     pub fn run(&mut self) -> Result<()> {
         unimplemented!()
+    }
+}
+
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.destroy_device(None);
+            self.surface.destroy_surface_khr(self.surface_khr, None);
+        }
     }
 }
