@@ -6,7 +6,7 @@ use winit::Window;
 
 use super::SurfaceKind;
 
-pub fn setup_surface<E: EntryV1_0, I: InstanceV1_0>(
+pub fn setup_surface_khr<E: EntryV1_0, I: InstanceV1_0>(
     entry: &E,
     instance: &I,
     window: &Window,

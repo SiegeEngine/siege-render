@@ -1,5 +1,6 @@
 use ash::version::V1_0;
 use ash::vk::types::{DebugReportCallbackEXT, SurfaceKHR};
+use ash::extensions::Surface;
 use ash::{Device, Entry, Instance};
 use config::Config;
 use errors::*;
@@ -37,6 +38,8 @@ pub struct Renderer {
     #[allow(dead_code)] // FIXME, check again later
     debug_report_callback: DebugReportCallbackEXT,
     #[allow(dead_code)] // FIXME, check again later
+    surface: Surface,
+    #[allow(dead_code)] // FIXME, check again later
     surface_khr: SurfaceKHR,
     #[allow(dead_code)] // FIXME, check again later
     instance: Instance<V1_0>,
@@ -69,7 +72,8 @@ impl Renderer {
         let debug_report_callback =
             self::setup::debug_report::setup_debug_report(&entry, &config, &instance)?;
 
-        let surface_khr = self::setup::surface::setup_surface(&entry, &instance, &window)?;
+        let surface_khr = self::setup::surface::setup_surface_khr(&entry, &instance, &window)?;
+        let surface = Surface::new(&entry, &instance)?;
 
         let physical = self::setup::physical::find_suitable_device(
             &entry,
@@ -89,6 +93,7 @@ impl Renderer {
             device: device,
             physical: physical,
             debug_report_callback: debug_report_callback,
+            surface: surface,
             surface_khr: surface_khr,
             instance: instance,
             entry: entry,
