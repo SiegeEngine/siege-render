@@ -23,6 +23,8 @@ use self::setup::physical::Physical;
 mod stats;
 pub use self::stats::{Stats, Timings};
 
+mod surface_data;
+
 mod types;
 pub use self::types::*;
 
