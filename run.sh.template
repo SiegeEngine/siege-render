@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Set these variables:
+SDKVER=1.0.68.0
+SDK=/path/to/vulkan/sdk
+
+# Enable layers here, if desired:
+# export VK_INSTANCE_LAYERS="VK_LAYER_GOOGLE_threading:VK_LAYER_LUNARG_parameter_validation:VK_LAYER_LUNARG_object_tracker:VK_LAYER_LUNARG_core_validation:VK_LAYER_LUNARG_swapchain:VK_LAYER_GOOGLE_unique_objects"
+export VK_INSTANCE_LAYERS=VK_LAYER_LUNARG_standard_validation
+
+#-----------------------------
+
+export LD_LIBRARY_PATH=${SDK}/x86_64/lib
+export VK_LAYER_PATH=${SDK}/x86_64/etc/explicit_layer.d
+
+# Ensure the code compiles and passes tests
+cargo test || exit 1
+
+RUST_BACKTRACE=1 RUST_LOG=debug target/debug/examples/basictest
