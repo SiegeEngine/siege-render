@@ -1,4 +1,3 @@
-use ash::Device;
 use ash::version::{DeviceV1_0, V1_0};
 use ash::vk::types::{BufferUsageFlags, DeviceMemory, MemoryAllocateInfo, MemoryPropertyFlags,
                      MemoryRequirements, MemoryType, PhysicalDeviceMemoryProperties,
@@ -7,6 +6,7 @@ use ash::vk::types::{BufferUsageFlags, DeviceMemory, MemoryAllocateInfo, MemoryP
                      BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT, MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                      MEMORY_PROPERTY_HOST_CACHED_BIT, MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      MEMORY_PROPERTY_HOST_VISIBLE_BIT, MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT};
+use ash::Device;
 use errors::*;
 use separator::Separatable;
 use std::collections::HashMap;
@@ -17,8 +17,8 @@ mod block;
 pub use self::block::Block;
 
 mod chunk;
-pub use self::chunk::CHUNK_SIZE;
 use self::chunk::Chunk;
+pub use self::chunk::CHUNK_SIZE;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Lifetime {

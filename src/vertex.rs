@@ -43,13 +43,11 @@ macro_rules! impl_vulkan_vertex {
     };
 }
 
-static COLORED_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
-        binding: 0_u32,
-        stride: ::std::mem::size_of::<ColoredVertex>() as u32,
-        input_rate: VertexInputRate::Vertex,
-    },
-];
+static COLORED_VERTEX_BD: [VertexInputBindingDescription; 1] = [VertexInputBindingDescription {
+    binding: 0_u32,
+    stride: ::std::mem::size_of::<ColoredVertex>() as u32,
+    input_rate: VertexInputRate::Vertex,
+}];
 
 lazy_static! {
     static ref COLORED_VERTEX_AD: [VertexInputAttributeDescription; 3] = [
@@ -76,13 +74,11 @@ lazy_static! {
 
 impl_vulkan_vertex!(ColoredVertex, COLORED_VERTEX_BD, COLORED_VERTEX_AD);
 
-static STANDARD_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
-        binding: 0_u32,
-        stride: ::std::mem::size_of::<StandardVertex>() as u32,
-        input_rate: VertexInputRate::Vertex,
-    },
-];
+static STANDARD_VERTEX_BD: [VertexInputBindingDescription; 1] = [VertexInputBindingDescription {
+    binding: 0_u32,
+    stride: ::std::mem::size_of::<StandardVertex>() as u32,
+    input_rate: VertexInputRate::Vertex,
+}];
 
 lazy_static! {
     static ref STANDARD_VERTEX_AD: [VertexInputAttributeDescription; 3] = [
@@ -109,23 +105,21 @@ lazy_static! {
 
 impl_vulkan_vertex!(StandardVertex, STANDARD_VERTEX_BD, STANDARD_VERTEX_AD);
 
-static GUI_RECTANGLE_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
+static GUI_RECTANGLE_VERTEX_BD: [VertexInputBindingDescription; 1] =
+    [VertexInputBindingDescription {
         binding: 0_u32,
         stride: ::std::mem::size_of::<GuiRectangleVertex>() as u32,
         input_rate: VertexInputRate::Vertex,
-    },
-];
+    }];
 
 lazy_static! {
-    static ref GUI_RECTANGLE_VERTEX_AD: [VertexInputAttributeDescription; 1] = [
-        VertexInputAttributeDescription {
+    static ref GUI_RECTANGLE_VERTEX_AD: [VertexInputAttributeDescription; 1] =
+        [VertexInputAttributeDescription {
             location: 0,
             binding: 0,
             format: Format::R32g32Sfloat,
             offset: offset_of!(GuiRectangleVertex, pos) as u32,
-        },
-    ];
+        }];
 }
 
 impl_vulkan_vertex!(
@@ -134,13 +128,11 @@ impl_vulkan_vertex!(
     GUI_RECTANGLE_VERTEX_AD
 );
 
-static GRAYBOX_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
-        binding: 0_u32,
-        stride: ::std::mem::size_of::<GrayboxVertex>() as u32,
-        input_rate: VertexInputRate::Vertex,
-    },
-];
+static GRAYBOX_VERTEX_BD: [VertexInputBindingDescription; 1] = [VertexInputBindingDescription {
+    binding: 0_u32,
+    stride: ::std::mem::size_of::<GrayboxVertex>() as u32,
+    input_rate: VertexInputRate::Vertex,
+}];
 
 lazy_static! {
     static ref GRAYBOX_VERTEX_AD: [VertexInputAttributeDescription; 2] = [
@@ -161,13 +153,11 @@ lazy_static! {
 
 impl_vulkan_vertex!(GrayboxVertex, GRAYBOX_VERTEX_BD, GRAYBOX_VERTEX_AD);
 
-static CHEAP_V1_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
-        binding: 0_u32,
-        stride: ::std::mem::size_of::<CheapV1Vertex>() as u32,
-        input_rate: VertexInputRate::Vertex,
-    },
-];
+static CHEAP_V1_VERTEX_BD: [VertexInputBindingDescription; 1] = [VertexInputBindingDescription {
+    binding: 0_u32,
+    stride: ::std::mem::size_of::<CheapV1Vertex>() as u32,
+    input_rate: VertexInputRate::Vertex,
+}];
 
 lazy_static! {
     static ref CHEAP_V1_VERTEX_AD: [VertexInputAttributeDescription; 3] = [
@@ -194,13 +184,11 @@ lazy_static! {
 
 impl_vulkan_vertex!(CheapV1Vertex, CHEAP_V1_VERTEX_BD, CHEAP_V1_VERTEX_AD);
 
-static CHEAP_V2_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
-        binding: 0_u32,
-        stride: ::std::mem::size_of::<CheapV2Vertex>() as u32,
-        input_rate: VertexInputRate::Vertex,
-    },
-];
+static CHEAP_V2_VERTEX_BD: [VertexInputBindingDescription; 1] = [VertexInputBindingDescription {
+    binding: 0_u32,
+    stride: ::std::mem::size_of::<CheapV2Vertex>() as u32,
+    input_rate: VertexInputRate::Vertex,
+}];
 
 lazy_static! {
     static ref CHEAP_V2_VERTEX_AD: [VertexInputAttributeDescription; 4] = [
@@ -233,13 +221,11 @@ lazy_static! {
 
 impl_vulkan_vertex!(CheapV2Vertex, CHEAP_V2_VERTEX_BD, CHEAP_V2_VERTEX_AD);
 
-static STAR_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
-        binding: 0_u32,
-        stride: ::std::mem::size_of::<StarVertex>() as u32,
-        input_rate: VertexInputRate::Vertex,
-    },
-];
+static STAR_VERTEX_BD: [VertexInputBindingDescription; 1] = [VertexInputBindingDescription {
+    binding: 0_u32,
+    stride: ::std::mem::size_of::<StarVertex>() as u32,
+    input_rate: VertexInputRate::Vertex,
+}];
 
 lazy_static! {
     static ref STAR_VERTEX_AD: [VertexInputAttributeDescription; 2] = [
@@ -260,23 +246,20 @@ lazy_static! {
 
 impl_vulkan_vertex!(StarVertex, STAR_VERTEX_BD, STAR_VERTEX_AD);
 
-static CUBEMAP_VERTEX_BD: [VertexInputBindingDescription; 1] = [
-    VertexInputBindingDescription {
-        binding: 0_u32,
-        stride: ::std::mem::size_of::<CubemapVertex>() as u32,
-        input_rate: VertexInputRate::Vertex,
-    },
-];
+static CUBEMAP_VERTEX_BD: [VertexInputBindingDescription; 1] = [VertexInputBindingDescription {
+    binding: 0_u32,
+    stride: ::std::mem::size_of::<CubemapVertex>() as u32,
+    input_rate: VertexInputRate::Vertex,
+}];
 
 lazy_static! {
-    static ref CUBEMAP_VERTEX_AD: [VertexInputAttributeDescription; 1] = [
-        VertexInputAttributeDescription {
+    static ref CUBEMAP_VERTEX_AD: [VertexInputAttributeDescription; 1] =
+        [VertexInputAttributeDescription {
             location: 0,
             binding: 0,
             format: Format::R32g32b32Sfloat,
             offset: offset_of!(CubemapVertex, pos) as u32,
-        },
-    ];
+        }];
 }
 
 impl_vulkan_vertex!(CubemapVertex, CUBEMAP_VERTEX_BD, CUBEMAP_VERTEX_AD);

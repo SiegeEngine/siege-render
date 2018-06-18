@@ -5,8 +5,8 @@ use ash::vk::types::{ExtensionProperties, PhysicalDevice, PhysicalDeviceFeatures
                      MEMORY_PROPERTY_HOST_CACHED_BIT, MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      MEMORY_PROPERTY_HOST_VISIBLE_BIT, MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT};
 use errors::*;
-use renderer::DeviceRequirements;
 use renderer::queue_indices::QueueIndices;
+use renderer::DeviceRequirements;
 use std::ffi::CStr;
 
 pub struct Physical {

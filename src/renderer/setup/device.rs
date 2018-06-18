@@ -1,7 +1,7 @@
-use ash::Device;
 use ash::version::InstanceV1_0;
 use ash::vk::types::{DeviceCreateFlags, DeviceCreateInfo, DeviceQueueCreateFlags,
                      DeviceQueueCreateInfo, PhysicalDeviceFeatures, StructureType};
+use ash::Device;
 use errors::*;
 use renderer::requirements::DeviceRequirements;
 use renderer::setup::physical::Physical;

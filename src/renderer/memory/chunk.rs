@@ -1,9 +1,9 @@
-use ash::Device;
 use ash::version::{DeviceV1_0, V1_0};
 use ash::vk::types::{c_void, DeviceMemory, MappedMemoryRange, MemoryAllocateInfo, MemoryType,
                      StructureType, MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                      MEMORY_PROPERTY_HOST_CACHED_BIT, MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      MEMORY_PROPERTY_HOST_VISIBLE_BIT, MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT};
+use ash::Device;
 use errors::*;
 use renderer::memory::block::Block;
 use renderer::memory::{Lifetime, Linearity};

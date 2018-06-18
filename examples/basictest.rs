@@ -5,8 +5,8 @@ extern crate siege_render;
 extern crate winit;
 
 use siege_render::{Config, DeviceRequirements, Renderer, Tonemapper};
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use winit::EventsLoop;
 
 fn main() {

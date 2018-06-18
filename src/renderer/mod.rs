@@ -1,12 +1,12 @@
-use ash::version::{V1_0, DeviceV1_0};
-use ash::vk::types::{DebugReportCallbackEXT, SurfaceKHR};
 use ash::extensions::Surface;
+use ash::version::{DeviceV1_0, V1_0};
+use ash::vk::types::{DebugReportCallbackEXT, SurfaceKHR};
 use ash::{Device, Entry, Instance};
 use config::Config;
 use errors::*;
 use plugin::Plugin;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use winit::Window;
 
 mod queue_indices;
@@ -86,8 +86,10 @@ impl Renderer {
 
         let device = self::setup::device::create_device(&instance, &physical, &requirements)?;
 
-        let memory = Memory::new(physical.memory_properties.clone(),
-                                 physical.properties.clone());
+        let memory = Memory::new(
+            physical.memory_properties.clone(),
+            physical.properties.clone(),
+        );
 
         Ok(Renderer {
             plugins: Vec::new(),
