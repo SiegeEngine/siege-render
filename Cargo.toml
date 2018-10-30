@@ -10,7 +10,7 @@ license = "MIT"
 [dependencies]
 serde = "1.0"
 serde_derive = "1.0"
-error-chain = "0.11"
+error-chain = "0.12"
 log = "0.4"
 vks = "0.21"
 winit = "0.10"
@@ -22,7 +22,7 @@ glsl-to-spirv-macros-impl = "0.1"
 separator = "0.3"
 dacite = { git = "https://gitlab.com/mikedilger/dacite.git" }
 dacite-winit = { git = "https://gitlab.com/mikedilger/dacite.git" }
-ddsfile = "0.2.3"
+ddsfile = { git = "https://github.com/SiegeEngine/ddsfile" }
 siege-math = { git = "https://github.com/SiegeEngine/siege-math.git" }
 siege-mesh = { git = "https://github.com/SiegeEngine/siege-mesh.git" }
 
