@@ -2,6 +2,7 @@
 use std::path::PathBuf;
 use std::fmt;
 use renderer::{VulkanLogLevel, Tonemapper};
+use serde::Deserialize;
 
 #[inline] fn default_app_name() -> String { "Unspecified".to_owned() }
 #[inline] fn default_major_version() -> u32 { 0 }

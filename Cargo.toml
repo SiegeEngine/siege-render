@@ -8,8 +8,7 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
-serde = "1.0"
-serde_derive = "1.0"
+serde = { version = "1.0", features = [ "derive" ] }
 log = "0.4"
 vks = "0.21"
 winit = "0.10"

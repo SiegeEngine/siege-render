@@ -7,6 +7,7 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    ShaderModuleCreateInfo, ShaderModule,
                    SpecializationInfo, SpecializationMapEntry};
 use error::Error;
+use serde::Deserialize;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
 

@@ -2,8 +2,6 @@
 #![recursion_limit = "1024"]
 
 // serialization
-#[macro_use]
-extern crate serde_derive;
 extern crate serde;
 
 // logging

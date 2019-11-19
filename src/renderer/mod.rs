@@ -44,6 +44,7 @@ use dacite::core::{Instance, PhysicalDevice, Device, Queue, Extent2D,
                    PushConstantRange};
 use dacite::ext_debug_report::DebugReportCallbackExt;
 use dacite::khr_surface::SurfaceKhr;
+use serde::Deserialize;
 use siege_math::{Vec4, Mat4};
 use winit::Window;
 
