@@ -150,7 +150,7 @@ pub struct PipelineSetup {
 }
 
 pub struct Renderer {
-    plugins: Vec<Box<Plugin>>,
+    plugins: Vec<Box<dyn Plugin>>,
     post_gfx: PostGfx,
     blur_gfx: BlurGfx,
     shade_gfx: ShadeGfx,
@@ -605,7 +605,7 @@ impl Renderer {
         Ok((layout, set))
     }
 
-    pub fn plugin(&mut self, plugin: Box<Plugin>) -> Result<(), Error>
+    pub fn plugin(&mut self, plugin: Box<dyn Plugin>) -> Result<(), Error>
     {
         self.plugins.push(plugin);
         Ok(())
