@@ -19,10 +19,10 @@ use winit::Window;
 
 use self::requirements::FEATURES_NEEDED;
 use config::Config;
-use errors::*;
+use error::Error;
 use renderer::VulkanLogLevel;
 
-pub fn setup_instance(config: &Config, window: &Window) -> Result<Instance>
+pub fn setup_instance(config: &Config, window: &Window) -> Result<Instance, Error>
 {
     let create_info = {
         use dacite::core::{InstanceCreateFlags, InstanceCreateInfo,
@@ -66,7 +66,7 @@ pub fn setup_instance(config: &Config, window: &Window) -> Result<Instance>
 }
 
 
-fn compute_instance_extensions(window: &Window) -> Result<InstanceExtensions>
+fn compute_instance_extensions(window: &Window) -> Result<InstanceExtensions, Error>
 {
 
     let available_extensions = Instance::get_instance_extension_properties(None)?;
@@ -82,12 +82,12 @@ fn compute_instance_extensions(window: &Window) -> Result<InstanceExtensions>
         for (name, spec_version) in missing_extensions.properties() {
             s.push_str(&*format!("Extension {} (revision {})", name, spec_version));
         }
-        Err(ErrorKind::MissingExtensions(s).into())
+        Err(Error::MissingExtensions(s))
     }
 }
 
 pub fn setup_debug_callback(config: &Config, instance: &Instance)
-                            -> Result<Option<DebugReportCallbackExt>>
+                            -> Result<Option<DebugReportCallbackExt>, Error>
 {
     if config.vulkan_debug_output {
         use dacite::ext_debug_report::{
@@ -163,7 +163,7 @@ impl DebugReportCallbacksExt for DebugCallback {
     }
 }
 
-pub fn setup_surface(window: &Window, instance: &Instance) -> Result<SurfaceKhr>
+pub fn setup_surface(window: &Window, instance: &Instance) -> Result<SurfaceKhr, Error>
 {
     use dacite_winit::SurfaceCreateFlags;
     Ok(window.create_surface(
@@ -175,7 +175,7 @@ pub fn setup_surface(window: &Window, instance: &Instance) -> Result<SurfaceKhr>
 pub fn create_device(physical_device: &PhysicalDevice,
                      device_extensions: DeviceExtensions,
                      queue_indices: &QueueIndices)
-                     -> Result<Device>
+                     -> Result<Device, Error>
 {
     use dacite::core::{DeviceQueueCreateInfo, DeviceQueueCreateFlags,
                        DeviceCreateInfo, DeviceCreateFlags};
@@ -215,7 +215,7 @@ pub fn create_device(physical_device: &PhysicalDevice,
     Ok(physical_device.create_device(&device_create_info, None)?)
 }
 
-pub fn get_descriptor_pool(device: &Device, config: &Config) -> Result<DescriptorPool>
+pub fn get_descriptor_pool(device: &Device, config: &Config) -> Result<DescriptorPool, Error>
 {
     use dacite::core::{DescriptorPoolCreateInfo, DescriptorPoolSize,
                                DescriptorType};
@@ -256,7 +256,7 @@ pub fn get_descriptor_pool(device: &Device, config: &Config) -> Result<Descripto
 
 }
 
-pub fn get_semaphores(device: &Device) -> Result<(Semaphore, Semaphore)>
+pub fn get_semaphores(device: &Device) -> Result<(Semaphore, Semaphore), Error>
 {
     use dacite::core::{SemaphoreCreateInfo, SemaphoreCreateFlags};
 
@@ -272,7 +272,7 @@ pub fn get_semaphores(device: &Device) -> Result<(Semaphore, Semaphore)>
 }
 
 
-pub fn get_graphics_fence(device: &Device, signalled: bool) -> Result<Fence>
+pub fn get_graphics_fence(device: &Device, signalled: bool) -> Result<Fence, Error>
 {
     use dacite::core::{FenceCreateInfo, FenceCreateFlags};
     let create_info = FenceCreateInfo {

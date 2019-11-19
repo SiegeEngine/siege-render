@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer};
-use errors::*;
+use error::Error;
 use renderer::image_wrap::ImageWrap;
 use renderer::swapchain_data::SwapchainData;
 
@@ -18,7 +18,7 @@ impl PostPass {
         device: &Device,
         shading_image: &ImageWrap,
         swapchain_data: &SwapchainData)
-        -> Result<PostPass>
+        -> Result<PostPass, Error>
     {
         let render_pass = {
             use dacite::core::{AttachmentLoadOp, AttachmentStoreOp, ImageLayout,
@@ -116,7 +116,7 @@ impl PostPass {
     pub fn rebuild(&mut self, device: &Device,
                    shading_image: &ImageWrap,
                    swapchain_data: &SwapchainData)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         let (shading_image_view, swapchain_image_views, framebuffers, extent) =
             build(device, self.render_pass.clone(), shading_image, swapchain_data)?;
@@ -160,7 +160,7 @@ impl PostPass {
 
 fn build(device: &Device, render_pass: RenderPass, shading_image: &ImageWrap,
          swapchain_data: &SwapchainData)
-    -> Result<(ImageView, Vec<ImageView>, Vec<Framebuffer>, Extent2D)>
+    -> Result<(ImageView, Vec<ImageView>, Vec<Framebuffer>, Extent2D), Error>
 {
     let extent = swapchain_data.extent;
 

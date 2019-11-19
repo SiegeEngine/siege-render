@@ -6,7 +6,7 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    CullModeFlags, FrontFace, ShaderModuleCreateFlags,
                    ShaderModuleCreateInfo, ShaderModule,
                    SpecializationInfo, SpecializationMapEntry};
-use errors::*;
+use error::Error;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
 
@@ -40,7 +40,7 @@ impl PostGfx {
                display_luminance: u32,
                params_layout: DescriptorSetLayout,
                surface_needs_gamma: bool)
-              -> Result<PostGfx>
+              -> Result<PostGfx, Error>
     {
         let sampler = {
             use dacite::core::{SamplerCreateInfo, SamplerMipmapMode, SamplerAddressMode,
@@ -158,7 +158,7 @@ impl PostGfx {
     }
 
     pub fn rebuild(&mut self, device: &Device, target_data: &TargetData)
-        -> Result<()>
+        -> Result<(), Error>
     {
         self.shading_image_view = target_data.shading_image.
             get_image_view(device)?;
@@ -216,7 +216,7 @@ impl PostGfx {
     }
 }
 
-fn vertex_shader(device: &Device) -> Result<ShaderModule>
+fn vertex_shader(device: &Device) -> Result<ShaderModule, Error>
 {
     let bytes: &[u8] = glsl_vs!(r#"
 #version 450
@@ -260,7 +260,7 @@ void main()
 }
 
 fn fragment_shader(device: &Device, _display_luminance: u32)
-                   -> Result<ShaderModule>
+                   -> Result<ShaderModule, Error>
 {
     // FIXME: incorporate display luminance
     //    GINA FIXME -- SET TRANSFER FUNCTION TO ACCOUNT FOR config.display_luminance

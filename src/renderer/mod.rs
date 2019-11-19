@@ -59,7 +59,7 @@ use self::shade::ShadeGfx;
 use self::post::PostGfx;
 use self::blur::BlurGfx;
 use super::plugin::Plugin;
-use errors::*;
+use error::Error;
 use config::Config;
 
 #[derive(Deserialize, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -200,7 +200,7 @@ impl Renderer {
     pub fn new(config: Config, window: Arc<Window>,
                resized: Arc<AtomicBool>,
                shutdown: Arc<AtomicBool>)
-               -> Result<Renderer>
+               -> Result<Renderer, Error>
     {
         let instance = setup::setup_instance(&config, &window)?;
 
@@ -445,19 +445,19 @@ impl Renderer {
         })
     }
 
-    pub fn load_shader(&mut self, name: &str) -> Result<ShaderModule>
+    pub fn load_shader(&mut self, name: &str) -> Result<ShaderModule, Error>
     {
         self.resource_manager.load_shader(&self.device, name)
     }
 
-    pub fn load_mesh(&mut self, dir: &str, name: &str) -> Result<VulkanMesh>
+    pub fn load_mesh(&mut self, dir: &str, name: &str) -> Result<VulkanMesh, Error>
     {
         self.resource_manager.load_mesh(
             &self.device, &mut self.memory, &self.commander,
             &mut self.staging_buffer, dir, name)
     }
 
-    pub fn load_texture(&mut self, name: &str) -> Result<ImageWrap>
+    pub fn load_texture(&mut self, name: &str) -> Result<ImageWrap, Error>
     {
         self.resource_manager.load_texture(
             &self.device, &mut self.memory, &self.commander,
@@ -466,7 +466,7 @@ impl Renderer {
 
     pub fn load_buffer(&mut self,
                        usage: BufferUsageFlags,
-                       name: &str) -> Result<DeviceLocalBuffer>
+                       name: &str) -> Result<DeviceLocalBuffer, Error>
     {
         self.resource_manager.load_buffer(
             &self.device, &mut self.memory, &self.commander,
@@ -478,7 +478,7 @@ impl Renderer {
         data: &[T],
         usage: BufferUsageFlags,
         name: &str)
-        -> Result<DeviceLocalBuffer>
+        -> Result<DeviceLocalBuffer, Error>
     {
         self.resource_manager.make_buffer(
             &self.device, &mut self.memory, &self.commander,
@@ -490,13 +490,13 @@ impl Renderer {
         self.config.asset_path.clone()
     }
 
-    pub fn get_image_view(&self, image: &ImageWrap) -> Result<ImageView>
+    pub fn get_image_view(&self, image: &ImageWrap) -> Result<ImageView, Error>
     {
         image.get_image_view(&self.device)
     }
 
     pub fn get_buffer_view(&self, buffer: &DeviceLocalBuffer, format: Format)
-        -> Result<BufferView>
+        -> Result<BufferView, Error>
     {
         buffer.get_buffer_view(&self.device, format)
     }
@@ -527,7 +527,7 @@ impl Renderer {
 
     pub fn create_pipeline(&mut self,
                            setup: PipelineSetup)
-                           -> Result<(PipelineLayout, Pipeline)>
+                           -> Result<(PipelineLayout, Pipeline), Error>
     {
         let vs = match setup.vertex_shader {
             Some(vs) => Some(self.load_shader(vs)?),
@@ -557,7 +557,7 @@ impl Renderer {
 
     pub fn create_sampler(&mut self,
                           create_info: SamplerCreateInfo)
-                          -> Result<Sampler>
+                          -> Result<Sampler, Error>
     {
         Ok(self.device.create_sampler(&create_info, None)?)
     }
@@ -565,7 +565,7 @@ impl Renderer {
     pub fn create_host_visible_buffer<T>(
         &mut self, count: usize, usage: BufferUsageFlags,
         lifetime: Lifetime, reason: &str)
-        -> Result<HostVisibleBuffer>
+        -> Result<HostVisibleBuffer, Error>
     {
         HostVisibleBuffer::new::<T>(
             &self.device, &mut self.memory,
@@ -575,7 +575,7 @@ impl Renderer {
     pub fn create_device_local_buffer<T: Copy>(
         &mut self, usage: BufferUsageFlags,
         lifetime: Lifetime, reason: &str, data: &[T])
-        -> Result<DeviceLocalBuffer>
+        -> Result<DeviceLocalBuffer, Error>
     {
         DeviceLocalBuffer::new_uploaded::<T>(
             &self.device, &mut self.memory, &self.commander,
@@ -589,7 +589,7 @@ impl Renderer {
     }
 
     pub fn create_descriptor_set(&mut self, create_info: DescriptorSetLayoutCreateInfo)
-                                        -> Result<(DescriptorSetLayout, DescriptorSet)>
+                                        -> Result<(DescriptorSetLayout, DescriptorSet), Error>
     {
         let layout = self.device.create_descriptor_set_layout(&create_info, None)?;
 
@@ -605,19 +605,19 @@ impl Renderer {
         Ok((layout, set))
     }
 
-    pub fn plugin(&mut self, plugin: Box<Plugin>) -> Result<()>
+    pub fn plugin(&mut self, plugin: Box<Plugin>) -> Result<(), Error>
     {
         self.plugins.push(plugin);
         Ok(())
     }
 
-    pub fn set_params(&mut self, params: &Params) -> Result<()>
+    pub fn set_params(&mut self, params: &Params) -> Result<(), Error>
     {
         self.params_ubo.write_one::<Params>(&params, None)
     }
 
     // This will hog the current thread and wont return until the renderer shuts down.
-    pub fn run(&mut self) -> Result<()>
+    pub fn run(&mut self) -> Result<(), Error>
     {
         use dacite::core::Error::OutOfDateKhr;
 
@@ -660,7 +660,7 @@ impl Renderer {
             // Issue the commands to render a frame (this does not wait)
             let present_image = match self.start_render() {
                 Err(e) => {
-                    if let &ErrorKind::Dacite(OutOfDateKhr) = e.kind() {
+                    if let Error::Dacite(OutOfDateKhr) = e {
                         // Rebuild the swapchain if Vulkan complains that it is out of date.
                         // This is typical on linux.
                         self.rebuild()?;
@@ -794,7 +794,7 @@ impl Renderer {
         }
     }
 
-    fn start_render(&mut self) -> Result<usize>
+    fn start_render(&mut self) -> Result<usize, Error>
     {
         use std::time::Duration;
         use dacite::core::{Timeout, SubmitInfo, PipelineStageFlags};
@@ -827,7 +827,7 @@ impl Renderer {
                     error!("Swapchain image acquisition timed out (but we keep trying)");
                     ::std::thread::sleep(Duration::new(0, 50_000)); // 0.05ms
                     continue;
-                    //return Err(ErrorKind::SwapchainTimeout.into())
+                    //return Err(Error::SwapchainTimeout)
                 }
             }
         };
@@ -864,7 +864,7 @@ impl Renderer {
         Ok(next_image)
     }
 
-    fn record_command_buffer(&mut self, present_index: usize) -> Result<()>
+    fn record_command_buffer(&mut self, present_index: usize) -> Result<(), Error>
     {
         // NOTE: recording a command buffer is well known as one of the slower
         // parts of Vulkan, so we should attempt to do as little recording
@@ -1104,7 +1104,7 @@ impl Renderer {
         Ok(())
     }
 
-    fn rebuild(&mut self) -> Result<()>
+    fn rebuild(&mut self) -> Result<(), Error>
     {
         // Wait until the device is idle
         self.device.wait_idle()?;

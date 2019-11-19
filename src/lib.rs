@@ -6,10 +6,6 @@
 extern crate serde_derive;
 extern crate serde;
 
-// errors
-#[macro_use]
-extern crate error_chain;
-
 // logging
 #[macro_use]
 extern crate log;
@@ -44,8 +40,8 @@ extern crate chrono;
 pub const MAX_WIDTH: u32 = 3840;
 pub const MAX_HEIGHT: u32 = 2160;
 
-pub mod errors;
-pub use errors::*;
+pub mod error;
+pub use error::Error;
 
 pub mod config;
 pub use config::Config;

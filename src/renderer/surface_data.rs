@@ -1,5 +1,5 @@
 
-use errors::*;
+use error::Error;
 use dacite::core::{PhysicalDevice, Extent2D, Format};
 use dacite::khr_surface::{SurfaceKhr, SurfaceCapabilitiesKhr,
                           SurfaceFormatKhr, PresentModeKhr,
@@ -21,7 +21,7 @@ impl SurfaceData {
 
     pub fn create(physical_device: &PhysicalDevice,
                   surface: &SurfaceKhr)
-                  -> Result<SurfaceData>
+                  -> Result<SurfaceData, Error>
     {
         let capabilities = physical_device.get_surface_capabilities_khr(surface)?;
         let surface_formats: Vec<SurfaceFormatKhr> =
@@ -68,7 +68,7 @@ impl SurfaceData {
         }
         let surface_format_index = match surface_format_index {
             Some(i) => i,
-            None => return Err(ErrorKind::NoSuitableSurfaceFormat.into()),
+            None => return Err(Error::NoSuitableSurfaceFormat),
         };
         info!("Surface format: {:?}", surface_formats[surface_format_index].format);
         info!("Surface color space: {:?}", surface_formats[surface_format_index].color_space);
@@ -95,7 +95,7 @@ impl SurfaceData {
 
     pub fn update(&mut self,
                   physical_device: &PhysicalDevice,
-                  surface: &SurfaceKhr) -> Result<()>
+                  surface: &SurfaceKhr) -> Result<(), Error>
     {
         self.capabilities = physical_device.get_surface_capabilities_khr(surface)?;
         Ok(())

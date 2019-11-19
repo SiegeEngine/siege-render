@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer};
-use errors::*;
+use error::Error;
 use renderer::swapchain_data::SwapchainData;
 use renderer::image_wrap::ImageWrap;
 
@@ -19,7 +19,7 @@ impl UiPass {
         device: &Device,
         depth_image: &ImageWrap,
         swapchain_data: &SwapchainData)
-        -> Result<UiPass>
+        -> Result<UiPass, Error>
     {
         let render_pass = {
             use dacite::core::{AttachmentLoadOp, AttachmentStoreOp, ImageLayout,
@@ -105,7 +105,7 @@ impl UiPass {
     pub fn rebuild(&mut self, device: &Device,
                    depth_image: &ImageWrap,
                    swapchain_data: &SwapchainData)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         let (depth_image_view, swapchain_image_views, framebuffers, extent) =
             build(device, self.render_pass.clone(), depth_image, swapchain_data)?;
@@ -155,7 +155,7 @@ impl UiPass {
 
 fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
          swapchain_data: &SwapchainData)
-    -> Result<(ImageView, Vec<ImageView>, Vec<Framebuffer>, Extent2D)>
+    -> Result<(ImageView, Vec<ImageView>, Vec<Framebuffer>, Extent2D), Error>
 {
     let depth_image_view = depth_image.get_image_view(device)?;
 

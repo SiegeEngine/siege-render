@@ -2,7 +2,7 @@
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use separator::Separatable;
-use errors::*;
+use error::Error;
 use dacite::core::{Device, DeviceMemory, MappedMemory, MemoryType, MemoryPropertyFlags,
                    OptionalDeviceSize};
 use super::block::Block;
@@ -49,7 +49,7 @@ impl Chunk {
     /// Create a new chunk by asking Vulkan for more memory in the given
     /// memory_type index.
     pub fn new(device: &Device, memory_type_index: u32, memory_type: MemoryType)
-               -> Result<Chunk>
+               -> Result<Chunk, Error>
     {
         use dacite::core::MemoryAllocateInfo;
 
@@ -246,7 +246,7 @@ impl Chunk {
         }
     }
 
-    pub fn flush(&self) -> Result<()>
+    pub fn flush(&self) -> Result<(), Error>
     {
         // only if something is mapped
         if let Some(ref mm) = self.mapped_memory {

@@ -10,7 +10,6 @@ license = "MIT"
 [dependencies]
 serde = "1.0"
 serde_derive = "1.0"
-error-chain = "0.12"
 log = "0.4"
 vks = "0.21"
 winit = "0.10"

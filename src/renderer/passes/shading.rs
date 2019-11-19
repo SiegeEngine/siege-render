@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer, ClearValue, ClearColorValue};
-use errors::*;
+use error::Error;
 use renderer::image_wrap::ImageWrap;
 
 pub struct ShadingPass {
@@ -24,7 +24,7 @@ impl ShadingPass {
         normals_image: &ImageWrap,
         material_image: &ImageWrap,
         shading_image: &ImageWrap)
-        -> Result<ShadingPass>
+        -> Result<ShadingPass, Error>
     {
         let render_pass = {
             use dacite::core::{AttachmentLoadOp, AttachmentStoreOp, ImageLayout,
@@ -177,7 +177,7 @@ impl ShadingPass {
                    normals_image: &ImageWrap,
                    material_image: &ImageWrap,
                    shading_image: &ImageWrap)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         let (depth_image_view, diffuse_image_view, normals_image_view,
              material_image_view, shading_image_view, framebuffer, extent) =
@@ -231,7 +231,7 @@ impl ShadingPass {
 fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
          diffuse_image: &ImageWrap, normals_image: &ImageWrap, material_image: &ImageWrap,
          shading_image: &ImageWrap)
-    -> Result<(ImageView, ImageView, ImageView, ImageView, ImageView, Framebuffer, Extent2D)>
+    -> Result<(ImageView, ImageView, ImageView, ImageView, ImageView, Framebuffer, Extent2D), Error>
 {
     let depth_image_view = depth_image.get_image_view(device)?;
     let diffuse_image_view = diffuse_image.get_image_view(device)?;

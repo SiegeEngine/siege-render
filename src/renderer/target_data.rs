@@ -3,7 +3,7 @@ use dacite::core::{Device, Extent2D, CommandBuffer, ImageLayout, AccessFlags,
                    PipelineStageFlags, ImageAspectFlags, OptionalMipLevels,
                    OptionalArrayLayers, ImageSubresourceRange, ImageMemoryBarrier,
                    QueueFamilyIndex, DependencyFlags};
-use errors::*;
+use error::Error;
 use super::image_wrap::{ImageWrap, ImageWrapType};
 use super::memory::{Memory, Lifetime};
 use super::commander::Commander;
@@ -57,7 +57,7 @@ impl TargetData {
                   memory: &mut Memory,
                   commander: &Commander,
                   extent: Extent2D)
-                  -> Result<TargetData>
+                  -> Result<TargetData, Error>
     {
         let (depth_image, diffuse_image, normals_image, material_image,
              shading_image, blur_image) =
@@ -79,7 +79,7 @@ impl TargetData {
                    memory: &mut Memory,
                    commander: &Commander,
                    extent: Extent2D)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         self.extent = extent;
 
@@ -98,7 +98,7 @@ impl TargetData {
     }
 
     pub fn transition_for_geometry(&mut self, command_buffer: CommandBuffer)
-                                   -> Result<()>
+                                   -> Result<(), Error>
     {
         // write and read depth: depth never needs transition
 
@@ -148,7 +148,7 @@ impl TargetData {
     }
 
     pub fn transition_for_shading(&mut self, command_buffer: CommandBuffer)
-                                  -> Result<()>
+                                  -> Result<(), Error>
     {
         // Transition depth buffer for shader reads
         let depth_barrier = ImageMemoryBarrier {
@@ -237,7 +237,7 @@ impl TargetData {
     }
 
     pub fn transition_for_transparent(&mut self, command_buffer: CommandBuffer)
-                                   -> Result<()>
+                                   -> Result<(), Error>
     {
         // Reinstate the depth buffer
         let depth_barrier = ImageMemoryBarrier {
@@ -266,7 +266,7 @@ impl TargetData {
     }
 
     pub fn transition_for_blurh(&mut self, command_buffer: CommandBuffer)
-                                 -> Result<()>
+                                 -> Result<(), Error>
     {
         // read shading:
         self.shading_image.transition_layout(
@@ -300,7 +300,7 @@ impl TargetData {
     }
 
     pub fn transition_for_blurv(&mut self, command_buffer: CommandBuffer)
-                                -> Result<()>
+                                -> Result<(), Error>
     {
         // read blur:
         self.blur_image.transition_layout(
@@ -334,7 +334,7 @@ impl TargetData {
     }
 
     pub fn transition_for_post(&mut self, command_buffer: CommandBuffer)
-                               -> Result<()>
+                               -> Result<(), Error>
     {
         // read shading:
         self.shading_image.transition_layout(
@@ -356,7 +356,7 @@ impl TargetData {
     }
 
     pub fn transition_for_ui(&mut self, _command_buffer: CommandBuffer)
-                             -> Result<()>
+                             -> Result<(), Error>
     {
         // depth buffer: already in correct format
 
@@ -371,7 +371,7 @@ fn build_images(
     memory: &mut Memory,
     commander: &Commander,
     extent: Extent2D)
-    -> Result<(ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap)>
+    -> Result<(ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap), Error>
 {
     use dacite::core::{ComponentMapping, ImageUsageFlags, ImageLayout, ImageTiling,
                        AccessFlags, PipelineStageFlags, ImageAspectFlags,

@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer};
-use errors::*;
+use error::Error;
 use renderer::image_wrap::ImageWrap;
 
 pub struct BlurVPass {
@@ -17,7 +17,7 @@ impl BlurVPass {
         device: &Device,
         blur_image: &ImageWrap,
         shading_image: &ImageWrap)
-        -> Result<BlurVPass>
+        -> Result<BlurVPass, Error>
     {
         let render_pass = {
             use dacite::core::{AttachmentLoadOp, AttachmentStoreOp, ImageLayout,
@@ -115,7 +115,7 @@ impl BlurVPass {
     pub fn rebuild(&mut self, device: &Device,
                    blur_image: &ImageWrap,
                    shading_image: &ImageWrap)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         let (blur_image_view, shading_image_view, framebuffer, extent) =
             build(device, self.render_pass.clone(), blur_image, shading_image)?;
@@ -159,7 +159,7 @@ impl BlurVPass {
 
 fn build(device: &Device, render_pass: RenderPass, blur_image: &ImageWrap,
          shading_image: &ImageWrap)
-    -> Result<(ImageView, ImageView, Framebuffer, Extent2D)>
+    -> Result<(ImageView, ImageView, Framebuffer, Extent2D), Error>
 {
     let blur_image_view = blur_image.get_image_view(device)?;
 

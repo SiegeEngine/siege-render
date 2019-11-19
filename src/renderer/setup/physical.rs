@@ -5,7 +5,7 @@ use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    DeviceExtensionsProperties, Format, FormatProperties};
 use dacite::khr_surface::SurfaceKhr;
 
-use errors::*;
+use error::Error;
 use super::requirements::*;
 use super::QueueIndices;
 use config::Config;
@@ -23,7 +23,7 @@ pub fn find_suitable_device(
     config: &Config,
     instance: &Instance,
     surface: &SurfaceKhr)
-    -> Result<Physical>
+    -> Result<Physical, Error>
 {
     let formats_needed = get_formats_needed();
 
@@ -53,7 +53,7 @@ pub fn find_suitable_device(
             log_device_details(&ds);
             Ok(ds)
         },
-        None => Err(ErrorKind::NoSuitableDevice.into())
+        None => Err(Error::NoSuitableDevice)
     }
 }
 
@@ -64,7 +64,7 @@ fn check_device_suitability(
     surface: &SurfaceKhr,
     features_needed: PhysicalDeviceFeatures,
     formats_needed: &[(Format, FormatProperties)])
-    -> Result<Physical>
+    -> Result<Physical, Error>
 {
     let physical_device_properties = physical_device.get_properties();
 
@@ -84,25 +84,25 @@ fn check_device_suitability(
     for &(format, required) in formats_needed {
         let supported = physical_device.get_format_properties(format);
         if ! supported.linear_tiling_features.contains(required.linear_tiling_features) {
-            return Err(ErrorKind::DeviceNotSuitable(
+            return Err(Error::DeviceNotSuitable(
                 format!("Device does not support format {:?} in linear tiling for {:?} \
                          (supports {:?})", format,
                         required.linear_tiling_features, supported.linear_tiling_features))
-                       .into());
+            );
         }
         if ! supported.optimal_tiling_features.contains(required.optimal_tiling_features) {
-            return Err(ErrorKind::DeviceNotSuitable(
+            return Err(Error::DeviceNotSuitable(
                 format!("Device does not support format {:?} in optimal tiling for {:?} \
                          (supports {:?})", format,
                         required.optimal_tiling_features, supported.optimal_tiling_features))
-                       .into());
+            );
         }
         if ! supported.buffer_features.contains(required.buffer_features) {
-            return Err(ErrorKind::DeviceNotSuitable(
+            return Err(Error::DeviceNotSuitable(
                 format!("Device does not support format {:?} in buffers for {:?} \
                          (supports {:?})", format,
                         required.buffer_features, supported.buffer_features))
-                       .into());
+            );
         }
     }
 
@@ -119,7 +119,7 @@ fn check_device_suitability(
 fn check_physical_device_features(
     physical_device: &PhysicalDevice,
     mut features_needed: PhysicalDeviceFeatures)
-    -> Result<PhysicalDeviceFeatures>
+    -> Result<PhysicalDeviceFeatures, Error>
 {
     // See https://www.khronos.org/registry/vulkan/specs/1.0/man/html/VkPhysicalDeviceFeatures.html
     let features_available = physical_device.get_features();
@@ -128,8 +128,8 @@ fn check_physical_device_features(
     if !features_needed.is_empty() {
         // Some feature that we need is not available. Unfortunately it's hard to tell
         // which without a very long set of if/then statements.
-        Err(ErrorKind::DeviceNotSuitable(
-            "Device is missing a required feature".to_owned()).into())
+        Err(Error::DeviceNotSuitable(
+            "Device is missing a required feature".to_owned()))
     } else {
         Ok(features_available)
     }
@@ -138,7 +138,7 @@ fn check_physical_device_features(
 fn check_physical_device_memory_properties(
     config: &Config,
     physical_device: &PhysicalDevice)
-    -> Result<PhysicalDeviceMemoryProperties>
+    -> Result<PhysicalDeviceMemoryProperties, Error>
 {
     use dacite::core::MemoryHeapFlags;
 
@@ -150,13 +150,13 @@ fn check_physical_device_memory_properties(
         .filter(|&x| x.flags.contains(MemoryHeapFlags::DEVICE_LOCAL))
         .fold(0, |acc, &x| acc + x.size);
     if device_memory < config.gpu_memory_required {
-        return Err(ErrorKind::DeviceNotSuitable("Not enough memory".to_owned()).into());
+        return Err(Error::DeviceNotSuitable("Not enough memory".to_owned()));
     }
 
     Ok(memory_properties)
 }
 
-fn check_device_extensions(physical_device: &PhysicalDevice) -> Result<DeviceExtensions>
+fn check_device_extensions(physical_device: &PhysicalDevice) -> Result<DeviceExtensions, Error>
 {
     let available_extensions = physical_device.get_device_extension_properties(None)?;
     let mut required_extensions = DeviceExtensionsProperties::new();
@@ -171,26 +171,26 @@ fn check_device_extensions(physical_device: &PhysicalDevice) -> Result<DeviceExt
         for (name, spec_version) in missing_extensions.properties() {
             s.push_str(&*format!("Extension {} (revision {}) missing", name, spec_version));
         }
-        Err(ErrorKind::MissingExtensions(s).into())
+        Err(Error::MissingExtensions(s))
     }
 }
 
-fn check_limits(limits: &PhysicalDeviceLimits) -> Result<()>
+fn check_limits(limits: &PhysicalDeviceLimits) -> Result<(), Error>
 {
     if limits.max_push_constants_size < PUSH_CONSTANTS_SIZE_REQUIRED {
-        return Err(ErrorKind::DeviceNotSuitable(
-            "Not enough space for push constants".to_owned()).into());
+        return Err(Error::DeviceNotSuitable(
+            "Not enough space for push constants".to_owned()));
     }
     if limits.max_color_attachments < COLOR_ATTACHMENT_COUNT_REQUIRED {
-        return Err(ErrorKind::DeviceNotSuitable(
-            "Not enough color attachments available".to_owned()).into());
+        return Err(Error::DeviceNotSuitable(
+            "Not enough color attachments available".to_owned()));
     }
     // We dont need to check max_width/max_height; We cant alter the window maximums
     // post-creation; we get current_extent from the surface extension; we presume
     // it stays within bounds of max_framebuffer_width/height.
     if limits.max_framebuffer_layers < FRAMEBUFFER_LAYERS_REQUIRED {
-        return Err(ErrorKind::DeviceNotSuitable(
-            "Not enough framebuffer layers".to_owned()).into());
+        return Err(Error::DeviceNotSuitable(
+            "Not enough framebuffer layers".to_owned()));
     }
 
     Ok(())

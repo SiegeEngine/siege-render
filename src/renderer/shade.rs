@@ -6,7 +6,7 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    CullModeFlags, FrontFace, ShaderModuleCreateFlags,
                    ShaderModuleCreateInfo, ShaderModule,
                    SpecializationInfo, SpecializationMapEntry};
-use errors::*;
+use error::Error;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
 
@@ -32,7 +32,7 @@ impl ShadeGfx {
                scissors: Rect2D,
                params_layout: DescriptorSetLayout,
                reversed_depth_buffer: bool)
-               -> Result<ShadeGfx>
+               -> Result<ShadeGfx, Error>
     {
         let sampler = {
             use dacite::core::{SamplerCreateInfo, SamplerMipmapMode, SamplerAddressMode,
@@ -183,7 +183,7 @@ impl ShadeGfx {
     }
 
     pub fn rebuild(&mut self, device: &Device, target_data: &TargetData)
-        -> Result<()>
+        -> Result<(), Error>
     {
         self.depth_image_view = target_data.depth_image.
             get_image_view(device)?;
@@ -295,7 +295,7 @@ impl ShadeGfx {
     }
 }
 
-fn vertex_shader(device: &Device) -> Result<ShaderModule>
+fn vertex_shader(device: &Device) -> Result<ShaderModule, Error>
 {
     let bytes: &[u8] = glsl_vs!(r#"
 #version 450
@@ -339,7 +339,7 @@ void main()
 }
 
 fn fragment_shader(device: &Device)
-                   -> Result<ShaderModule>
+                   -> Result<ShaderModule, Error>
 {
     let bytes: &[u8] = glsl_fs!(r#"
 #version 450

@@ -1,5 +1,5 @@
 
-use errors::*;
+use error::Error;
 use dacite::core::{Image, Format, ImageUsageFlags, Device, ImageView,
                    Extent3D, ImageLayout, ImageTiling, AccessFlags,
                    ImageSubresourceRange, Buffer, PipelineStageFlags,
@@ -54,7 +54,7 @@ impl ImageWrap {
         lifetime: Lifetime,
         solo: bool,
         reason: &str)
-        -> Result<ImageWrap>
+        -> Result<ImageWrap, Error>
     {
         use dacite::core::{ImageCreateInfo, ImageCreateFlags, ImageType,
                            SampleCountFlagBits, SharingMode, MemoryPropertyFlags};
@@ -137,7 +137,7 @@ impl ImageWrap {
         })
     }
 
-    pub fn get_image_view(&self, device: &Device) -> Result<ImageView>
+    pub fn get_image_view(&self, device: &Device) -> Result<ImageView, Error>
     {
         use dacite::core::{ImageViewCreateInfo, ImageViewType,
                            ImageSubresourceRange, ImageAspectFlags,
@@ -179,7 +179,7 @@ impl ImageWrap {
                                  src_stage: PipelineStageFlags, dst_stage: PipelineStageFlags,
                                  subresource_range: ImageSubresourceRange,
                                  commander: &Commander)
-                                 -> Result<()>
+                                 -> Result<(), Error>
     {
         use dacite::core::{CommandBufferBeginInfo, CommandBufferUsageFlags,
                            CommandBufferResetFlags,
@@ -232,7 +232,7 @@ impl ImageWrap {
                              src_access: AccessFlags, dst_access: AccessFlags,
                              src_stage: PipelineStageFlags, dst_stage: PipelineStageFlags,
                              subresource_range: ImageSubresourceRange)
-                             -> Result<()>
+                             -> Result<(), Error>
     {
         use dacite::core::{ImageMemoryBarrier, QueueFamilyIndex,
                            DependencyFlags};
@@ -269,7 +269,7 @@ impl ImageWrap {
         buffer: &Buffer,
         main_texture_size: u32,
         min_mipmap_size: u32)
-        -> Result<()>
+        -> Result<(), Error>
     {
         use dacite::core::{CommandBufferBeginInfo, CommandBufferUsageFlags,
                            CommandBufferResetFlags,

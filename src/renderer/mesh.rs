@@ -1,5 +1,5 @@
 
-use errors::*;
+use error::*;
 use dacite::core::Device;
 use siege_math::Point3;
 use siege_mesh::{Mesh, Vertex};
@@ -31,7 +31,7 @@ impl VulkanMesh {
                           staging_buffer: &mut HostVisibleBuffer,
                           mesh: Mesh<V>,
                           name: &str)
-               -> Result<VulkanMesh>
+               -> Result<VulkanMesh, Error>
     {
         use dacite::core::BufferUsageFlags;
 

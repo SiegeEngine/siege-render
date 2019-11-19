@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, Queue, CommandPool, CommandBuffer};
 
-use errors::*;
+use error::Error;
 use super::setup::QueueIndices;
 
 pub struct Commander {
@@ -19,7 +19,7 @@ impl Commander {
         device: &Device,
         queue_indices: &QueueIndices,
         num_framebuffers: u32)
-        -> Result<Commander>
+        -> Result<Commander, Error>
     {
         let xfr_command_pool = {
             use dacite::core::{CommandPoolCreateInfo, CommandPoolCreateFlags};

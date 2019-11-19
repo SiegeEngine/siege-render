@@ -1,5 +1,5 @@
 
-use errors::*;
+use error::Error;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -33,7 +33,7 @@ impl ResourceManager {
         }
     }
 
-    pub fn load_shader(&mut self, device: &Device, name: &str) -> Result<ShaderModule>
+    pub fn load_shader(&mut self, device: &Device, name: &str) -> Result<ShaderModule, Error>
     {
         use dacite::core::{ShaderModuleCreateInfo, ShaderModuleCreateFlags};
 
@@ -71,7 +71,7 @@ impl ResourceManager {
                      staging_buffer: &mut HostVisibleBuffer,
                      dir: &str, // by type, e.g. 'graybox'
                      name: &str)
-                     -> Result<VulkanMesh>
+                     -> Result<VulkanMesh, Error>
     {
         // Check if we already have it
         if let Some(m) = self.meshes.get(name) {
@@ -143,7 +143,7 @@ impl ResourceManager {
         commander: &Commander,
         staging_buffer: &mut HostVisibleBuffer,
         name: &str)
-        -> Result<ImageWrap>
+        -> Result<ImageWrap, Error>
     {
         // Check if we already have it
         if let Some(texref) = self.textures.get(name) {
@@ -172,17 +172,17 @@ impl ResourceManager {
                 Some(dxgi_format) => {
                     match ::format::from_dxgi(dxgi_format) {
                         Some(f) => (f, ComponentMapping::identity()),
-                        None => return Err(ErrorKind::UnsupportedFormat.into()),
+                        None => return Err(Error::UnsupportedFormat),
                     }
                 },
                 None => match dds.get_d3d_format() {
                     Some(d3d_format) => {
                         match ::format::from_d3d(d3d_format) {
                             Some(pair) => pair,
-                            None => return Err(ErrorKind::UnsupportedFormat.into()),
+                            None => return Err(Error::UnsupportedFormat),
                         }
                     },
-                    None => return Err(ErrorKind::UnsupportedFormat.into()),
+                    None => return Err(Error::UnsupportedFormat),
                 }
             }
         };
@@ -270,7 +270,7 @@ impl ResourceManager {
         staging_buffer: &mut HostVisibleBuffer,
         usage: BufferUsageFlags,
         name: &str)
-        -> Result<DeviceLocalBuffer>
+        -> Result<DeviceLocalBuffer, Error>
     {
         // Check if we already have it
         if let Some(bufref) = self.buffers.get(name) {
@@ -311,7 +311,7 @@ impl ResourceManager {
         data: &[T],
         usage: BufferUsageFlags,
         name: &str)
-        -> Result<DeviceLocalBuffer>
+        -> Result<DeviceLocalBuffer, Error>
     {
         // Check if we already have it
         if let Some(bufref) = self.buffers.get(name) {

@@ -27,7 +27,7 @@ use dacite::core::{Device, Viewport, Rect2D, RenderPass, ShaderModule,
                    PipelineDynamicStateCreateInfo, DynamicState,
                    PipelineLayoutCreateFlags,
                    SpecializationInfo, PushConstantRange};
-use errors::*;
+use error::Error;
 use super::{DepthHandling, BlendMode};
 
 pub fn create(
@@ -48,7 +48,7 @@ pub fn create(
     depth_handling: DepthHandling,
     blend: Vec<BlendMode>,
     push_constant_ranges: Vec<PushConstantRange>)
-    -> Result<(PipelineLayout, Pipeline)>
+    -> Result<(PipelineLayout, Pipeline), Error>
 {
     let layout = device.create_pipeline_layout(
         &PipelineLayoutCreateInfo {

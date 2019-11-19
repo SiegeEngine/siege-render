@@ -1,5 +1,5 @@
 
-use errors::*;
+use error::Error;
 use dacite::core::PhysicalDevice;
 use dacite::khr_surface::SurfaceKhr;
 
@@ -17,7 +17,7 @@ impl QueueIndices {
 
     pub fn new(physical_device: &PhysicalDevice,
                surface: &SurfaceKhr)
-               -> Result<QueueIndices>
+               -> Result<QueueIndices, Error>
     {
         use std::collections::HashSet;
         use dacite::core::QueueFlags;
@@ -42,16 +42,16 @@ impl QueueIndices {
             }
         }
         if p_set.len() < 1 {
-            return Err(ErrorKind::DeviceNotSuitable(
-                "No suitable presentation queue found".to_owned()).into())
+            return Err(Error::DeviceNotSuitable(
+                "No suitable presentation queue found".to_owned()))
         }
         if g_set.len() < 1 {
-            return Err(ErrorKind::DeviceNotSuitable(
-                "No suitable graphics queue found".to_owned()).into())
+            return Err(Error::DeviceNotSuitable(
+                "No suitable graphics queue found".to_owned()))
         }
         if t_set.len() < 1 {
-            return Err(ErrorKind::DeviceNotSuitable(
-                "No suitable transfer queue found".to_owned()).into())
+            return Err(Error::DeviceNotSuitable(
+                "No suitable transfer queue found".to_owned()))
         }
 
         let (transfer_family, transfer_index) = {
@@ -95,8 +95,8 @@ impl QueueIndices {
                 } else if qc >= 2 {
                     (transfer_family, 0)
                 } else {
-                    return Err(ErrorKind::DeviceNotSuitable(
-                        "Not enough queues for two graphics queues".to_owned()).into())
+                    return Err(Error::DeviceNotSuitable(
+                        "Not enough queues for two graphics queues".to_owned()))
                 }
             };
             (graphics_family, graphics_index)

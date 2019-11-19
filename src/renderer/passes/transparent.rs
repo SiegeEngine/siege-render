@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer};
-use errors::*;
+use error::Error;
 use renderer::image_wrap::ImageWrap;
 
 pub struct TransparentPass {
@@ -18,7 +18,7 @@ impl TransparentPass {
         device: &Device,
         depth_image: &ImageWrap,
         shading_image: &ImageWrap)
-        -> Result<TransparentPass>
+        -> Result<TransparentPass, Error>
     {
         let render_pass = {
             use dacite::core::{AttachmentLoadOp, AttachmentStoreOp, ImageLayout,
@@ -116,7 +116,7 @@ impl TransparentPass {
     pub fn rebuild(&mut self, device: &Device,
                    depth_image: &ImageWrap,
                    shading_image: &ImageWrap)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         let (depth_image_view, shading_image_view, framebuffer, extent) =
             build(device, self.render_pass.clone(), depth_image, shading_image)?;
@@ -162,7 +162,7 @@ impl TransparentPass {
 
 fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
          shading_image: &ImageWrap)
-    -> Result<(ImageView, ImageView, Framebuffer, Extent2D)>
+    -> Result<(ImageView, ImageView, Framebuffer, Extent2D), Error>
 {
     let depth_image_view = depth_image.get_image_view(device)?;
 

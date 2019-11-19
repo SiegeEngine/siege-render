@@ -1,7 +1,7 @@
 
 use dacite::core::{CommandBuffer, Extent2D};
 use renderer::{Params, Stats};
-use errors::*;
+use error::Error;
 
 /// This is a trait for Plugins to the Renderer.
 pub trait Plugin {
@@ -41,16 +41,16 @@ pub trait Plugin {
     ///
     /// Return true if you need to re-record your command buffers.  Otherwise
     /// return false.
-    fn update(&mut self, params: &mut Params, stats: &Stats) -> Result<bool>;
+    fn update(&mut self, params: &mut Params, stats: &Stats) -> Result<bool, Error>;
 
     /// This callback gives your plugin a chance to change GPU state based
     /// upon changed parameters or stats. Try to do most work in update(), and
     /// then change GPU state here in gpu_update(), which runs after the GPU
     /// has finished drawing the frame.
-    fn gpu_update(&mut self) -> Result<()>;
+    fn gpu_update(&mut self) -> Result<(), Error>;
 
     /// This callback is called whenever the window size changes. The window
     /// size is passed in as `extent`. Your command buffers will always be
     /// re-recorded on window resize, so no return value is required.
-    fn rebuild(&mut self, extent: Extent2D) -> Result<()>;
+    fn rebuild(&mut self, extent: Extent2D) -> Result<(), Error>;
 }

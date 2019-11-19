@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer, ClearValue, ClearColorValue};
-use errors::*;
+use error::Error;
 use renderer::image_wrap::ImageWrap;
 
 pub struct GeometryPass {
@@ -23,7 +23,7 @@ impl GeometryPass {
         normals_image: &ImageWrap,
         material_image: &ImageWrap,
         reversed_depth_buffer: bool)
-        -> Result<GeometryPass>
+        -> Result<GeometryPass, Error>
     {
         let render_pass = {
             use dacite::core::{AttachmentLoadOp, AttachmentStoreOp, ImageLayout,
@@ -149,7 +149,7 @@ impl GeometryPass {
     pub fn rebuild(&mut self, device: &Device, depth_image: &ImageWrap,
                    diffuse_image: &ImageWrap, normals_image: &ImageWrap,
                    material_image: &ImageWrap)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         let (depth_image_view, diffuse_image_view, normals_image_view,
              material_image_view, framebuffer, extent) = build(
@@ -197,7 +197,7 @@ impl GeometryPass {
 fn build(device: &Device, render_pass: RenderPass, depth_image: &ImageWrap,
          diffuse_image: &ImageWrap, normals_image: &ImageWrap,
          material_image: &ImageWrap)
-    -> Result<(ImageView, ImageView, ImageView, ImageView, Framebuffer, Extent2D)>
+    -> Result<(ImageView, ImageView, ImageView, ImageView, Framebuffer, Extent2D), Error>
 {
     let depth_image_view = depth_image.get_image_view(device)?;
     let diffuse_image_view = diffuse_image.get_image_view(device)?;

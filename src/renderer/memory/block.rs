@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use dacite::core::DeviceMemory;
 use super::_stride;
-use errors::*;
+use error::Error;
 
 #[derive(Debug, Clone)]
 pub struct Block {
@@ -59,10 +59,10 @@ impl Block {
 
     // offset is measured in "count of T's plus alignment padding", not in bytes.
     pub fn write_one<T: Copy>(&mut self, data: &T, offset: Option<usize>)
-                              -> Result<()>
+                              -> Result<(), Error>
     {
         let ptr = match self.ptr {
-            None => return Err(ErrorKind::MemoryNotHostWritable.into()),
+            None => return Err(Error::MemoryNotHostWritable),
             Some(rpu) => rpu
         };
 
@@ -84,10 +84,10 @@ impl Block {
 
     // offset is measured in "count of T's plus alignment padding", not in bytes.
     pub fn write_array<T: Copy>(&mut self, data: &[T], offset: Option<usize>)
-                                -> Result<()>
+                                -> Result<(), Error>
     {
         let ptr = match self.ptr {
-            None => return Err(ErrorKind::MemoryNotHostWritable.into()),
+            None => return Err(Error::MemoryNotHostWritable),
             Some(rpu) => rpu
         };
 

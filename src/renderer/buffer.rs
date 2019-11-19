@@ -1,5 +1,5 @@
 
-use errors::*;
+use error::Error;
 use std::io::{Write, Read};
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
                    BufferCopy, OptionalDeviceSize, Format, BufferView,
@@ -15,7 +15,7 @@ fn _new(
     lifetime: Lifetime,
     reason: &str,
     flags: MemoryPropertyFlags)
-    -> Result<(Buffer, Block)>
+    -> Result<(Buffer, Block), Error>
 {
     let buffer = {
         use dacite::core::{BufferCreateInfo, SharingMode};
@@ -64,7 +64,7 @@ impl HostVisibleBuffer {
         usage: BufferUsageFlags,
         lifetime: Lifetime,
         reason: &str)
-        -> Result<HostVisibleBuffer>
+        -> Result<HostVisibleBuffer, Error>
     {
         let stride = memory.stride(::std::mem::size_of::<T>(), Some(usage));
         let size = (count * stride) as u64;
@@ -95,13 +95,13 @@ impl HostVisibleBuffer {
     }
 
     pub fn write_one<T: Copy>(&mut self, data: &T, offset: Option<usize>)
-                          -> Result<()>
+                          -> Result<(), Error>
     {
         self.block.write_one(data, offset)
     }
 
     pub fn write_array<T: Copy>(&mut self, data: &[T], offset: Option<usize>)
-                                -> Result<()>
+                                -> Result<(), Error>
     {
         self.block.write_array(data, offset)
     }
@@ -136,7 +136,7 @@ impl DeviceLocalBuffer {
         usage: BufferUsageFlags,
         lifetime: Lifetime,
         reason: &str)
-        -> Result<DeviceLocalBuffer>
+        -> Result<DeviceLocalBuffer, Error>
     {
         let stride = memory.stride(::std::mem::size_of::<T>(), Some(usage));
         let size = (count * stride) as u64;
@@ -167,7 +167,7 @@ impl DeviceLocalBuffer {
         mut usage: BufferUsageFlags,
         lifetime: Lifetime,
         reason: &str)
-        -> Result<DeviceLocalBuffer>
+        -> Result<DeviceLocalBuffer, Error>
     {
         let stride = memory.stride(::std::mem::size_of::<T>(), Some(usage));
         let size = (data.len() * stride) as u64;
@@ -206,7 +206,7 @@ impl DeviceLocalBuffer {
         staging_buffer: &mut HostVisibleBuffer,
         usage: BufferUsageFlags,
         lifetime: Lifetime,
-        reason: &str) -> Result<DeviceLocalBuffer>
+        reason: &str) -> Result<DeviceLocalBuffer, Error>
     {
         // Copy data into staging buffer
         let size: u64 = ::std::io::copy(src, staging_buffer)?;
@@ -248,7 +248,7 @@ impl DeviceLocalBuffer {
         staging_buffer: &HostVisibleBuffer<u8>,
         data: &[T],
         offset: u64)
-        -> Result<()>
+        -> Result<(), Error>
     {
         let size = ::std::mem::size_of_val(data) as u64;
         assert!(size <= staging_buffer.size);
@@ -272,7 +272,7 @@ impl DeviceLocalBuffer {
     }
      */
 
-    pub fn get_buffer_view(&self, device: &Device, format: Format) -> Result<BufferView>
+    pub fn get_buffer_view(&self, device: &Device, format: Format) -> Result<BufferView, Error>
     {
         Ok(device.create_buffer_view(
             &BufferViewCreateInfo {
@@ -294,7 +294,7 @@ fn copy(
     src: &Buffer,
     dest: &Buffer,
     regions: &[BufferCopy])
-    -> Result<()>
+    -> Result<(), Error>
 {
     use dacite::core::{CommandBufferResetFlags, CommandBufferBeginInfo,
                        CommandBufferUsageFlags,

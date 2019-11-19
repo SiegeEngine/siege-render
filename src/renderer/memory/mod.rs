@@ -13,7 +13,7 @@ use dacite::core::{Device, PhysicalDeviceMemoryProperties,
                    MemoryRequirements, MemoryPropertyFlags,
                    BufferUsageFlags, MemoryType, DeviceMemory};
 
-use errors::*;
+use error::Error;
 use self::chunk::Chunk;
 
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +29,7 @@ pub enum Linearity {
     Nonlinear = 1,
 }
 impl Display for Linearity {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             Linearity::Linear => write!(f, "Linear"),
             Linearity::Nonlinear => write!(f, "Nonlinear"),
@@ -75,7 +75,7 @@ impl Memory {
         memory_requirements: &MemoryRequirements,
         memory_property_flags: MemoryPropertyFlags,
         reason: &str)
-        -> Result<DeviceMemory>
+        -> Result<DeviceMemory, Error>
     {
         use dacite::core::MemoryAllocateInfo;
 
@@ -83,7 +83,7 @@ impl Memory {
         let memory_type_index = self.find_memory_type_index(
             memory_requirements.memory_type_bits, memory_property_flags);
         let memory_type_index = match memory_type_index {
-            None => return Err(ErrorKind::OutOfGraphicsMemory.into()),
+            None => return Err(Error::OutOfGraphicsMemory),
             Some(i) => i,
         };
         let memory_type = self.memory_properties.memory_types[memory_type_index as usize];
@@ -115,7 +115,7 @@ impl Memory {
         linearity: Linearity,
         lifetime: Lifetime,
         reason: &str)
-        -> Result<Block>
+        -> Result<Block, Error>
     {
         let l = linearity as usize;
 
@@ -129,7 +129,7 @@ impl Memory {
         let memory_type_index = self.find_memory_type_index(
             memory_requirements.memory_type_bits, memory_property_flags);
         let memory_type_index = match memory_type_index {
-            None => return Err(ErrorKind::OutOfGraphicsMemory.into()),
+            None => return Err(Error::OutOfGraphicsMemory),
             Some(i) => i,
         };
         let memory_type = self.memory_properties.memory_types[memory_type_index as usize];
@@ -176,7 +176,7 @@ impl Memory {
             assert!(block.offset_in_chunk + block.size <= CHUNK_SIZE);
             Ok(block)
         } else {
-            Err(ErrorKind::OutOfGraphicsMemory.into())
+            Err(Error::OutOfGraphicsMemory)
         }
     }
 
@@ -256,7 +256,7 @@ impl Memory {
     }
 
     // This only flushes dirty chunks
-    pub fn flush(&self) -> Result<()> {
+    pub fn flush(&self) -> Result<(), Error> {
         for (_, chunkvec) in &self.chunks[0] {
             for (_, chunk) in chunkvec.iter().enumerate() {
                 chunk.flush()?;

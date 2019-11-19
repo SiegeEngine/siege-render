@@ -2,7 +2,7 @@
 use dacite::core::{PhysicalDevice, Device, Extent2D, Format, SharingMode};
 use dacite::khr_surface::{SurfaceKhr, ColorSpaceKhr};
 use dacite::khr_swapchain::SwapchainKhr;
-use errors::*;
+use error::Error;
 use super::setup::QueueIndices;
 use super::surface_data::SurfaceData;
 use super::image_wrap::{ImageWrap, ImageWrapType};
@@ -22,7 +22,7 @@ impl SwapchainData {
                   surface: &SurfaceKhr,
                   preferred_extent: Extent2D,
                   queue_indices: &QueueIndices)
-                  -> Result<SwapchainData>
+                  -> Result<SwapchainData, Error>
     {
         let surface_data = SurfaceData::create(physical_device, surface)?;
 
@@ -79,7 +79,7 @@ impl SwapchainData {
                    physical_device: &PhysicalDevice,
                    device: &Device,
                    surface: &SurfaceKhr)
-                   -> Result<()>
+                   -> Result<(), Error>
     {
         // Update surface data
         self.surface_data.update(physical_device, surface)?;
@@ -141,7 +141,7 @@ fn build_images(
     swapchain: &SwapchainKhr,
     extent: Extent2D,
     format: Format)
-    -> Result<Vec<ImageWrap>>
+    -> Result<Vec<ImageWrap>, Error>
 {
     use dacite::core::{ComponentMapping, ImageUsageFlags, ImageTiling,
                        Extent3D};

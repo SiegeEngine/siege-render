@@ -5,7 +5,7 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
                    CullModeFlags, FrontFace, ShaderModuleCreateFlags,
                    ShaderModuleCreateInfo, ShaderModule};
-use errors::*;
+use error::*;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
 
@@ -32,7 +32,7 @@ impl BlurGfx {
                viewport: Viewport,
                scissors: Rect2D,
                params_layout: DescriptorSetLayout)
-               -> Result<BlurGfx>
+               -> Result<BlurGfx, Error>
     {
         let sampler = {
             use dacite::core::{SamplerCreateInfo, SamplerMipmapMode, SamplerAddressMode,
@@ -164,7 +164,7 @@ impl BlurGfx {
     }
 
     pub fn rebuild(&mut self, device: &Device, target_data: &TargetData)
-        -> Result<()>
+        -> Result<(), Error>
     {
         self.shading_image_view = target_data.shading_image.
             get_image_view(device)?;
@@ -257,7 +257,7 @@ impl BlurGfx {
     }
 }
 
-fn vertex_shader_h(device: &Device) -> Result<ShaderModule>
+fn vertex_shader_h(device: &Device) -> Result<ShaderModule, Error>
 {
     let bytes: &[u8] = glsl_vs!(r#"
 #version 450
@@ -288,7 +288,7 @@ void main()
     Ok(device.create_shader_module(&create_info, None)?)
 }
 
-fn fragment_shader_h(device: &Device) -> Result<ShaderModule>
+fn fragment_shader_h(device: &Device) -> Result<ShaderModule, Error>
 {
     let bytes: &[u8] = glsl_fs!(r#"
 #version 450
@@ -395,7 +395,7 @@ void main()
     Ok(device.create_shader_module(&create_info, None)?)
 }
 
-fn vertex_shader_v(device: &Device) -> Result<ShaderModule>
+fn vertex_shader_v(device: &Device) -> Result<ShaderModule, Error>
 {
     let bytes: &[u8] = glsl_vs!(r#"
 #version 450
@@ -426,7 +426,7 @@ void main()
     Ok(device.create_shader_module(&create_info, None)?)
 }
 
-fn fragment_shader_v(device: &Device) -> Result<ShaderModule>
+fn fragment_shader_v(device: &Device) -> Result<ShaderModule, Error>
 {
     let bytes: &[u8] = glsl_fs!(r#"
 #version 450
