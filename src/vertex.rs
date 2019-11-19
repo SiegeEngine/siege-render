@@ -10,7 +10,7 @@ macro_rules! offset_of {
         {
             #[allow(unused_unsafe)]
             unsafe {
-                let b: $base = ::std::mem::uninitialized();
+                let b: $base = ::std::mem::MaybeUninit::uninit().assume_init();
                 (&b.$field as *const _ as isize) - (&b as *const _ as isize)
             }
         }
