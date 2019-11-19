@@ -186,7 +186,7 @@ pub fn create_device(physical_device: &PhysicalDevice,
                         (queue_indices.present_family, queue_indices.present_index),
                         (queue_indices.transfer_family, queue_indices.transfer_index)]
     {
-        let mut entry = queues.entry(fam).or_insert(ind);
+        let entry = queues.entry(fam).or_insert(ind);
         if *entry < ind {  *entry = ind; }
     }
 
