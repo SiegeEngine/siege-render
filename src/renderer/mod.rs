@@ -594,7 +594,6 @@ impl Renderer {
     {
         let layout = self.device.create_descriptor_set_layout(&create_info, None)?;
 
-        use dacite::core::DescriptorSetAllocateInfo;
         let alloc_info = DescriptorSetAllocateInfo {
             descriptor_pool: self.descriptor_pool.clone(),
             set_layouts: vec![layout.clone()],
@@ -797,8 +796,7 @@ impl Renderer {
 
     fn start_render(&mut self) -> Result<usize, Error>
     {
-        use std::time::Duration;
-        use dacite::core::{Timeout, SubmitInfo, PipelineStageFlags};
+        use dacite::core::{SubmitInfo, PipelineStageFlags};
         use dacite::khr_swapchain::{AcquireNextImageResultKhr, PresentInfoKhr};
 
         // Get next image

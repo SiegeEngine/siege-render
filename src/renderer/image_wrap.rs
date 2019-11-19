@@ -140,7 +140,7 @@ impl ImageWrap {
     pub fn get_image_view(&self, device: &Device) -> Result<ImageView, Error>
     {
         use dacite::core::{ImageViewCreateInfo, ImageViewType,
-                           ImageSubresourceRange, ImageAspectFlags,
+                           ImageAspectFlags,
                            OptionalMipLevels, OptionalArrayLayers};
 
         let create_info = ImageViewCreateInfo {
@@ -274,7 +274,7 @@ impl ImageWrap {
         use dacite::core::{CommandBufferBeginInfo, CommandBufferUsageFlags,
                            CommandBufferResetFlags,
                            ImageMemoryBarrier, QueueFamilyIndex,
-                           PipelineStageFlags, DependencyFlags,
+                           DependencyFlags,
                            FenceCreateInfo, FenceCreateFlags,
                            SubmitInfo, Timeout, ImageAspectFlags, OptionalMipLevels,
                            OptionalArrayLayers, BufferImageCopy,

@@ -23,7 +23,7 @@ pub trait VulkanVertex {
 
 impl VulkanVertex for ColoredVertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {
@@ -62,7 +62,7 @@ impl VulkanVertex for ColoredVertex {
 
 impl VulkanVertex for StandardVertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {
@@ -101,7 +101,7 @@ impl VulkanVertex for StandardVertex {
 
 impl VulkanVertex for GuiRectangleVertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {
@@ -128,7 +128,7 @@ impl VulkanVertex for GuiRectangleVertex {
 
 impl VulkanVertex for GrayboxVertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {
@@ -161,7 +161,7 @@ impl VulkanVertex for GrayboxVertex {
 
 impl VulkanVertex for CheapV1Vertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {
@@ -200,7 +200,7 @@ impl VulkanVertex for CheapV1Vertex {
 
 impl VulkanVertex for CheapV2Vertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {
@@ -245,7 +245,7 @@ impl VulkanVertex for CheapV2Vertex {
 
 impl VulkanVertex for StarVertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {
@@ -278,7 +278,7 @@ impl VulkanVertex for StarVertex {
 
 impl VulkanVertex for CubemapVertex {
     fn get_input_state_create_info() -> PipelineVertexInputStateCreateInfo {
-        use dacite::core::{PipelineVertexInputStateCreateInfo, VertexInputBindingDescription,
+        use dacite::core::{VertexInputBindingDescription,
                            VertexInputRate, VertexInputAttributeDescription};
 
         PipelineVertexInputStateCreateInfo {

@@ -373,10 +373,7 @@ fn build_images(
     extent: Extent2D)
     -> Result<(ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap, ImageWrap), Error>
 {
-    use dacite::core::{ComponentMapping, ImageUsageFlags, ImageLayout, ImageTiling,
-                       AccessFlags, PipelineStageFlags, ImageAspectFlags,
-                       OptionalMipLevels, OptionalArrayLayers, Extent3D,
-                       ImageSubresourceRange};
+    use dacite::core::{ComponentMapping, ImageUsageFlags, ImageTiling, Extent3D};
 
     let mut make = |format,iwtype,usage,name| {
         ImageWrap::new(

@@ -72,7 +72,7 @@ impl PostGfx {
             get_image_view(device)?;
 
         let desc_bindings = {
-            use dacite::core::{DescriptorType, ShaderStageFlags};
+            use dacite::core::ShaderStageFlags;
             vec![
                 DescriptorSetLayoutBinding {
                     binding: 0,

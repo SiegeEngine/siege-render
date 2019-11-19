@@ -91,7 +91,7 @@ pub fn setup_debug_callback(config: &Config, instance: &Instance)
 {
     if config.vulkan_debug_output {
         use dacite::ext_debug_report::{
-            DebugReportCallbackCreateInfoExt, DebugReportFlagsExt};
+            DebugReportCallbackCreateInfoExt};
 
         let flags = {
             let mut flags = DebugReportFlagsExt::ERROR;

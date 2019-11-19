@@ -159,8 +159,6 @@ impl Chunk {
                   element_alignment: u64, reason: &str,
                   insert_block_at: Option<usize>) -> Block
     {
-        use dacite::core::MemoryPropertyFlags;
-
         let ptr = match self.mapped_memory {
             None => None,
             Some(ref mm) => Some( unsafe {

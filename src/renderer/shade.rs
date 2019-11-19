@@ -65,7 +65,7 @@ impl ShadeGfx {
         let material_image_view = target_data.material_image.get_image_view(device)?;
 
         let desc_bindings = {
-            use dacite::core::{DescriptorType, ShaderStageFlags};
+            use dacite::core::ShaderStageFlags;
             vec![
                 DescriptorSetLayoutBinding {
                     binding: 0,
