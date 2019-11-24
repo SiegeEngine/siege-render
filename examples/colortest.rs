@@ -1,6 +1,6 @@
 
-#[macro_use] extern crate log;
-#[macro_use] extern crate simple_logger;
+extern crate log;
+extern crate simple_logger;
 extern crate siege_render;
 extern crate winit;
 extern crate dacite;
@@ -11,7 +11,7 @@ use std::sync::atomic::AtomicBool;
 use winit::EventsLoop;
 
 use dacite::core::{Pipeline, PipelineBindPoint,
-                   CommandBuffer, PipelineLayout,
+                   CommandBuffer, //PipelineLayout,
                    PrimitiveTopology, CullModeFlags, FrontFace,
                    Extent2D};
 use siege_render::{Renderer, Pass, BlendMode, Plugin,
@@ -36,7 +36,7 @@ pub fn main() {
     let arc_window = {
         use winit::WindowBuilder;
 
-        let mut builder = WindowBuilder::new()
+        let builder = WindowBuilder::new()
             .with_title("Siege Render Example")
             .with_visibility(false) // will be turned on when graphics are ready
             .with_transparency(false)
@@ -57,19 +57,19 @@ pub fn main() {
 
     let colortest = Colortest::new(&mut renderer);
 
-    renderer.plugin(Box::new(colortest));
+    renderer.plugin(Box::new(colortest)).unwrap();
 
-    renderer.run();
+    renderer.run().unwrap();
 }
 
 pub struct Colortest {
     pipeline: Pipeline,
-    pipeline_layout: PipelineLayout,
+    //pipeline_layout: PipelineLayout,
 }
 
 impl Colortest {
     fn new(renderer: &mut Renderer) -> Colortest {
-        let (pipeline_layout, pipeline) = renderer.create_pipeline(
+        let (_pipeline_layout, pipeline) = renderer.create_pipeline(
             PipelineSetup {
                 desc_set_layouts: vec![],
                 vertex_shader: Some("colortest.vert"),
@@ -89,7 +89,7 @@ impl Colortest {
 
         Colortest {
             pipeline: pipeline,
-            pipeline_layout: pipeline_layout,
+            //pipeline_layout: pipeline_layout,
         }
     }
 }
