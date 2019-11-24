@@ -1,7 +1,7 @@
 
 use std::path::PathBuf;
 use std::fmt;
-use renderer::{VulkanLogLevel, Tonemapper};
+use crate::renderer::{VulkanLogLevel, Tonemapper};
 use serde::Deserialize;
 
 #[inline] fn default_app_name() -> String { "Unspecified".to_owned() }

@@ -1,5 +1,5 @@
 
-use error::Error;
+use crate::error::Error;
 use dacite::core::{PhysicalDevice, Extent2D, Format};
 use dacite::khr_surface::{SurfaceKhr, SurfaceCapabilitiesKhr,
                           SurfaceFormatKhr, PresentModeKhr,

@@ -2,7 +2,7 @@
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use separator::Separatable;
-use error::Error;
+use crate::error::Error;
 use dacite::core::{Device, DeviceMemory, MappedMemory, MemoryType, MemoryPropertyFlags,
                    OptionalDeviceSize};
 use super::block::Block;

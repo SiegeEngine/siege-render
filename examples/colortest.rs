@@ -1,10 +1,4 @@
 
-extern crate log;
-extern crate simple_logger;
-extern crate siege_render;
-extern crate winit;
-extern crate dacite;
-
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 

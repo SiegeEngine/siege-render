@@ -13,7 +13,7 @@ use dacite::core::{Device, PhysicalDeviceMemoryProperties,
                    MemoryRequirements, MemoryPropertyFlags,
                    BufferUsageFlags, MemoryType, DeviceMemory};
 
-use error::Error;
+use crate::error::Error;
 use self::chunk::Chunk;
 
 #[derive(Debug, Clone, Copy)]

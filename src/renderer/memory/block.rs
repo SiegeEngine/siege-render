@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use dacite::core::DeviceMemory;
 use super::_stride;
-use error::Error;
+use crate::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct Block {

@@ -2,7 +2,7 @@
 use dacite::core::{PhysicalDevice, Device, Extent2D, Format, SharingMode};
 use dacite::khr_surface::{SurfaceKhr, ColorSpaceKhr};
 use dacite::khr_swapchain::SwapchainKhr;
-use error::Error;
+use crate::error::Error;
 use super::setup::QueueIndices;
 use super::surface_data::SurfaceData;
 use super::image_wrap::{ImageWrap, ImageWrapType};

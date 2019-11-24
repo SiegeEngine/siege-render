@@ -1,7 +1,7 @@
 
 use dacite::core::{CommandBuffer, Extent2D};
-use renderer::{Params, Stats};
-use error::Error;
+use crate::renderer::{Params, Stats};
+use crate::error::Error;
 
 /// This is a trait for Plugins to the Renderer.
 pub trait Plugin {

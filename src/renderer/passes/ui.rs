@@ -1,9 +1,9 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer};
-use error::Error;
-use renderer::swapchain_data::SwapchainData;
-use renderer::image_wrap::ImageWrap;
+use crate::error::Error;
+use crate::renderer::swapchain_data::SwapchainData;
+use crate::renderer::image_wrap::ImageWrap;
 
 pub struct UiPass {
     pub framebuffers: Vec<Framebuffer>,

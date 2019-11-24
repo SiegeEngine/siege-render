@@ -5,10 +5,10 @@ use dacite::core::{Instance, PhysicalDevice, PhysicalDeviceProperties,
                    DeviceExtensionsProperties, Format, FormatProperties};
 use dacite::khr_surface::SurfaceKhr;
 
-use error::Error;
+use crate::error::Error;
 use super::requirements::*;
 use super::QueueIndices;
-use config::Config;
+use crate::config::Config;
 
 pub struct Physical {
     pub physical_device: PhysicalDevice,

@@ -1,7 +1,7 @@
 
 use std::time::{Instant, Duration};
 use dacite::core::QueryResult;
-use renderer::{Timestamp, TS_QUERY_COUNT};
+use crate::renderer::{Timestamp, TS_QUERY_COUNT};
 
 #[derive(Debug, Clone)]
 pub struct Timings {

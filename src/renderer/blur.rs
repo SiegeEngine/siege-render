@@ -5,7 +5,7 @@ use dacite::core::{Device, DescriptorPool, DescriptorSet, DescriptorSetLayout,
                    PipelineBindPoint, Pipeline, PipelineLayout, PrimitiveTopology,
                    CullModeFlags, FrontFace, ShaderModuleCreateFlags,
                    ShaderModuleCreateInfo, ShaderModule};
-use error::*;
+use crate::error::*;
 use super::target_data::TargetData;
 use super::{DepthHandling, BlendMode};
 

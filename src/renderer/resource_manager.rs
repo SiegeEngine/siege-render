@@ -1,5 +1,5 @@
 
-use error::Error;
+use crate::error::Error;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -170,14 +170,14 @@ impl ResourceManager {
         let (format, component_mapping) = {
             match dds.get_dxgi_format() {
                 Some(dxgi_format) => {
-                    match ::format::from_dxgi(dxgi_format) {
+                    match crate::format::from_dxgi(dxgi_format) {
                         Some(f) => (f, ComponentMapping::identity()),
                         None => return Err(Error::UnsupportedFormat),
                     }
                 },
                 None => match dds.get_d3d_format() {
                     Some(d3d_format) => {
-                        match ::format::from_d3d(d3d_format) {
+                        match crate::format::from_d3d(d3d_format) {
                             Some(pair) => pair,
                             None => return Err(Error::UnsupportedFormat),
                         }

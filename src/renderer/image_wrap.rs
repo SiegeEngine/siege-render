@@ -1,5 +1,5 @@
 
-use error::Error;
+use crate::error::Error;
 use dacite::core::{Image, Format, ImageUsageFlags, Device, ImageView,
                    Extent3D, ImageLayout, ImageTiling, AccessFlags,
                    ImageSubresourceRange, Buffer, PipelineStageFlags,

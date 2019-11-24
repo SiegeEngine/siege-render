@@ -18,9 +18,9 @@ use dacite_winit::WindowExt;
 use winit::Window;
 
 use self::requirements::FEATURES_NEEDED;
-use config::Config;
-use error::Error;
-use renderer::VulkanLogLevel;
+use crate::config::Config;
+use crate::error::Error;
+use crate::renderer::VulkanLogLevel;
 
 pub fn setup_instance(config: &Config, window: &Window) -> Result<Instance, Error>
 {

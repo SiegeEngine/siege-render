@@ -1,7 +1,7 @@
 
 use dacite::core::{Device, Queue, CommandPool, CommandBuffer};
 
-use error::Error;
+use crate::error::Error;
 use super::setup::QueueIndices;
 
 pub struct Commander {

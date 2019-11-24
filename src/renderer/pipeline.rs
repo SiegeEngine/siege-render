@@ -27,7 +27,7 @@ use dacite::core::{Device, Viewport, Rect2D, RenderPass, ShaderModule,
                    PipelineDynamicStateCreateInfo, DynamicState,
                    PipelineLayoutCreateFlags,
                    SpecializationInfo, PushConstantRange};
-use error::Error;
+use crate::error::Error;
 use super::{DepthHandling, BlendMode};
 
 pub fn create(

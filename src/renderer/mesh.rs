@@ -1,5 +1,5 @@
 
-use error::*;
+use crate::error::*;
 use dacite::core::Device;
 use siege_math::Point3;
 use siege_mesh::{Mesh, Vertex};

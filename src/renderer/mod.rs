@@ -60,8 +60,8 @@ use self::shade::ShadeGfx;
 use self::post::PostGfx;
 use self::blur::BlurGfx;
 use super::plugin::Plugin;
-use error::Error;
-use config::Config;
+use crate::error::Error;
+use crate::config::Config;
 
 #[derive(Deserialize, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
@@ -245,7 +245,7 @@ impl Renderer {
 
         let staging_buffer = HostVisibleBuffer::new::<u8>(
             &device, &mut memory,
-            ::renderer::setup::requirements::MAX_GPU_UPLOAD as usize,
+            crate::renderer::setup::requirements::MAX_GPU_UPLOAD as usize,
             BufferUsageFlags::TRANSFER_SRC,
             Lifetime::Permanent, "Staging Buffer"
         )?;

@@ -6,7 +6,7 @@
 use dacite::core::{PhysicalDeviceFeatures, Format, FormatProperties};
 
 // This is used to determine the size of the staging buffer
-pub const MAX_GPU_UPLOAD: u64 = ::renderer::memory::CHUNK_SIZE;
+pub const MAX_GPU_UPLOAD: u64 = crate::renderer::memory::CHUNK_SIZE;
 
 // This is the most common depth format supported on graphics hardware.
 // (see http://vulkan.gpuinfo.org) and it is a good resolution, and it is

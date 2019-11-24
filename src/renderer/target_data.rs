@@ -3,7 +3,7 @@ use dacite::core::{Device, Extent2D, CommandBuffer, ImageLayout, AccessFlags,
                    PipelineStageFlags, ImageAspectFlags, OptionalMipLevels,
                    OptionalArrayLayers, ImageSubresourceRange, ImageMemoryBarrier,
                    QueueFamilyIndex, DependencyFlags};
-use error::Error;
+use crate::error::Error;
 use super::image_wrap::{ImageWrap, ImageWrapType};
 use super::memory::{Memory, Lifetime};
 use super::commander::Commander;

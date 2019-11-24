@@ -1,5 +1,5 @@
 
-use error::Error;
+use crate::error::Error;
 use std::io::{Write, Read};
 use dacite::core::{Buffer, Device, BufferUsageFlags, MemoryPropertyFlags,
                    BufferCopy, OptionalDeviceSize, Format, BufferView,

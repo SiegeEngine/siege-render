@@ -1,8 +1,8 @@
 
 use dacite::core::{Device, RenderPass, Framebuffer, Extent2D, ImageView,
                    CommandBuffer, ClearValue, ClearColorValue};
-use error::Error;
-use renderer::image_wrap::ImageWrap;
+use crate::error::Error;
+use crate::renderer::image_wrap::ImageWrap;
 
 pub struct ShadingPass {
     pub framebuffer: Framebuffer,
