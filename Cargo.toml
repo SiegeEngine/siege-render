@@ -17,7 +17,7 @@ chrono = { version="0.4", features = [ "serde" ] }
 glsl-to-spirv = "0.1"
 glsl-to-spirv-macros = "0.1"
 glsl-to-spirv-macros-impl = "0.1"
-separator = "0.3"
+separator = "0.4"
 dacite = { git = "https://gitlab.com/mikedilger/dacite.git" }
 dacite-winit = { git = "https://gitlab.com/mikedilger/dacite.git" }
 ddsfile = { git = "https://github.com/SiegeEngine/ddsfile" }
